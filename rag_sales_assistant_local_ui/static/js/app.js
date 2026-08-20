@@ -433,7 +433,7 @@ function setupSpeechRecognition() {
   };
 
   state.recognition.onend = () => {
-    if (state.isListening || state.continuousVad) {
+    if (state.isListening || state.continuousVad || state.isMeetingStreaming) {
       try { state.recognition.start(); } catch (e) {}
     } else {
       stopListening();
@@ -478,9 +478,9 @@ async function startMeetingAudioStream() {
           }
         });
         
-        // Disable video track right away to keep CPU load low and focus purely on audio
+        // Mute video track to save CPU without terminating the underlying display media stream
         stream.getVideoTracks().forEach(track => {
-          track.stop();
+          track.enabled = false;
         });
       }
     } else {
@@ -489,7 +489,7 @@ async function startMeetingAudioStream() {
     }
 
     if (!stream || stream.getAudioTracks().length === 0) {
-      showToast('⚠️ No audio track detected. Make sure "Share tab audio" is enabled.');
+      showToast('⚠️ No audio track detected. Make sure "Also share tab audio" is checked.');
       return;
     }
 
@@ -497,10 +497,12 @@ async function startMeetingAudioStream() {
     state.isMeetingStreaming = true;
 
     // Listen for user stopping share from browser banner
-    stream.getAudioTracks()[0].addEventListener('ended', () => {
-      stopMeetingAudioStream();
-      showToast('Meeting audio stream stopped');
-    });
+    if (stream.getAudioTracks()[0]) {
+      stream.getAudioTracks()[0].addEventListener('ended', () => {
+        stopMeetingAudioStream();
+        showToast('Meeting audio stream ended');
+      });
+    }
 
     // Setup MediaRecorder for streaming chunks
     let mimeType = 'audio/webm;codecs=opus';
@@ -518,12 +520,16 @@ async function startMeetingAudioStream() {
         if (state.ws && state.ws.readyState === WebSocket.OPEN) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            const base64data = reader.result.split(',')[1];
-            state.ws.send(JSON.stringify({
-              type: 'audio_chunk',
-              audio_base64: base64data,
-              format: mimeType.includes('webm') ? 'webm' : 'wav'
-            }));
+            if (typeof reader.result === 'string' && reader.result.includes(',')) {
+              const base64data = reader.result.split(',')[1];
+              if (base64data && base64data.length > 50 && state.ws && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(JSON.stringify({
+                  type: 'audio_chunk',
+                  audio_base64: base64data,
+                  format: mimeType.includes('webm') ? 'webm' : 'wav'
+                }));
+              }
+            }
           };
           reader.readAsDataURL(e.data);
         }
