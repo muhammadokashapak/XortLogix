@@ -303,41 +303,68 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not audio_fmt.startswith("."):
                     audio_fmt = f".{audio_fmt}"
 
-                if audio_b64:
-                    raw_audio = base64.b64decode(audio_b64)
-                    stt_res = await stt_engine.transcribe_async(raw_audio, suffix=audio_fmt)
-                    
-                    if stt_res.get("success") and stt_res.get("text"):
-                        transcribed_text = stt_res["text"].strip()
-                        if len(transcribed_text) >= 3:
-                            await websocket.send_json({
-                                "type": "transcription_complete",
-                                "text": transcribed_text,
-                                "stt_latency_ms": stt_res.get("latency_ms", 0)
-                            })
-
-                            # 1. Multi-strategy search for extension
-                            ext_results = await asyncio.to_thread(rag_engine.query_multi, transcribed_text, 5)
-                            await websocket.send_json({
-                                "type": "extension_strategies",
-                                "data": ext_results
-                            })
-
-                            # 2. Single strategy for standard UI
-                            rag_res = await asyncio.to_thread(rag_engine.query, transcribed_text)
-                            rag_res["stt_latency_ms"] = stt_res.get("latency_ms", 0)
-                            rag_res["total_latency_ms"] += rag_res["stt_latency_ms"]
+                if audio_b64 and isinstance(audio_b64, str) and len(audio_b64.strip()) > 10:
+                    try:
+                        # Clean data URL prefix if present
+                        if "," in audio_b64:
+                            audio_b64 = audio_b64.split(",", 1)[1]
+                        
+                        audio_b64 = audio_b64.strip().replace("\n", "").replace("\r", "")
+                        
+                        # Add missing base64 padding
+                        missing_padding = len(audio_b64) % 4
+                        if missing_padding:
+                            audio_b64 += "=" * (4 - missing_padding)
                             
+                        raw_audio = base64.b64decode(audio_b64)
+                    except Exception as b64_err:
+                        logger.warning(f"Skipping malformed base64 audio frame: {b64_err}")
+                        continue
+
+                    try:
+                        stt_res = await stt_engine.transcribe_async(raw_audio, suffix=audio_fmt)
+                        
+                        if stt_res.get("success") and stt_res.get("text"):
+                            transcribed_text = stt_res["text"].strip()
+                            if len(transcribed_text) >= 3:
+                                await websocket.send_json({
+                                    "type": "transcription_complete",
+                                    "text": transcribed_text,
+                                    "stt_latency_ms": stt_res.get("latency_ms", 0)
+                                })
+
+                                # 1. Multi-strategy search for extension
+                                ext_results = await asyncio.to_thread(rag_engine.query_multi, transcribed_text, 5)
+                                await websocket.send_json({
+                                    "type": "extension_strategies",
+                                    "data": ext_results
+                                })
+
+                                # 2. Single strategy for standard UI
+                                rag_res = await asyncio.to_thread(rag_engine.query, transcribed_text)
+                                rag_res["stt_latency_ms"] = stt_res.get("latency_ms", 0)
+                                rag_res["total_latency_ms"] += rag_res["stt_latency_ms"]
+                                
+                                await websocket.send_json({
+                                    "type": "battlecard_response",
+                                    "data": rag_res
+                                })
+
+                                # 3. Intent Strategy response for real-time live objection decider
+                                intent_res = await asyncio.to_thread(rag_engine.analyze_intent, transcribed_text)
+                                await websocket.send_json({
+                                    "type": "intent_strategy_response",
+                                    "data": intent_res
+                                })
+                        else:
                             await websocket.send_json({
-                                "type": "battlecard_response",
-                                "data": rag_res
+                                "type": "stage_update",
+                                "stage": "idle",
+                                "error": stt_res.get("error", "No speech detected.")
                             })
-                    else:
-                        await websocket.send_json({
-                            "type": "stage_update",
-                            "stage": "idle",
-                            "error": stt_res.get("error", "No speech detected.")
-                        })
+                    except Exception as trans_err:
+                        logger.warning(f"Audio transcription error: {trans_err}")
+                        continue
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
