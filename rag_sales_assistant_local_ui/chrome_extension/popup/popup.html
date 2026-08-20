@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>Sales Co-Pilot</title>
+</head>
+<body>
+  <!-- Header -->
+  <div class="popup-header">
+    <div class="logo-section">
+      <span class="logo-icon">🎯</span>
+      <span class="logo-text">Sales Co-Pilot</span>
+    </div>
+    <span id="backendStatus" class="status-badge offline">🔴 Offline</span>
+  </div>
+
+  <!-- Main Controls -->
+  <div class="main-section">
+    <button id="btnToggleCapture" class="capture-btn">
+      <span class="btn-icon">🎤</span>
+      <span id="btnText">Start Listening</span>
+    </button>
+    <p id="captureStatus" class="capture-status">Ready to capture meeting audio</p>
+  </div>
+
+  <!-- Live Transcript Preview -->
+  <div class="transcript-section">
+    <div class="section-label">Live Transcript</div>
+    <div id="liveTranscript" class="transcript-box">Waiting for speech...</div>
+  </div>
+
+  <!-- Last Strategy Found -->
+  <div class="strategy-section" id="strategySection" style="display:none">
+    <div class="section-label">🎯 Latest Strategy</div>
+    <div id="lastStrategy" class="strategy-preview"></div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat"><span id="queryCount">0</span><small>Queries</small></div>
+    <div class="stat"><span id="matchCount">0</span><small>Matches</small></div>
+    <div class="stat"><span id="sessionTime">00:00</span><small>Session</small></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="popup-footer">
+    <small>Backend: <span id="backendUrl">127.0.0.1:8000</span></small>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
