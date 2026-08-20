@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.offlinetranslator.data.model.SubtitleDisplayMode
+import com.example.offlinetranslator.ui.theme.EmeraldSuccess
 import com.example.offlinetranslator.ui.theme.VlcOrange
 import com.example.offlinetranslator.utils.TimeUtils
 
@@ -70,6 +72,9 @@ fun PlayerControls(
     durationMs: Long,
     playbackSpeed: Float,
     subtitleMode: SubtitleDisplayMode,
+    isLiveTranslating: Boolean = false,
+    liveTranslationMessage: String = "",
+    targetLang: String = "ur",
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onSeekForward: () -> Unit,
@@ -80,6 +85,7 @@ fun PlayerControls(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     var speedMenuExpanded by remember { mutableStateOf(false) }
     var isLocked by remember { mutableStateOf(false) }
     var aspectMode by remember { mutableStateOf("FIT") }
@@ -177,7 +183,7 @@ fun PlayerControls(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.75f),
+                                Color.Black.copy(alpha = 0.8f),
                                 Color.Transparent,
                                 Color.Black.copy(alpha = 0.85f)
                             )
@@ -192,7 +198,10 @@ fun PlayerControls(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -216,70 +225,71 @@ fun PlayerControls(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(VlcOrange.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .background(VlcOrange)
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
                             ) {
                                 Text(
-                                    text = "VLC AI PLAYER",
-                                    color = VlcOrange,
+                                    text = "VLC AI",
+                                    color = Color.Black,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Live Subtitles Active",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 11.sp
+                                text = if (isLiveTranslating) "Generating Live Subtitles..." else "Live Subtitles: Auto → ${targetLang.uppercase()}",
+                                color = if (isLiveTranslating) VlcOrange else EmeraldSuccess,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
 
-                    // Aspect Ratio Button
-                    IconButton(onClick = {
-                        aspectMode = when (aspectMode) {
-                            "FIT" -> "FILL"
-                            "FILL" -> "16:9"
-                            "16:9" -> "4:3"
-                            else -> "FIT"
+                    // Action Icons (Aspect, Subtitles, Sheet, Lock) - Exactly 40dp each
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            onClick = {
+                                aspectMode = when (aspectMode) {
+                                    "FIT" -> "FILL"
+                                    "FILL" -> "16:9"
+                                    "16:9" -> "4:3"
+                                    else -> "FIT"
+                                }
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.AspectRatio, contentDescription = "Aspect", tint = Color.White, modifier = Modifier.size(20.dp))
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.AspectRatio,
-                            contentDescription = "Aspect Ratio",
-                            tint = Color.White
-                        )
-                    }
 
-                    // Subtitle CC Button
-                    IconButton(onClick = onToggleSubtitleMode) {
-                        Icon(
-                            imageVector = if (subtitleMode != SubtitleDisplayMode.OFF) Icons.Default.ClosedCaption else Icons.Default.ClosedCaptionDisabled,
-                            contentDescription = "Subtitles",
-                            tint = if (subtitleMode != SubtitleDisplayMode.OFF) VlcOrange else Color.White.copy(alpha = 0.6f)
-                        )
-                    }
+                        IconButton(
+                            onClick = onToggleSubtitleMode,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (subtitleMode != SubtitleDisplayMode.OFF) Icons.Default.ClosedCaption else Icons.Default.ClosedCaptionDisabled,
+                                contentDescription = "Subtitles",
+                                tint = if (subtitleMode != SubtitleDisplayMode.OFF) VlcOrange else Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
 
-                    // Translation AI Sheet
-                    IconButton(onClick = onOpenTranslationSheet) {
-                        Icon(
-                            imageVector = Icons.Default.Translate,
-                            contentDescription = "Translate",
-                            tint = VlcOrange
-                        )
-                    }
+                        IconButton(
+                            onClick = onOpenTranslationSheet,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.Translate, contentDescription = "Translate", tint = VlcOrange, modifier = Modifier.size(20.dp))
+                        }
 
-                    // Lock Button
-                    IconButton(onClick = { isLocked = true }) {
-                        Icon(
-                            imageVector = Icons.Default.LockOpen,
-                            contentDescription = "Lock Screen",
-                            tint = Color.White.copy(alpha = 0.7f)
-                        )
+                        IconButton(
+                            onClick = { isLocked = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(Icons.Default.LockOpen, contentDescription = "Lock", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
 
-                // ================= CENTER PLAY/PAUSE & BUFF =================
+                // ================= CENTER CONTROLS =================
                 Box(
                     modifier = Modifier.align(Alignment.Center),
                     contentAlignment = Alignment.Center
@@ -292,10 +302,10 @@ fun PlayerControls(
                         )
                     } else {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(28.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Jump -10s
+                            // -10s Rewind Button
                             IconButton(
                                 onClick = onSeekBackward,
                                 modifier = Modifier
@@ -305,9 +315,9 @@ fun PlayerControls(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Replay10,
-                                    contentDescription = "Rewind 10s",
+                                    contentDescription = "-10s",
                                     tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
 
@@ -317,19 +327,19 @@ fun PlayerControls(
                                 shape = CircleShape,
                                 color = VlcOrange,
                                 shadowElevation = 8.dp,
-                                modifier = Modifier.size(68.dp)
+                                modifier = Modifier.size(64.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                         contentDescription = if (isPlaying) "Pause" else "Play",
                                         tint = Color.Black,
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(36.dp)
                                     )
                                 }
                             }
 
-                            // Jump +10s
+                            // +10s Forward Button
                             IconButton(
                                 onClick = onSeekForward,
                                 modifier = Modifier
@@ -339,23 +349,23 @@ fun PlayerControls(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Forward10,
-                                    contentDescription = "Forward 10s",
+                                    contentDescription = "+10s",
                                     tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                // ================= BOTTOM BAR (VLC Style) =================
+                // ================= BOTTOM BAR =================
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    // Time Labels & Slider
+                    // Time Labels
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -397,26 +407,27 @@ fun PlayerControls(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Bottom Quick Actions Bar (Speed, Subtitle Mode, Aspect Ratio, Sheet)
+                    // Bottom Pill Buttons Row (CC, Speed, Aspect, Settings)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Subtitle Mode Quick Pill
+                        // Subtitle Mode Pill
                         Surface(
                             onClick = onToggleSubtitleMode,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = if (subtitleMode != SubtitleDisplayMode.OFF) VlcOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
                                 if (subtitleMode != SubtitleDisplayMode.OFF) VlcOrange else Color.White.copy(alpha = 0.2f)
-                            )
+                            ),
+                            modifier = Modifier.height(36.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ClosedCaption,
@@ -427,7 +438,7 @@ fun PlayerControls(
                                 Text(
                                     text = subtitleMode.name,
                                     color = if (subtitleMode != SubtitleDisplayMode.OFF) VlcOrange else Color.White,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -437,25 +448,26 @@ fun PlayerControls(
                         Box {
                             Surface(
                                 onClick = { speedMenuExpanded = true },
-                                shape = RoundedCornerShape(20.dp),
+                                shape = RoundedCornerShape(18.dp),
                                 color = Color.White.copy(alpha = 0.12f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                modifier = Modifier.height(36.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Speed,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = VlcOrange,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         text = "${playbackSpeed}x",
                                         color = Color.White,
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -467,7 +479,7 @@ fun PlayerControls(
                             ) {
                                 listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
                                     DropdownMenuItem(
-                                        text = { Text("${speed}x", color = if (speed == playbackSpeed) VlcOrange else Color.Unspecified) },
+                                        text = { Text("${speed}x") },
                                         onClick = {
                                             onSpeedChange(speed)
                                             speedMenuExpanded = false
@@ -477,51 +489,17 @@ fun PlayerControls(
                             }
                         }
 
-                        // Aspect Ratio Mode Pill
-                        Surface(
-                            onClick = {
-                                aspectMode = when (aspectMode) {
-                                    "FIT" -> "FILL"
-                                    "FILL" -> "16:9"
-                                    "16:9" -> "4:3"
-                                    else -> "FIT"
-                                }
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color.White.copy(alpha = 0.12f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AspectRatio,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = aspectMode,
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        // AI Translation Panel Button
+                        // Translation Sheet Pill
                         Surface(
                             onClick = onOpenTranslationSheet,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = VlcOrange,
-                            shadowElevation = 4.dp
+                            modifier = Modifier.height(36.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Translate,
@@ -530,9 +508,9 @@ fun PlayerControls(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Translate",
+                                    text = "AI Subtitles",
                                     color = Color.Black,
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -543,3 +521,4 @@ fun PlayerControls(
         }
     }
 }
+

@@ -56,6 +56,9 @@ fun MediaPlayerScreen(
     val isModelAvailable by viewModel.isModelAvailable.collectAsState()
     val userPreferences by viewModel.userPreferences.collectAsState()
 
+    val isLiveTranslating by viewModel.isLiveTranslating.collectAsState()
+    val liveTranslationMessage by viewModel.liveTranslationMessage.collectAsState()
+
     var controlsVisible by remember { mutableStateOf(true) }
     var isSheetOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -109,7 +112,7 @@ fun MediaPlayerScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // Player Controls (Play, Seek, Scrubber, Title, Speed)
+        // Player Controls (Play, Seek, Scrubber, Title, Speed, Live Subtitle indicator)
         PlayerControls(
             isVisible = controlsVisible,
             title = mediaItem?.fileName ?: "Playing Media",
@@ -119,6 +122,9 @@ fun MediaPlayerScreen(
             durationMs = durationMs,
             playbackSpeed = playbackSpeed,
             subtitleMode = subtitleMode,
+            isLiveTranslating = isLiveTranslating,
+            liveTranslationMessage = liveTranslationMessage,
+            targetLang = targetLang,
             onTogglePlayPause = { viewModel.playerController.togglePlayPause() },
             onSeek = { viewModel.playerController.seekTo(it) },
             onSeekForward = { viewModel.playerController.seekForward(10000L) },
@@ -151,15 +157,11 @@ fun MediaPlayerScreen(
                 onFontSizeChange = { /* handled in settings */ },
                 onStartTranslation = {
                     isSheetOpen = false
-                    mediaItem?.let { item ->
-                        onNavigateToProcessing(item.mediaHash, sourceLang, targetLang)
-                    }
+                    viewModel.startLiveTranslation(sourceLang, targetLang)
                 },
                 onReprocessTranslation = {
                     isSheetOpen = false
-                    mediaItem?.let { item ->
-                        onNavigateToProcessing(item.mediaHash, sourceLang, targetLang)
-                    }
+                    viewModel.startLiveTranslation(sourceLang, targetLang)
                 },
                 onExportSrt = { viewModel.exportSubtitles(asVtt = false) },
                 onExportVtt = { viewModel.exportSubtitles(asVtt = true) },
@@ -172,3 +174,4 @@ fun MediaPlayerScreen(
         }
     }
 }
+

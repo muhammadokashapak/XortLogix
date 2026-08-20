@@ -62,6 +62,12 @@ class MediaPlayerViewModel(
     private val _isModelAvailable = MutableStateFlow(true)
     val isModelAvailable: StateFlow<Boolean> = _isModelAvailable.asStateFlow()
 
+    private val _isLiveTranslating = MutableStateFlow(false)
+    val isLiveTranslating: StateFlow<Boolean> = _isLiveTranslating.asStateFlow()
+
+    private val _liveTranslationMessage = MutableStateFlow("")
+    val liveTranslationMessage: StateFlow<String> = _liveTranslationMessage.asStateFlow()
+
     val userPreferences = settingsRepository.userPreferences.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -83,6 +89,13 @@ class MediaPlayerViewModel(
                 _targetLang.value = item.targetLanguage ?: "ur"
                 playerController.prepareMedia(item.uri, item.lastPlayedPositionMs)
                 checkModelAvailability()
+
+                // Check if subtitles already exist, otherwise auto-start live streaming in background
+                val existing = translationRepository.getSubtitlesList(mediaHash)
+                if (existing.isEmpty()) {
+                    startLiveTranslation(_sourceLang.value, _targetLang.value)
+                }
+
             }
         }
     }
@@ -92,6 +105,49 @@ class MediaPlayerViewModel(
             translationRepository.getSubtitlesFlow(mediaHash).collectLatest { segments ->
                 _subtitles.value = segments
                 subtitleSynchronizer.setSubtitles(segments)
+            }
+        }
+    }
+
+    fun startLiveTranslation(source: String? = null, target: String? = null) {
+        val item = _mediaItem.value ?: return
+        val src = source ?: _sourceLang.value
+        val tgt = target ?: _targetLang.value
+
+        viewModelScope.launch {
+            _isLiveTranslating.value = true
+            _liveTranslationMessage.value = "AI listening & generating live subtitles..."
+
+            app.processMediaUseCase.execute(
+                mediaUri = item.uri,
+                fileName = item.fileName,
+                durationMs = item.durationMs,
+                sizeBytes = item.sizeBytes,
+                mimeType = item.mimeType,
+                isVideo = item.isVideo,
+                sourceLanguage = src,
+                targetLanguage = tgt
+            ).collectLatest { state ->
+                when (state) {
+                    is com.example.offlinetranslator.data.model.ProcessingState.PreparingAudio -> {
+                        _liveTranslationMessage.value = "Extracting audio for AI..."
+                    }
+                    is com.example.offlinetranslator.data.model.ProcessingState.Transcribing -> {
+                        _liveTranslationMessage.value = "Transcribing speech on-device..."
+                    }
+                    is com.example.offlinetranslator.data.model.ProcessingState.Translating -> {
+                        _liveTranslationMessage.value = "Translating speech to ${tgt.uppercase()}..."
+                    }
+                    is com.example.offlinetranslator.data.model.ProcessingState.Completed -> {
+                        _isLiveTranslating.value = false
+                        _liveTranslationMessage.value = "Live subtitles synced"
+                    }
+                    is com.example.offlinetranslator.data.model.ProcessingState.Error -> {
+                        _isLiveTranslating.value = false
+                        _liveTranslationMessage.value = ""
+                    }
+                    else -> {}
+                }
             }
         }
     }
@@ -150,3 +206,4 @@ class MediaPlayerViewModel(
         subtitleSynchronizer.clear()
     }
 }
+
