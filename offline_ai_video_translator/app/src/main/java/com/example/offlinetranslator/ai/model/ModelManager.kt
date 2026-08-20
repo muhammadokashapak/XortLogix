@@ -36,6 +36,45 @@ class AppModelManager(private val context: Context) : ModelManager {
     init {
         speechModelsDir.mkdirs()
         translationModelsDir.mkdirs()
+        extractBundledAssetsIfNeeded()
+    }
+
+    private fun extractBundledAssetsIfNeeded() {
+        try {
+            val rootAssets = context.assets.list("models") ?: return
+            if (rootAssets.isNotEmpty()) {
+                copyAssetDirectory("models", baseModelsDir)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun copyAssetDirectory(assetDir: String, targetDir: File) {
+        val items = context.assets.list(assetDir) ?: return
+        targetDir.mkdirs()
+        for (item in items) {
+            val assetPath = "$assetDir/$item"
+            val targetFile = File(targetDir, item)
+            val subItems = context.assets.list(assetPath)
+            if (subItems.isNullOrEmpty()) {
+                // It's a file
+                if (!targetFile.exists() || targetFile.length() == 0L) {
+                    try {
+                        context.assets.open(assetPath).use { input ->
+                            FileOutputStream(targetFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            } else {
+                // It's a subdirectory
+                copyAssetDirectory(assetPath, targetFile)
+            }
+        }
     }
 
     override fun isSpeechModelAvailable(): Boolean {
