@@ -127,56 +127,69 @@ class AppModelManager(private val context: Context) : ModelManager {
     override suspend fun refreshInstalledModels() = withContext(Dispatchers.IO) {
         val models = mutableListOf<ModelInfo>()
 
-        // Check speech models
+        // 1. Whisper Speech Recognition Model
         val speechFile = getSpeechModelFile()
         models.add(
             ModelInfo(
                 id = "speech_whisper",
-                name = "Whisper On-Device STT",
+                name = "Whisper On-Device STT (99+ Languages)",
                 type = ModelType.SPEECH_RECOGNITION,
-                modelFile = speechFile ?: File(speechModelsDir, "whisper_tiny_quant.onnx"),
-                isInstalled = speechFile?.exists() == true,
+                modelFile = speechFile ?: File(speechModelsDir, "whisper_encoder_quant.onnx"),
+                isInstalled = speechFile?.exists() == true || isSpeechModelAvailable(),
                 sizeBytes = speechFile?.length() ?: 0L,
-                description = "Quantized Whisper ONNX model for offline speech-to-text recognition."
+                description = "Offline Whisper model for speech recognition across 99+ spoken languages."
             )
         )
 
-        // Supported translation language pairs
-        val pairs = listOf(
-            Pair("en", "ur") to "English → Urdu (MarianMT)",
-            Pair("en", "es") to "English → Spanish (MarianMT)",
-            Pair("en", "ar") to "English → Arabic (MarianMT)",
-            Pair("en", "fr") to "English → French (MarianMT)",
-            Pair("en", "de") to "English → German (MarianMT)",
-            Pair("en", "hi") to "English → Hindi (MarianMT)",
-            Pair("en", "zh") to "English → Chinese (MarianMT)",
-            Pair("en", "ru") to "English → Russian (MarianMT)",
-            Pair("en", "tr") to "English → Turkish (MarianMT)"
+        // 2. English -> Urdu (Pre-installed)
+        val urduModel = getTranslationModelFile("en", "ur")
+        val urduVocab = getTranslationVocabFile("en", "ur")
+        models.add(
+            ModelInfo(
+                id = "trans_en_ur",
+                name = "English → Urdu Neural Translation",
+                type = ModelType.TRANSLATION,
+                sourceLang = "en",
+                targetLang = "ur",
+                modelFile = urduModel ?: File(File(translationModelsDir, "en_ur"), "model.onnx"),
+                vocabFile = urduVocab,
+                isInstalled = urduModel?.exists() == true || File(File(translationModelsDir, "en_ur"), "model.onnx").exists(),
+                sizeBytes = urduModel?.length() ?: 110077091L,
+                description = "Pre-installed high-accuracy MarianMT neural machine translation."
+            )
         )
 
-        for ((pair, label) in pairs) {
-            val (src, tgt) = pair
-            val modelFile = getTranslationModelFile(src, tgt) ?: File(File(translationModelsDir, "${src}_${tgt}"), "model.onnx")
-            val vocabFile = getTranslationVocabFile(src, tgt)
-            val installed = modelFile.exists() && modelFile.length() > 0
-            models.add(
-                ModelInfo(
-                    id = "trans_${src}_${tgt}",
-                    name = label,
-                    type = ModelType.TRANSLATION,
-                    sourceLang = src,
-                    targetLang = tgt,
-                    modelFile = modelFile,
-                    vocabFile = vocabFile,
-                    isInstalled = installed,
-                    sizeBytes = if (installed) modelFile.length() else 0L,
-                    description = "Offline neural machine translation pack for $src to $tgt."
-                )
-            )
+        // 3. Scan for any other custom imported translation models
+        translationModelsDir.listFiles()?.forEach { file ->
+            if (file.isDirectory && file.name != "en_ur") {
+                val parts = file.name.split("_")
+                if (parts.size == 2) {
+                    val s = parts[0]
+                    val t = parts[1]
+                    val mFile = File(file, "model.onnx")
+                    if (mFile.exists() && mFile.length() > 0) {
+                        models.add(
+                            ModelInfo(
+                                id = "trans_${s}_${t}",
+                                name = "${s.uppercase()} → ${t.uppercase()} (MarianMT)",
+                                type = ModelType.TRANSLATION,
+                                sourceLang = s,
+                                targetLang = t,
+                                modelFile = mFile,
+                                vocabFile = getTranslationVocabFile(s, t),
+                                isInstalled = true,
+                                sizeBytes = mFile.length(),
+                                description = "Offline neural translation pack for $s to $t."
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         _installedModels.value = models
     }
+
 
     override suspend fun importModel(
         sourceUri: Uri,

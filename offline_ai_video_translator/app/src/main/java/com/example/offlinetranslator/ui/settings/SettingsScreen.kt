@@ -12,25 +12,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -40,13 +42,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.offlinetranslator.ai.model.ModelType
 import com.example.offlinetranslator.ui.components.AppTopBar
 import com.example.offlinetranslator.ui.components.ModelStatusCard
-import com.example.offlinetranslator.ui.theme.IndigoPrimary
+import com.example.offlinetranslator.ui.theme.EmeraldSuccess
 import com.example.offlinetranslator.ui.theme.Slate400
+import com.example.offlinetranslator.ui.theme.VlcBackground
+import com.example.offlinetranslator.ui.theme.VlcOrange
+import com.example.offlinetranslator.ui.theme.VlcSurface
+import com.example.offlinetranslator.ui.theme.VlcSurfaceElevated
 
 @Composable
 fun SettingsScreen(
@@ -56,22 +63,21 @@ fun SettingsScreen(
     val prefs by viewModel.userPreferences.collectAsState()
     val models by viewModel.installedModels.collectAsState()
 
-    var selectedModelTypeToImport by remember { mutableStateOf(ModelType.SPEECH_RECOGNITION) }
+    var selectedModelTypeToImport by remember { mutableStateOf<ModelType?>(null) }
 
     val modelFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            viewModel.importModelFile(
-                uri = it,
-                modelType = selectedModelTypeToImport,
-                sourceLang = "en",
-                targetLang = "ur"
-            )
+        uri?.let { sourceUri ->
+            selectedModelTypeToImport?.let { type ->
+                viewModel.importModelFile(sourceUri, type)
+            }
         }
+
     }
 
     Scaffold(
+        containerColor = VlcBackground,
         topBar = {
             AppTopBar(
                 title = "Settings & AI Models",
@@ -82,7 +88,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh Models",
-                            tint = MaterialTheme.colorScheme.onBackground
+                            tint = Color.White
                         )
                     }
                 }
@@ -96,33 +102,38 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Section 1: Appearance & Subtitles
+            // Section 1: Subtitle Appearance
             item {
                 Text(
                     text = "Subtitle Appearance",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = VlcOrange
                 )
             }
 
             item {
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(containerColor = VlcSurfaceElevated),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Font Size (${prefs.subtitleFontSizeSp.toInt()} sp)",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
                         )
                         Slider(
                             value = prefs.subtitleFontSizeSp,
                             onValueChange = { viewModel.updateSubtitleFontSize(it) },
                             valueRange = 12f..32f,
-                            steps = 9
+                            steps = 9,
+                            colors = SliderDefaults.colors(
+                                thumbColor = VlcOrange,
+                                activeTrackColor = VlcOrange
+                            )
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -136,7 +147,8 @@ fun SettingsScreen(
                                 Text(
                                     text = "High-Contrast Subtitle Box",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
                                 )
                                 Text(
                                     text = "Dark translucent box behind subtitles for readability",
@@ -146,49 +158,55 @@ fun SettingsScreen(
                             }
                             Switch(
                                 checked = prefs.highContrastBackground,
-                                onCheckedChange = { viewModel.updateHighContrast(it) }
+                                onCheckedChange = { viewModel.updateHighContrast(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.Black,
+                                    checkedTrackColor = VlcOrange
+                                )
                             )
                         }
                     }
                 }
             }
 
-            // Section 2: AI Models Setup Instructions
+            // Section 2: Active AI Models
             item {
                 Text(
-                    text = "Offline AI Models",
+                    text = "Active On-Device AI Models",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = VlcOrange
                 )
             }
 
             item {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = IndigoPrimary.copy(alpha = 0.12f),
+                    color = VlcSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.3f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Info,
+                            imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = IndigoPrimary
+                            tint = EmeraldSuccess,
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "100% On-Device Neural Processing",
+                                text = "100% Pre-Installed & Ready",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = Color.White
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Models run locally on your device without internet. You can import ONNX models (.onnx) directly into app storage.",
+                                text = "Whisper STT (99+ Languages) and Neural Translation are pre-bundled. Zero cloud setup needed.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Slate400
                             )
@@ -197,46 +215,50 @@ fun SettingsScreen(
                 }
             }
 
-            // Model Import Actions
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            selectedModelTypeToImport = ModelType.SPEECH_RECOGNITION
-                            modelFilePicker.launch("*/*")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Import STT Model")
-                    }
-
-                    Button(
-                        onClick = {
-                            selectedModelTypeToImport = ModelType.TRANSLATION
-                            modelFilePicker.launch("*/*")
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Import MT Model")
-                    }
-                }
-            }
-
-            // Installed & Available Models List
+            // Active Installed Models List
             items(models) { modelInfo ->
                 ModelStatusCard(
                     modelInfo = modelInfo,
-                    onDeleteClick = if (modelInfo.isInstalled) {
-                        { viewModel.deleteModel(modelInfo) }
-                    } else null
+                    onDeleteClick = { viewModel.deleteModel(modelInfo) }
                 )
+            }
+
+            // Optional Language Packs Section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = VlcSurface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Add More Languages (Optional)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "English to Urdu is pre-installed. You can optionally import extra MarianMT language packs (.onnx) anytime.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate400
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = {
+                                selectedModelTypeToImport = ModelType.TRANSLATION
+                                modelFilePicker.launch("*/*")
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = VlcOrange)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import Extra Language Model (.onnx)", color = Color.White)
+                        }
+                    }
+                }
             }
         }
     }
