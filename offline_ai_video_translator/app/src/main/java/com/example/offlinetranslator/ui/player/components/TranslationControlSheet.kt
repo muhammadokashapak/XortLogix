@@ -41,6 +41,9 @@ import com.example.offlinetranslator.ui.components.LanguageSelectorDropdown
 import com.example.offlinetranslator.ui.theme.EmeraldSuccess
 import com.example.offlinetranslator.ui.theme.RoseError
 import com.example.offlinetranslator.ui.theme.Slate400
+import com.example.offlinetranslator.ui.theme.VlcOrange
+import com.example.offlinetranslator.ui.theme.VlcSurfaceElevated
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,36 +71,42 @@ fun TranslationControlSheet(
     val sourceLanguages = listOf(
         "auto" to "Auto Detect",
         "en" to "English",
-        "es" to "Spanish",
-        "ar" to "Arabic",
-        "fr" to "French",
-        "de" to "German",
-        "hi" to "Hindi",
-        "ur" to "Urdu"
+        "zh" to "Chinese (中文)",
+        "ja" to "Japanese (日本語)",
+        "ur" to "Urdu (اردو)",
+        "es" to "Spanish (Español)",
+        "ar" to "Arabic (العربية)",
+        "hi" to "Hindi (हिन्दी)",
+        "fr" to "French (Français)",
+        "de" to "German (Deutsch)",
+        "ru" to "Russian (Русский)",
+        "tr" to "Turkish (Türkçe)"
     )
 
     val targetLanguages = listOf(
-        "ur" to "Urdu",
-        "es" to "Spanish",
-        "ar" to "Arabic",
-        "fr" to "French",
-        "de" to "German",
-        "hi" to "Hindi",
-        "ru" to "Russian",
-        "tr" to "Turkish",
-        "zh" to "Chinese",
-        "en" to "English"
+        "ur" to "Urdu (اردو)",
+        "en" to "English",
+        "es" to "Spanish (Español)",
+        "zh" to "Chinese (中文)",
+        "ja" to "Japanese (日本語)",
+        "ar" to "Arabic (العربية)",
+        "hi" to "Hindi (हिन्दी)",
+        "fr" to "French (Français)",
+        "de" to "German (Deutsch)",
+        "ru" to "Russian (Русский)",
+        "tr" to "Turkish (Türkçe)"
     )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = VlcSurfaceElevated
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 8.dp)
+
         ) {
             Text(
                 text = "Translation & Subtitles",
@@ -201,11 +210,14 @@ fun TranslationControlSheet(
                     Button(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = com.example.offlinetranslator.ui.theme.VlcOrange,
+                            contentColor = androidx.compose.ui.graphics.Color.Black
+                        )
                     ) {
                         Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Continue Existing")
+                        Text("Play With Subtitles", fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
@@ -221,13 +233,17 @@ fun TranslationControlSheet(
                 Button(
                     onClick = onStartTranslation,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = com.example.offlinetranslator.ui.theme.VlcOrange,
+                        contentColor = androidx.compose.ui.graphics.Color.Black
+                    )
                 ) {
                     Icon(imageVector = Icons.Default.Translate, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Start Offline Translation")
+                    Text("Start Live AI Translation", fontWeight = FontWeight.Bold)
                 }
             }
+
 
             // Subtitle Export Actions
             if (hasExistingTranslation) {

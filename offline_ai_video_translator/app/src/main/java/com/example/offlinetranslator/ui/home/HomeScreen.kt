@@ -22,45 +22,54 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.offlinetranslator.data.model.MediaItem
 import com.example.offlinetranslator.ui.components.EmptyStateView
-import com.example.offlinetranslator.ui.theme.CyanAccent
 import com.example.offlinetranslator.ui.theme.EmeraldSuccess
-import com.example.offlinetranslator.ui.theme.IndigoDark
-import com.example.offlinetranslator.ui.theme.IndigoPrimary
-import com.example.offlinetranslator.ui.theme.RoseError
 import com.example.offlinetranslator.ui.theme.Slate400
-import com.example.offlinetranslator.ui.theme.TealAccent
+import com.example.offlinetranslator.ui.theme.VlcBackground
+import com.example.offlinetranslator.ui.theme.VlcOrange
+import com.example.offlinetranslator.ui.theme.VlcOrangeDark
+import com.example.offlinetranslator.ui.theme.VlcSurface
+import com.example.offlinetranslator.ui.theme.VlcSurfaceElevated
 import com.example.offlinetranslator.utils.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,36 +82,52 @@ fun HomeScreen(
 ) {
     val recentMedia by viewModel.recentMedia.collectAsState()
     val isSpeechReady by viewModel.isOfflineSpeechReady.collectAsState()
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("All Media", "Video", "Audio", "AI Translated")
 
-    // SAF Video Picker
-    val videoPickerLauncher = rememberLauncherForActivityResult(
+    // SAF File Picker
+    val mediaPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { viewModel.onMediaSelected(it, isVideo = true, onNavigateToPlayer) }
     }
 
-    // SAF Audio Picker
-    val audioPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let { viewModel.onMediaSelected(it, isVideo = false, onNavigateToPlayer) }
-    }
-
     Scaffold(
+        containerColor = VlcBackground,
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "Offline AI Translator",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "On-Device Speech & Subtitles",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Slate400
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(VlcOrange),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "VLC AI",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                text = "VLC AI Player",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "100% Offline AI Subtitles",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = VlcOrange
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -110,97 +135,108 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = "History",
-                            tint = MaterialTheme.colorScheme.onBackground
+                            tint = Color.White
                         )
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onBackground
+                            tint = Color.White
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = VlcBackground
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { mediaPickerLauncher.launch("*/*") },
+                containerColor = VlcOrange,
+                contentColor = Color.Black,
+                shape = CircleShape
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Open")
+                    Text("Open Media", fontWeight = FontWeight.Bold)
+                }
+            }
         }
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(innerPadding)
         ) {
-            // Offline Status Chip
-            item {
-                OfflineStatusBanner(
-                    isReady = isSpeechReady,
-                    onConfigureClick = onNavigateToSettings
-                )
-            }
-
-            // Quick Media Pickers
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ActionMediaCard(
-                        title = "Open Video",
-                        subtitle = "MP4, MKV, WebM",
-                        icon = Icons.Default.Movie,
-                        gradient = listOf(IndigoPrimary, IndigoDark),
-                        modifier = Modifier.weight(1f),
-                        onClick = { videoPickerLauncher.launch("video/*") }
-                    )
-
-                    ActionMediaCard(
-                        title = "Open Audio",
-                        subtitle = "MP3, WAV, AAC, M4A",
-                        icon = Icons.Default.Audiotrack,
-                        gradient = listOf(TealAccent, CyanAccent),
-                        modifier = Modifier.weight(1f),
-                        onClick = { audioPickerLauncher.launch("audio/*") }
+            // Category Tabs
+            ScrollableTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = VlcBackground,
+                contentColor = VlcOrange,
+                edgePadding = 16.dp,
+                divider = {}
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = {
+                            Text(
+                                text = title,
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == index) VlcOrange else Slate400
+                            )
+                        }
                     )
                 }
             }
 
-            // Recent Media Header
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Media",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            }
-
-            // Recent Media Items or Empty State
-            if (recentMedia.isEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Offline AI Status Banner
                 item {
-                    EmptyStateView(
-                        icon = Icons.Default.PlayCircle,
-                        title = "No Recent Media",
-                        description = "Tap 'Open Video' or 'Open Audio' above to pick a local file and generate offline translations."
+                    VlcStatusBanner(
+                        isReady = true,
+                        onConfigureClick = onNavigateToSettings
                     )
                 }
-            } else {
-                items(recentMedia) { media ->
-                    MediaListItem(
-                        media = media,
-                        onClick = { onNavigateToPlayer(media.mediaHash) }
-                    )
+
+                // Filter items according to tab
+                val filteredMedia = when (selectedTab) {
+                    1 -> recentMedia.filter { it.isVideo }
+                    2 -> recentMedia.filter { !it.isVideo }
+                    3 -> recentMedia.filter { it.hasTranslation }
+                    else -> recentMedia
+                }
+
+                if (filteredMedia.isEmpty()) {
+                    item {
+                        EmptyStateView(
+                            icon = Icons.Default.PlayCircle,
+                            title = "No Media Files Yet",
+                            description = "Tap '+ Open Media' below to pick any video or audio file and play with live AI translated subtitles."
+                        )
+                    }
+                } else {
+                    items(filteredMedia) { media ->
+                        VlcMediaCard(
+                            media = media,
+                            onClick = { onNavigateToPlayer(media.mediaHash) }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(72.dp))
                 }
             }
         }
@@ -208,13 +244,14 @@ fun HomeScreen(
 }
 
 @Composable
-fun OfflineStatusBanner(
+fun VlcStatusBanner(
     isReady: Boolean,
     onConfigureClick: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (isReady) EmeraldSuccess.copy(alpha = 0.15f) else RoseError.copy(alpha = 0.15f),
+        color = VlcSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, VlcOrange.copy(alpha = 0.3f)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onConfigureClick() }
@@ -224,182 +261,137 @@ fun OfflineStatusBanner(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (isReady) Icons.Default.CheckCircle else Icons.Default.Warning,
+                imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = if (isReady) EmeraldSuccess else RoseError,
-                modifier = Modifier.size(22.dp)
+                tint = EmeraldSuccess,
+                modifier = Modifier.size(24.dp)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isReady) "100% Offline AI Ready" else "AI Model Setup Needed",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isReady) EmeraldSuccess else RoseError
-                )
-                Text(
-                    text = if (isReady) "Zero cloud dependency • On-device STT & Translation" else "Tap here to check or import offline ONNX models",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ActionMediaCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    gradient: List<Color>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        modifier = modifier
-            .height(130.dp)
-            .clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.linearGradient(gradient))
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "100% Offline AI Ready",
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(EmeraldSuccess.copy(alpha = 0.2f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("PRE-INSTALLED", color = EmeraldSuccess, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
+                Text(
+                    text = "Whisper STT + MarianMT Translation are active. Zero setup required.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate400
+                )
             }
         }
     }
 }
 
 @Composable
-fun MediaListItem(
+fun VlcMediaCard(
     media: MediaItem,
     onClick: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = VlcSurfaceElevated),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(56.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(if (media.isVideo) VlcOrangeDark.copy(alpha = 0.3f) else VlcOrange.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (media.isVideo) Icons.Default.Movie else Icons.Default.Audiotrack,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
+                    tint = VlcOrange,
+                    modifier = Modifier.size(30.dp)
                 )
+
+                if (media.hasTranslation) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(2.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.Black.copy(alpha = 0.8f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text("CC", color = VlcOrange, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = media.fileName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color.White,
                     maxLines = 1
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     if (media.durationMs > 0) {
                         Text(
                             text = TimeUtils.formatDuration(media.durationMs),
                             style = MaterialTheme.typography.bodySmall,
                             color = Slate400
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("•", color = Slate400, fontSize = 10.sp)
                     }
 
                     if (media.hasTranslation) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = TealAccent.copy(alpha = 0.2f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Translate,
-                                    contentDescription = null,
-                                    tint = TealAccent,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "${media.detectedLanguage ?: "auto"} → ${media.targetLanguage ?: "ur"}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TealAccent,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
+                        Text("•", color = Slate400, fontSize = 10.sp)
+                        Text(
+                            text = "${media.detectedLanguage ?: "Auto"} → ${media.targetLanguage ?: "ur"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = EmeraldSuccess,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
 
+            // Quick Play button
             IconButton(onClick = onClick) {
                 Icon(
                     imageVector = Icons.Default.PlayCircle,
                     contentDescription = "Play",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
+                    tint = VlcOrange,
+                    modifier = Modifier.size(36.dp)
                 )
             }
         }
     }
 }
+
+

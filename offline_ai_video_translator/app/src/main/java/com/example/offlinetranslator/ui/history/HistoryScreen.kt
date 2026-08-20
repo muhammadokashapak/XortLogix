@@ -16,7 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.offlinetranslator.ui.components.AppTopBar
 import com.example.offlinetranslator.ui.components.EmptyStateView
-import com.example.offlinetranslator.ui.home.MediaListItem
+import com.example.offlinetranslator.ui.home.VlcMediaCard
+import com.example.offlinetranslator.ui.theme.VlcBackground
 
 @Composable
 fun HistoryScreen(
@@ -27,6 +28,7 @@ fun HistoryScreen(
     val historyItems by viewModel.historyItems.collectAsState()
 
     Scaffold(
+        containerColor = VlcBackground,
         topBar = {
             AppTopBar(
                 title = "Translation History",
@@ -53,7 +55,7 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(historyItems) { item ->
-                    MediaListItem(
+                    VlcMediaCard(
                         media = item,
                         onClick = { onNavigateToPlayer(item.mediaHash) }
                     )
@@ -62,3 +64,4 @@ fun HistoryScreen(
         }
     }
 }
+

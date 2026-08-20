@@ -197,7 +197,7 @@ fun ProcessingScreen(
                         CircularProgressIndicator(
                             progress = { progressValue },
                             modifier = Modifier.size(88.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = com.example.offlinetranslator.ui.theme.VlcOrange,
                             strokeWidth = 6.dp
                         )
                     }
@@ -209,7 +209,7 @@ fun ProcessingScreen(
                     text = "${(progressValue * 100).toInt()}%",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = com.example.offlinetranslator.ui.theme.VlcOrange
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -222,7 +222,7 @@ fun ProcessingScreen(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 LinearProgressIndicator(
                     progress = { progressValue },
@@ -230,7 +230,7 @@ fun ProcessingScreen(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = com.example.offlinetranslator.ui.theme.VlcOrange,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
@@ -244,7 +244,7 @@ fun ProcessingScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldSuccess)
+                        colors = ButtonDefaults.buttonColors(containerColor = com.example.offlinetranslator.ui.theme.VlcOrange)
                     ) {
                         Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
