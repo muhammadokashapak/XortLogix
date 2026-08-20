@@ -196,10 +196,16 @@ function initWebSocket() {
 
 // Handle AI / RAG Strategy Response
 function handleBattlecardResponse(data) {
-  el.stageBadgeText.textContent = 'Hold Spacebar or Click Mic to Listen';
-  el.btnMasterMic.classList.remove('listening');
-  el.voiceBar.classList.remove('listening');
-  state.isListening = false;
+  if (!state.isMeetingStreaming) {
+    el.stageBadgeText.textContent = 'Hold Spacebar or Click Mic to Listen';
+    el.btnMasterMic.classList.remove('listening');
+    el.voiceBar.classList.remove('listening');
+    state.isListening = false;
+  } else {
+    el.stageBadgeText.textContent = '🟢 Live Meeting Stream Active — Listening to client voice...';
+    el.btnMasterMic.classList.add('listening');
+    el.voiceBar.classList.add('listening');
+  }
 
   const matchedQ = data.question_matched || 'Client Objection';
   const pitch = data.response || data.pitch || 'No response found.';
@@ -558,6 +564,11 @@ async function startMeetingAudioStream() {
     el.voiceBar.classList.add('listening');
     el.stageBadgeText.textContent = '🟢 Live Meeting Stream Active — Listening to client voice...';
     showToast('Meeting Audio Connected! Listening to client...');
+
+    // Auto-close modal on successful connection
+    setTimeout(() => {
+      closeMeetingModal();
+    }, 500);
 
   } catch (err) {
     console.error('Error accessing meeting audio:', err);
