@@ -495,7 +495,17 @@ async function startMeetingAudioStream() {
     }
 
     if (!stream || stream.getAudioTracks().length === 0) {
-      showToast('⚠️ No audio track detected. Make sure "Also share tab audio" is checked.');
+      showToast('⚠️ "Also share tab audio" switch was OFF. Using Direct Microphone...');
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (micErr) {
+        showToast('⚠️ Could not access microphone: ' + micErr.message);
+        return;
+      }
+    }
+
+    if (!stream || stream.getAudioTracks().length === 0) {
+      showToast('⚠️ No audio stream available. Please grant mic/audio permissions.');
       return;
     }
 
@@ -660,10 +670,11 @@ function setupEvents() {
     }
   });
 
-  // Mic Click -> Opens Meeting Connection Modal
+  // Mic Click -> Toggle streaming or open connection modal
   el.btnMasterMic.addEventListener('click', () => {
     if (state.isMeetingStreaming) {
-      openMeetingModal();
+      stopMeetingAudioStream();
+      showToast('Meeting stream disconnected');
     } else {
       openMeetingModal();
     }
@@ -671,7 +682,8 @@ function setupEvents() {
 
   el.btnMiniMic.addEventListener('click', () => {
     if (state.isMeetingStreaming) {
-      openMeetingModal();
+      stopMeetingAudioStream();
+      showToast('Meeting stream disconnected');
     } else {
       openMeetingModal();
     }
