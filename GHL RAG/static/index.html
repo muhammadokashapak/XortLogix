@@ -295,19 +295,56 @@
 
             <!-- Chat Input Pill Area -->
             <div class="input-area">
-                <div class="input-box-wrapper">
-                    <textarea 
-                        id="user-input" 
-                        class="chat-textarea" 
-                        placeholder="Message GoHighLevel Assistant..." 
-                        rows="1"
-                    ></textarea>
-                    <button id="send-btn" class="send-btn" title="Send Message" aria-label="Send message" disabled>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                    </button>
+                <div class="input-box-wrapper" id="input-box-wrapper">
+                    <!-- Staged Attachments Preview Tray -->
+                    <div class="attachments-preview-tray hidden" id="attachments-preview-tray"></div>
+
+                    <!-- Voice Recording Active Bar -->
+                    <div class="voice-recording-bar hidden" id="voice-recording-bar">
+                        <div class="recording-live-indicator">
+                            <span class="recording-red-dot"></span>
+                            <span class="recording-text">Recording Audio...</span>
+                        </div>
+                        <div class="recording-wave-visualizer">
+                            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <span class="recording-timer" id="recording-timer">0:00</span>
+                        <div class="recording-actions">
+                            <button type="button" class="icon-action-btn cancel-record-btn" id="cancel-record-btn" title="Cancel recording">✕</button>
+                            <button type="button" class="icon-action-btn send-record-btn" id="send-record-btn" title="Done & Attach voice note">✓</button>
+                        </div>
+                    </div>
+
+                    <!-- Regular Chat Controls Bar -->
+                    <div class="input-controls-row" id="input-controls-row">
+                        <!-- Attachment Trigger Button -->
+                        <button type="button" class="attach-btn" id="attach-btn" title="Attach image, document, or audio (or paste screenshot)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        </button>
+                        <input type="file" id="file-upload-input" class="hidden-file-input" multiple accept="image/*,application/pdf,text/*,.doc,.docx,.csv,.json,.md,.wav,.mp3,.webm,.ogg,.m4a">
+
+                        <textarea 
+                            id="user-input" 
+                            class="chat-textarea" 
+                            placeholder="Message GoHighLevel Assistant..." 
+                            rows="1"
+                        ></textarea>
+
+                        <div class="input-right-buttons">
+                            <!-- Voice Input Button -->
+                            <button type="button" class="voice-btn" id="voice-record-btn" title="Record voice question">
+                                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                            </button>
+
+                            <!-- Send Button -->
+                            <button id="send-btn" class="send-btn" title="Send Message" aria-label="Send message" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="input-footer-note">
-                    GoHighLevel Technical Assistant • Powered by ChromaDB & Gemini
+                    GoHighLevel Technical Assistant • Multimodal Vision, Files & Voice Enabled
                 </div>
             </div>
         </main>
@@ -458,7 +495,19 @@
                 <button class="secondary-btn" id="cancel-delete">Cancel</button>
                 <button class="danger-btn" id="confirm-delete">Delete Permanent</button>
             </div>
+    <!-- Drag and Drop Fullscreen Dropzone Overlay -->
+    <div class="drag-drop-overlay hidden" id="drag-drop-overlay">
+        <div class="drag-drop-box">
+            <div class="drag-drop-icon">📁</div>
+            <h3>Drop files here</h3>
+            <p>Upload images, PDFs, documents, or audio clips to analyze with AI</p>
         </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div class="lightbox-overlay hidden" id="image-lightbox-modal">
+        <button class="lightbox-close-btn" id="lightbox-close-btn" title="Close">✕</button>
+        <img src="" id="lightbox-image" class="lightbox-image" alt="Full Preview">
     </div>
 
     <!-- External JS Libraries -->

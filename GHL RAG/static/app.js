@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const openProfileMenuItem = document.getElementById('open-profile-menu-item');
     const logoutMenuItem = document.getElementById('logout-menu-item');
 
-    // Chat Window
+    // Chat Window & Multimodal Elements
     const activeChatTitle = document.getElementById('active-chat-title');
     const chatContainer = document.getElementById('chat-container');
     const welcomeScreen = document.getElementById('welcome-screen');
@@ -47,6 +47,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const chunksCountBadge = document.getElementById('chunks-count-badge');
+
+    // Multimodal Elements
+    const attachBtn = document.getElementById('attach-btn');
+    const fileUploadInput = document.getElementById('file-upload-input');
+    const voiceRecordBtn = document.getElementById('voice-record-btn');
+    const attachmentsPreviewTray = document.getElementById('attachments-preview-tray');
+    const voiceRecordingBar = document.getElementById('voice-recording-bar');
+    const inputControlsRow = document.getElementById('input-controls-row');
+    const recordingTimer = document.getElementById('recording-timer');
+    const cancelRecordBtn = document.getElementById('cancel-record-btn');
+    const sendRecordBtn = document.getElementById('send-record-btn');
+    const dragDropOverlay = document.getElementById('drag-drop-overlay');
+    const imageLightboxModal = document.getElementById('image-lightbox-modal');
+    const lightboxImage = document.getElementById('lightbox-image');
+    const lightboxCloseBtn = document.getElementById('lightbox-close-btn');
+
+    let stagedAttachments = [];
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingInterval = null;
+    let recordingSeconds = 0;
+    let activeAudioStream = null;
 
     // Unified Profile Modal Elements
     const profileModal = document.getElementById('profile-modal');
@@ -407,6 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
             headerDeleteBtn.classList.add('hidden');
         }
 
+        // Reset staged attachments
+        stagedAttachments = [];
+        renderAttachmentsTray();
+
         // Update active class in sidebar
         document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
 
@@ -424,6 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (headerDeleteBtn) {
             headerDeleteBtn.classList.remove('hidden');
         }
+
+        // Reset staged attachments
+        stagedAttachments = [];
+        renderAttachmentsTray();
 
         // Highlight Active in Sidebar
         document.querySelectorAll('.history-item').forEach(el => {
@@ -450,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 conv.messages.forEach(msg => {
-                    appendMessageToDOM(msg.role, msg.content, msg.sources || [], false);
+                    appendMessageToDOM(msg.role, msg.content, msg.sources || [], false, msg.attachments || []);
                 });
 
                 scrollToBottom();
@@ -840,11 +870,325 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ==========================================
+    // MULTIMODAL ATTACHMENTS & VOICE RECORDING
+    // ==========================================
+
+    function updateSendButtonState() {
+        if (!sendBtn) return;
+        const hasText = userInput.value.trim().length > 0;
+        const hasAttachments = stagedAttachments.length > 0;
+        sendBtn.disabled = !hasText && !hasAttachments;
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function renderAttachmentsTray() {
+        if (!attachmentsPreviewTray) return;
+        if (stagedAttachments.length === 0) {
+            attachmentsPreviewTray.classList.add('hidden');
+            attachmentsPreviewTray.innerHTML = '';
+            updateSendButtonState();
+            return;
+        }
+
+        attachmentsPreviewTray.classList.remove('hidden');
+        attachmentsPreviewTray.innerHTML = '';
+
+        stagedAttachments.forEach((att, index) => {
+            const card = document.createElement('div');
+            
+            if (att.type === 'image') {
+                card.className = 'attachment-preview-card image-card';
+                card.innerHTML = `
+                    <img src="${att.data}" alt="${escapeHtml(att.name)}" title="${escapeHtml(att.name)}">
+                    <button type="button" class="attachment-remove-btn" data-index="${index}" title="Remove image">✕</button>
+                `;
+            } else if (att.type === 'audio') {
+                card.className = 'attachment-preview-card';
+                card.innerHTML = `
+                    <span style="font-size:16px;">🎙️</span>
+                    <div class="attachment-card-info">
+                        <span class="attachment-card-name">${escapeHtml(att.name)}</span>
+                        <span class="attachment-card-meta">Voice Audio (${formatFileSize(att.size)})</span>
+                    </div>
+                    <button type="button" class="attachment-remove-btn" data-index="${index}" title="Remove audio">✕</button>
+                `;
+            } else {
+                card.className = 'attachment-preview-card';
+                card.innerHTML = `
+                    <span style="font-size:16px;">📄</span>
+                    <div class="attachment-card-info">
+                        <span class="attachment-card-name">${escapeHtml(att.name)}</span>
+                        <span class="attachment-card-meta">${formatFileSize(att.size)}</span>
+                    </div>
+                    <button type="button" class="attachment-remove-btn" data-index="${index}" title="Remove file">✕</button>
+                `;
+            }
+
+            const removeBtn = card.querySelector('.attachment-remove-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    stagedAttachments.splice(index, 1);
+                    renderAttachmentsTray();
+                });
+            }
+
+            attachmentsPreviewTray.appendChild(card);
+        });
+
+        updateSendButtonState();
+    }
+
+    async function processFile(file) {
+        if (!file) return;
+
+        // Size limit check (25MB)
+        if (file.size > 25 * 1024 * 1024) {
+            alert(`File "${file.name}" is too large. Maximum size is 25MB.`);
+            return;
+        }
+
+        let fileType = 'document';
+        if (file.type.startsWith('image/')) {
+            fileType = 'image';
+        } else if (file.type.startsWith('audio/') || file.name.endsWith('.m4a') || file.name.endsWith('.wav') || file.name.endsWith('.mp3')) {
+            fileType = 'audio';
+        }
+
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Data = reader.result;
+                stagedAttachments.push({
+                    name: file.name,
+                    type: fileType,
+                    mime_type: file.type || 'application/octet-stream',
+                    size: file.size,
+                    data: base64Data
+                });
+                renderAttachmentsTray();
+                resolve();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function handleFilesSelected(files) {
+        if (!files || files.length === 0) return;
+        for (let i = 0; i < files.length; i++) {
+            await processFile(files[i]);
+        }
+        if (fileUploadInput) fileUploadInput.value = '';
+    }
+
+    if (attachBtn && fileUploadInput) {
+        attachBtn.addEventListener('click', () => {
+            fileUploadInput.click();
+        });
+
+        fileUploadInput.addEventListener('change', (e) => {
+            handleFilesSelected(e.target.files);
+        });
+    }
+
+    // Clipboard Paste Listener (Ctrl+V / Cmd+V screenshot or file paste)
+    document.addEventListener('paste', async (e) => {
+        if (!e.clipboardData || !e.clipboardData.items) return;
+        const items = e.clipboardData.items;
+        let fileFound = false;
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file) {
+                    fileFound = true;
+                    // Provide friendly name for pasted screenshots
+                    const customFile = file.name && file.name !== 'image.png' 
+                        ? file 
+                        : new File([file], `screenshot_${Date.now()}.png`, { type: file.type || 'image/png' });
+                    await processFile(customFile);
+                }
+            }
+        }
+    });
+
+    // Drag and Drop Listeners
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (dragDropOverlay) dragDropOverlay.classList.remove('hidden');
+    });
+
+    if (dragDropOverlay) {
+        dragDropOverlay.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragDropOverlay.classList.add('hidden');
+        });
+
+        dragDropOverlay.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropOverlay.classList.add('hidden');
+            if (e.dataTransfer && e.dataTransfer.files) {
+                handleFilesSelected(e.dataTransfer.files);
+            }
+        });
+    }
+
+    // Voice Recording Engine
+    async function startVoiceRecording() {
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Microphone access is not supported by your browser or environment.');
+                return;
+            }
+
+            activeAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];
+
+            const options = { mimeType: 'audio/webm' };
+            if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                delete options.mimeType;
+            }
+
+            mediaRecorder = new MediaRecorder(activeAudioStream, options);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                if (audioChunks.length > 0) {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        stagedAttachments.push({
+                            name: `voice_note_${Date.now()}.webm`,
+                            type: 'audio',
+                            mime_type: audioBlob.type || 'audio/webm',
+                            size: audioBlob.size,
+                            data: reader.result
+                        });
+                        renderAttachmentsTray();
+                    };
+                    reader.readAsDataURL(audioBlob);
+                }
+                stopMediaStream();
+            };
+
+            mediaRecorder.start();
+            recordingSeconds = 0;
+            updateRecordingTimer();
+
+            if (recordingInterval) clearInterval(recordingInterval);
+            recordingInterval = setInterval(() => {
+                recordingSeconds++;
+                updateRecordingTimer();
+            }, 1000);
+
+            // Switch UI to voice recording bar
+            if (voiceRecordingBar) voiceRecordingBar.classList.remove('hidden');
+            if (inputControlsRow) inputControlsRow.classList.add('hidden');
+            if (voiceRecordBtn) voiceRecordBtn.classList.add('recording-active');
+
+        } catch (err) {
+            console.error('Microphone permission error:', err);
+            alert('Unable to access microphone. Please grant microphone permissions in browser settings.');
+        }
+    }
+
+    function stopVoiceRecording(save = true) {
+        if (recordingInterval) {
+            clearInterval(recordingInterval);
+            recordingInterval = null;
+        }
+
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            if (!save) {
+                audioChunks = []; // Clear so onstop discards
+            }
+            mediaRecorder.stop();
+        } else {
+            stopMediaStream();
+        }
+
+        // Restore regular input controls row
+        if (voiceRecordingBar) voiceRecordingBar.classList.add('hidden');
+        if (inputControlsRow) inputControlsRow.classList.remove('hidden');
+        if (voiceRecordBtn) voiceRecordBtn.classList.remove('recording-active');
+    }
+
+    function stopMediaStream() {
+        if (activeAudioStream) {
+            activeAudioStream.getTracks().forEach(track => track.stop());
+            activeAudioStream = null;
+        }
+    }
+
+    function updateRecordingTimer() {
+        if (!recordingTimer) return;
+        const mins = Math.floor(recordingSeconds / 60);
+        const secs = recordingSeconds % 60;
+        recordingTimer.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    if (voiceRecordBtn) {
+        voiceRecordBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopVoiceRecording(true);
+            } else {
+                startVoiceRecording();
+            }
+        });
+    }
+
+    if (cancelRecordBtn) {
+        cancelRecordBtn.addEventListener('click', () => {
+            stopVoiceRecording(false);
+        });
+    }
+
+    if (sendRecordBtn) {
+        sendRecordBtn.addEventListener('click', () => {
+            stopVoiceRecording(true);
+        });
+    }
+
+    // Lightbox Image Viewer
+    function openImageLightbox(src) {
+        if (!imageLightboxModal || !lightboxImage) return;
+        lightboxImage.src = src;
+        imageLightboxModal.classList.remove('hidden');
+    }
+
+    if (lightboxCloseBtn && imageLightboxModal) {
+        lightboxCloseBtn.addEventListener('click', () => {
+            imageLightboxModal.classList.add('hidden');
+            lightboxImage.src = '';
+        });
+
+        imageLightboxModal.addEventListener('click', (e) => {
+            if (e.target === imageLightboxModal) {
+                imageLightboxModal.classList.add('hidden');
+                lightboxImage.src = '';
+            }
+        });
+    }
+
+    // ==========================================
     // CHAT EXECUTION & RAG PIPELINE
     // ==========================================
     userInput.addEventListener('input', () => {
         autoResizeTextarea();
-        sendBtn.disabled = !userInput.value.trim();
+        updateSendButtonState();
     });
 
     userInput.addEventListener('focus', () => {
@@ -866,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (query) {
                 userInput.value = query;
                 autoResizeTextarea();
-                sendBtn.disabled = false;
+                updateSendButtonState();
                 handleSendMessage();
             }
         });
@@ -879,7 +1223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSendMessage() {
         const query = userInput.value.trim();
-        if (!query) return;
+        if (!query && stagedAttachments.length === 0) return;
         sendUserQuery(query);
     }
 
@@ -892,12 +1236,17 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sendUserQuery(query) {
         welcomeScreen.classList.add('hidden');
 
+        // Copy active attachments for sending & rendering
+        const attachmentsToSend = [...stagedAttachments];
+
         userInput.value = '';
         autoResizeTextarea();
+        stagedAttachments = [];
+        renderAttachmentsTray();
         sendBtn.disabled = true;
 
-        // Append User Message to UI
-        appendMessageToDOM('user', query);
+        // Append User Message to UI (with attachments)
+        appendMessageToDOM('user', query, [], true, attachmentsToSend);
 
         // Create Assistant Message Container with Thinking Indicator
         const msgWrapper = document.createElement('div');
@@ -987,7 +1336,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     query: query,
                     conversation_id: currentConversationId,
-                    top_k: appSettings.topK
+                    top_k: appSettings.topK,
+                    attachments: attachmentsToSend
                 })
             });
 
@@ -1048,29 +1398,57 @@ document.addEventListener('DOMContentLoaded', () => {
             if (animationTimer) clearInterval(animationTimer);
             contentEl.innerHTML = marked.parse(`❌ **Network Error:** Could not connect to server: ${err.message}`);
         } finally {
-            sendBtn.disabled = !userInput.value.trim();
+            updateSendButtonState();
         }
     }
 
-    // Helper: Render RAG Sources Accordion HTML (Disabled per requirement)
-    function renderSourcesAccordionHtml(sources) {
-        return '';
-    }
-
-    // Helper: Attach interactive event listeners to RAG sources accordion
-    function attachSourcesListeners(accordionEl, sources) {
-        // No-op
-    }
-
-    // Append Message to UI (ChatGPT 1:1 Design)
-    function appendMessageToDOM(role, content, sources = [], animate = true) {
+    // Append Message to UI (ChatGPT 1:1 Design with Attachments Support)
+    function appendMessageToDOM(role, content, sources = [], animate = true, attachments = []) {
         const msgWrapper = document.createElement('div');
         msgWrapper.className = `message-wrapper ${role}`;
 
         if (role === 'user') {
+            let attachmentsHtml = '';
+            if (attachments && attachments.length > 0) {
+                attachmentsHtml = '<div class="bubble-attachments-wrap">';
+                attachments.forEach((att) => {
+                    if (att.type === 'image' && att.data) {
+                        attachmentsHtml += `<img src="${att.data}" class="bubble-img-thumb" alt="${escapeHtml(att.name)}" title="Click to enlarge">`;
+                    } else if (att.type === 'audio' && att.data) {
+                        attachmentsHtml += `
+                            <div class="bubble-audio-player">
+                                <span class="bubble-audio-label">🎙️ ${escapeHtml(att.name)}</span>
+                                <audio controls src="${att.data}"></audio>
+                            </div>
+                        `;
+                    } else {
+                        attachmentsHtml += `
+                            <div class="bubble-file-chip">
+                                <span>📄</span>
+                                <span>${escapeHtml(att.name)}</span>
+                            </div>
+                        `;
+                    }
+                });
+                attachmentsHtml += '</div>';
+            }
+
+            const textHtml = content ? `<div class="user-bubble-text">${escapeHtml(content)}</div>` : '';
+
             msgWrapper.innerHTML = `
-                <div class="user-bubble">${escapeHtml(content)}</div>
+                <div class="user-bubble">
+                    ${attachmentsHtml}
+                    ${textHtml}
+                </div>
             `;
+
+            // Attach image click listener for Lightbox
+            msgWrapper.querySelectorAll('.bubble-img-thumb').forEach(img => {
+                img.addEventListener('click', () => {
+                    openImageLightbox(img.src);
+                });
+            });
+
         } else {
             const htmlContent = marked.parse(content);
 

@@ -11,6 +11,7 @@ except ImportError:
 import asyncio
 import json
 import time
+import base64
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Request, Response, Depends, Cookie, Header, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
@@ -245,11 +246,19 @@ class ChangePasswordRequest(BaseModel):
 class RenameConvRequest(BaseModel):
     title: str
 
+class AttachmentItem(BaseModel):
+    name: str
+    type: str = "other"  # 'image', 'audio', 'document', 'text'
+    mime_type: str = "application/octet-stream"
+    data: str  # base64 string or data: URL
+    size: Optional[int] = 0
+
 class ChatRequest(BaseModel):
-    query: str
+    query: Optional[str] = ""
     conversation_id: Optional[str] = None
     top_k: Optional[int] = 4
     api_key: Optional[str] = None
+    attachments: Optional[List[AttachmentItem]] = []
 
 class ChatResponse(BaseModel):
     answer: str
@@ -420,12 +429,14 @@ async def delete_conv(conv_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Conversation not found or access denied.")
     return {"message": "Conversation deleted successfully"}
 
-# RAG Chat Endpoint (Live Real-Time Streaming)
+# RAG Chat Endpoint (Live Real-Time Streaming & Multimodal Support)
 @api_router.post("/chat")
 async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_current_user)):
-    user_query = request.query.strip()
-    if not user_query:
-        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+    user_query = (request.query or "").strip()
+    attachments = request.attachments or []
+
+    if not user_query and not attachments:
+        raise HTTPException(status_code=400, detail="Query string or attached file/voice input is required.")
     
     # 1. Resolve or Create Conversation
     conv_id = request.conversation_id
@@ -438,8 +449,28 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
         conv = db.create_conversation(user['id'], title="New Chat")
         conv_id = conv['id']
 
-    # 2. Save User Message
-    user_msg_record = db.add_message(conv_id, user['id'], 'user', user_query)
+    # Auto-synthesize query if text is empty but attachments are present
+    if not user_query and attachments:
+        has_audio = any(a.type == 'audio' or (a.mime_type and a.mime_type.startswith('audio/')) for a in attachments)
+        has_image = any(a.type == 'image' or (a.mime_type and a.mime_type.startswith('image/')) for a in attachments)
+        if has_audio:
+            user_query = "Please listen to the attached voice message / audio note carefully, transcribe what is said, and provide a clear, comprehensive answer and GoHighLevel technical guidance."
+        elif has_image:
+            user_query = "Please analyze the attached image(s) / screenshot(s) in detail. Explain what is shown, identify any relevant GoHighLevel workflows, settings, or errors, and provide step-by-step guidance."
+        else:
+            user_query = "Please analyze the attached file(s) / document(s) and provide a detailed explanation and answers based on GoHighLevel technical capabilities."
+
+    # 2. Save User Message with Attachments
+    att_save_data = []
+    for a in attachments:
+        att_save_data.append({
+            "name": a.name,
+            "type": a.type,
+            "mime_type": a.mime_type,
+            "size": a.size,
+            "data": a.data
+        })
+    user_msg_record = db.add_message(conv_id, user['id'], 'user', user_query, attachments=att_save_data)
     current_conv_title = user_msg_record['conversation_title']
 
     # 3. Resolve API Key (Always prioritize server .env key)
@@ -508,11 +539,60 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
 
     async def stream_generator():
         from google import genai
+        from google.genai import types
         # Send initial metadata immediately to establish active HTTP connection with Railway proxy
         yield f"data: {json.dumps({'type': 'meta', 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
 
         try:
-            # Intelligent RAG Pipeline Execution
+            # 1. Parse and prepare Multimodal Gemini Parts
+            gemini_parts = []
+            extracted_doc_text = ""
+
+            for att in attachments:
+                try:
+                    raw_b64 = att.data
+                    if ";base64," in raw_b64:
+                        raw_b64 = raw_b64.split(";base64,")[1]
+                    raw_bytes = base64.b64decode(raw_b64)
+                    m_type = att.mime_type.lower() if att.mime_type else "application/octet-stream"
+
+                    # Normalize common audio/video types
+                    if m_type == "audio/x-m4a" or att.name.endswith(".m4a"):
+                        m_type = "audio/mp4"
+                    elif m_type == "audio/mp3":
+                        m_type = "audio/mpeg"
+
+                    # Extract plain text from text documents for RAG context
+                    if m_type.startswith("text/") or att.name.endswith(('.txt', '.csv', '.json', '.md', '.log', '.xml', '.html', '.js', '.py')):
+                        try:
+                            decoded_txt = raw_bytes.decode('utf-8', errors='replace')
+                            extracted_doc_text += f"\n\n--- [Attached File Content: {att.name}] ---\n{decoded_txt[:15000]}\n--- [End of {att.name}] ---\n"
+                        except Exception:
+                            pass
+
+                    # Extract text from PDF files using pypdf
+                    if m_type == "application/pdf" or att.name.endswith(".pdf"):
+                        m_type = "application/pdf"
+                        try:
+                            import pypdf
+                            import io
+                            pdf_reader = pypdf.PdfReader(io.BytesIO(raw_bytes))
+                            pdf_text = ""
+                            for page in pdf_reader.pages:
+                                page_txt = page.extract_text()
+                                if page_txt:
+                                    pdf_text += page_txt + "\n"
+                            if pdf_text:
+                                extracted_doc_text += f"\n\n--- [Extracted PDF Document Content: {att.name}] ---\n{pdf_text[:20000]}\n--- [End of {att.name}] ---\n"
+                        except Exception as e_pdf:
+                            print(f"ℹ️ PDF text extraction fallback note: {e_pdf}")
+
+                    part = types.Part.from_bytes(data=raw_bytes, mime_type=m_type)
+                    gemini_parts.append(part)
+                except Exception as e_att:
+                    print(f"⚠️ Error preparing attachment {att.name}: {e_att}")
+
+            # 2. Intelligent RAG Pipeline Execution
             col = get_chroma_collection()
             model = get_embedding_model()
             analysis, prompt, source_labels = RAGEngine.process_query(
@@ -525,8 +605,8 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                 history=prior_messages
             )
 
-            # Instant zero-latency streaming for greetings & conversational openers
-            if analysis.is_conversational:
+            # Instant zero-latency streaming for pure conversational openers (when no files attached)
+            if analysis.is_conversational and not attachments:
                 reply_text = get_conversational_reply(analysis.cleaned_query, first_name, is_first_message)
                 words = reply_text.split(" ")
                 for i, w in enumerate(words):
@@ -538,6 +618,14 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                 elapsed_ms = round((time.time() - start_time) * 1000, 2)
                 yield f"data: {json.dumps({'type': 'done', 'model': 'instant-conversational', 'elapsed_ms': elapsed_ms, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
                 return
+
+            # Append document extracted context to prompt if available
+            final_prompt_text = prompt
+            if extracted_doc_text:
+                final_prompt_text += f"\n\n### User Provided Attachments / Context Documents:\n{extracted_doc_text}"
+
+            # Assemble contents for Gemini (Prompt Text + Multimodal Parts)
+            contents_payload = [types.Part.from_text(text=final_prompt_text)] + gemini_parts
 
             client_gemini = genai.Client(api_key=api_key)
             fallback_models = [
@@ -555,7 +643,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                 try:
                     response_stream = client_gemini.models.generate_content_stream(
                         model=mod_name,
-                        contents=prompt,
+                        contents=contents_payload,
                     )
                     used_model = mod_name
                     for chunk in response_stream:
@@ -576,7 +664,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                     try:
                         resp = client_gemini.models.generate_content(
                             model=mod_name,
-                            contents=prompt,
+                            contents=contents_payload,
                         )
                         if resp and resp.text:
                             full_text = resp.text

@@ -181,12 +181,22 @@ def init_db():
             role TEXT NOT NULL,
             content TEXT NOT NULL,
             sources_json TEXT,
+            attachments_json TEXT,
             created_at TEXT NOT NULL
         );
         """
     ]
     for q in queries:
         db_query(q, commit=True)
+
+    # Migrate existing messages table if attachments_json is missing
+    try:
+        cols = db_query("PRAGMA table_info(messages);", fetchall=True)
+        col_names = [c.get('name') for c in cols] if cols else []
+        if col_names and 'attachments_json' not in col_names:
+            db_query("ALTER TABLE messages ADD COLUMN attachments_json TEXT;", commit=True)
+    except Exception:
+        pass
 
     # Seed Default User if database is empty
     try:
@@ -365,7 +375,7 @@ def get_conversation_details(conv_id: str, user_id: str):
         return None
 
     messages_rows = db_query("""
-        SELECT id, role, content, sources_json, created_at
+        SELECT id, role, content, sources_json, attachments_json, created_at
         FROM messages
         WHERE conversation_id = ?
         ORDER BY created_at ASC
@@ -373,11 +383,18 @@ def get_conversation_details(conv_id: str, user_id: str):
 
     messages = []
     for m in messages_rows:
+        att_data = []
+        if m.get('attachments_json'):
+            try:
+                att_data = json.loads(m['attachments_json'])
+            except Exception:
+                att_data = []
         messages.append({
             "id": m['id'],
             "role": m['role'],
             "content": m['content'],
-            "sources": json.loads(m['sources_json']) if m['sources_json'] else [],
+            "sources": json.loads(m['sources_json']) if m.get('sources_json') else [],
+            "attachments": att_data,
             "created_at": m['created_at']
         })
 
@@ -394,7 +411,7 @@ def get_conversation_messages(conv_id: str, user_id: str):
     details = get_conversation_details(conv_id, user_id)
     return details['messages'] if details else []
 
-def add_message(conv_id: str, user_id: str, role: str, content: str, sources=None):
+def add_message(conv_id: str, user_id: str, role: str, content: str, sources=None, attachments=None):
     # Verify ownership
     conv = db_query("SELECT id, title FROM conversations WHERE id = ? AND user_id = ?", [conv_id, user_id], fetchone=True)
     if not conv:
@@ -406,10 +423,11 @@ def add_message(conv_id: str, user_id: str, role: str, content: str, sources=Non
     msg_id = f"msg_{secrets.token_hex(12)}"
     now_str = datetime.utcnow().isoformat()
     sources_json = json.dumps(sources) if sources else None
+    attachments_json = json.dumps(attachments) if attachments else None
 
     db_query(
-        "INSERT INTO messages (id, conversation_id, role, content, sources_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        [msg_id, conv_id, role, content, sources_json, now_str],
+        "INSERT INTO messages (id, conversation_id, role, content, sources_json, attachments_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [msg_id, conv_id, role, content, sources_json, attachments_json, now_str],
         commit=True
     )
 
@@ -417,11 +435,15 @@ def add_message(conv_id: str, user_id: str, role: str, content: str, sources=Non
     new_title = conv['title']
     if role == 'user' and (msg_count_before == 0 or conv['title'] == "New Chat" or not conv['title']):
         raw_query = content.strip()
-        words = raw_query.split()
-        if len(words) > 6:
-            new_title = " ".join(words[:6]) + "..."
+        if not raw_query and attachments:
+            first_att = attachments[0].get('name', 'File Attachment')
+            new_title = f"Uploaded: {first_att}"
         else:
-            new_title = raw_query
+            words = raw_query.split()
+            if len(words) > 6:
+                new_title = " ".join(words[:6]) + "..."
+            else:
+                new_title = raw_query
         new_title = new_title[:45]
 
     db_query("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?", [new_title, now_str, conv_id], commit=True)
@@ -432,6 +454,7 @@ def add_message(conv_id: str, user_id: str, role: str, content: str, sources=Non
         "role": role,
         "content": content,
         "sources": sources or [],
+        "attachments": attachments or [],
         "created_at": now_str,
         "conversation_title": new_title
     }
