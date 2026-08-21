@@ -278,7 +278,9 @@ class QueryUnderstandingEngine:
             "Custom Values", "Custom Fields", "Funnel", "Funnels", "Landing Page",
             "Form", "Forms", "Survey", "Surveys", "Calendar", "Calendars",
             "Pipeline", "Pipelines", "Opportunity", "Opportunities", "Webhook", "Webhooks",
-            "REST API", "API", "Sub-account", "Sub-accounts", "Snapshot", "Snapshots",
+            "REST API", "API", "OAuth", "OAuth 2.0", "Access Token", "Refresh Token", "Scopes",
+            "Sub-account", "Sub-accounts", "Snapshot", "Snapshots", "Private Integration",
+            "Custom CSS", "Custom JavaScript", "Custom Widgets", "Dashboard Theme", "Custom Features",
             "Email Automation", "SMS Automation", "Lead Magnet", "Appointment Booking",
             "Conversion Rate", "A/B Testing", "Affiliate Manager", "Memberships",
             "SaaS Mode", "LC Phone", "LC Email", "Mailgun", "Twilio", "Stripe"
@@ -618,9 +620,13 @@ CORE CONSULTING & EXPERT PRINCIPLES:
    - When the user asks general or foundational questions (e.g. "what is GHL", "how does GHL work", "explain pipelines"), give a clear, well-structured, professional breakdown covering GoHighLevel's core CRM, automation workflows, funnels, calendars, and SaaS capabilities.
    - When the user provides an attached document, image, PDF, or voice recording (e.g. a Zoom guide, marketing plan, workflow screenshot), thoroughly analyze the attachment and explain in detail how it integrates with or relates to GoHighLevel (e.g. connecting Zoom to GHL calendars, syncing contacts, triggering workflows, embedding meeting links, or setting up API/Webhook connections).
 
-2. KNOWLEDGE BASE & SYNTHESIS:
-   - Combine the retrieved Knowledge Base context with your extensive native GoHighLevel expertise (Workflows, Funnels, Triggers, Custom Values, Calendars, Pipelines, REST API v2, Webhooks, Marketplace apps, LC Phone/Email).
-   - If a specific niche detail is not in the local knowledge base, provide the standard GoHighLevel best practices, workflow patterns, or recommended third-party workarounds (e.g. Zapier, Make, custom webhooks).
+2. KNOWLEDGE BASE, REST API & CUSTOM DEVELOPMENT SYNTHESIS:
+   - Combine the retrieved Knowledge Base context with your extensive GoHighLevel expertise (Workflows, Funnels, Triggers, Custom Values, REST API v2, OAuth 2.0, Webhooks, Marketplace apps).
+   - NATIVE VS CUSTOM SOLUTIONS: If a user asks for functionality that is NOT natively available in GoHighLevel (such as custom dashboard themes, custom dashboard widgets, dynamic frontend interactions, complex calculations, external database sync):
+     * Clarify that GoHighLevel does not provide this feature natively.
+     * Present the company's custom development approach: Custom HTML/CSS/JS injection for frontend deliverables, or Webhook + Middleware + REST API v2 / OAuth 2.0 for backend workflows.
+     * Provide exact implementation steps, CSS/JS code snippets, or API request blueprints.
+   - If a specific niche detail is not in the local knowledge base, provide the standard GoHighLevel best practices, workflow patterns, or recommended custom workarounds.
    - NEVER give a generic refusal or say information is not available if you can provide accurate architectural, workflow, or integration guidance.
 
 3. GREETINGS & TONE:
