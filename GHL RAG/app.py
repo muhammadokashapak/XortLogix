@@ -639,11 +639,17 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
             used_model = "gemini-3.6-flash"
             stream_success = False
 
+            gen_config = types.GenerateContentConfig(
+                temperature=0.2,
+                top_p=0.95
+            )
+
             for mod_name in fallback_models:
                 try:
                     response_stream = client_gemini.models.generate_content_stream(
                         model=mod_name,
                         contents=contents_payload,
+                        config=gen_config
                     )
                     used_model = mod_name
                     for chunk in response_stream:
