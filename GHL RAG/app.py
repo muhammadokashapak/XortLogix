@@ -256,7 +256,7 @@ class AttachmentItem(BaseModel):
 class ChatRequest(BaseModel):
     query: Optional[str] = ""
     conversation_id: Optional[str] = None
-    top_k: Optional[int] = 4
+    top_k: Optional[int] = 1
     api_key: Optional[str] = None
     attachments: Optional[List[AttachmentItem]] = []
 
@@ -494,7 +494,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
     prior_messages = db.get_conversation_messages(conv_id, user['id']) if conv_id else []
     is_first_message = len(prior_messages) <= 1
 
-    top_k = max(1, min(request.top_k or 5, 10))
+    top_k = 1
 
     def get_conversational_reply(query_lower: str, name: str, is_first: bool) -> str:
         if any(k in query_lower for k in ["salam", "aoa", "assalam"]):

@@ -296,8 +296,20 @@
             <!-- Chat Input Pill Area -->
             <div class="input-area">
                 <div class="input-box-wrapper" id="input-box-wrapper">
-                    <!-- Staged Attachments Preview Tray -->
+                    <!-- Multimodal Drop / Paste Overlay Preview -->
                     <div class="attachments-preview-tray hidden" id="attachments-preview-tray"></div>
+
+                    <!-- ChatGPT-style Quoted Excerpt Reply Preview -->
+                    <div class="quote-reply-preview hidden" id="quote-reply-preview">
+                        <div class="quote-reply-content">
+                            <div class="quote-reply-header">
+                                <span class="quote-icon">💬</span>
+                                <span class="quote-label">Replying to excerpt:</span>
+                            </div>
+                            <div class="quote-reply-text" id="quote-reply-text"></div>
+                        </div>
+                        <button class="quote-cancel-btn" id="quote-cancel-btn" type="button" title="Cancel quote reply">✕</button>
+                    </div>
 
                     <!-- Voice Recording Active Bar -->
                     <div class="voice-recording-bar hidden" id="voice-recording-bar">
@@ -357,8 +369,8 @@
                 <div class="modal-header-title-group">
                     <div class="profile-header-avatar" id="modal-avatar-initials">U</div>
                     <div>
-                        <h3 id="modal-profile-title">Profile & Preferences</h3>
-                        <p class="modal-header-subtitle" id="modal-profile-subtitle">Personalize your identity and AI search options</p>
+                        <h3 id="modal-profile-title">Profile & Settings</h3>
+                        <p class="modal-header-subtitle" id="modal-profile-subtitle">Personalize your identity and account security</p>
                     </div>
                 </div>
                 <button class="icon-btn modal-close-btn" id="close-profile-modal" title="Close">✕</button>
@@ -369,11 +381,8 @@
                 <button class="modal-tab-btn active" data-tab="tab-identity">
                     <span>👤</span> Personal Info
                 </button>
-                <button class="modal-tab-btn" data-tab="tab-sources">
-                    <span>⚙️</span> AI & Sources
-                </button>
                 <button class="modal-tab-btn" data-tab="tab-security">
-                    <span>🔒</span> Password
+                    <span>🔒</span> Password & Security
                 </button>
             </div>
 
@@ -399,40 +408,6 @@
                             <span class="btn-text">Save Profile</span>
                             <div class="btn-spinner hidden"></div>
                         </button>
-                    </div>
-                </div>
-
-                <!-- Tab 2: AI & Sources -->
-                <div class="tab-pane hidden" id="tab-sources">
-                    <div class="sources-control-card">
-                        <div class="sources-control-header">
-                            <div>
-                                <div class="sources-title-row">
-                                    <label for="top-k-slider" class="sources-label">
-                                        Retrieved Sources Count:
-                                    </label>
-                                    <span id="top-k-val" class="sources-badge">4 Chunks</span>
-                                </div>
-                                <p class="help-text" style="margin-top: 4px;">Control how many documentation context chunks are fetched from ChromaDB for each query.</p>
-                            </div>
-                        </div>
-
-                        <div class="slider-wrapper">
-                            <input type="range" id="top-k-slider" min="1" max="10" value="4" step="1" class="custom-range-slider">
-                            <div class="slider-ticks">
-                                <span>1 (Fastest)</span>
-                                <span>4 (Balanced)</span>
-                                <span>10 (Deep Research)</span>
-                            </div>
-                        </div>
-
-                        <div class="sources-mode-info" id="sources-mode-info">
-                            <span class="mode-icon">⚖️</span>
-                            <span class="mode-text"><strong>Balanced Mode (4 chunks):</strong> Optimal balance between lightning-fast streaming speed and comprehensive documentation depth.</span>
-                        </div>
-                    </div>
-                    <div class="tab-actions-right" style="margin-top: 18px;">
-                        <button class="primary-btn" id="save-sources-btn">Apply Preferences</button>
                     </div>
                 </div>
 
@@ -502,6 +477,17 @@
             <h3>Drop files here</h3>
             <p>Upload images, PDFs, documents, or audio clips to analyze with AI</p>
         </div>
+    </div>
+
+    <!-- Floating ChatGPT-style Selection Reply Tooltip -->
+    <div class="selection-reply-tooltip hidden" id="selection-reply-tooltip">
+        <button class="selection-reply-btn" id="selection-reply-btn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 17 4 12 9 7"></polyline>
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+            </svg>
+            <span>Ask about this</span>
+        </button>
     </div>
 
     <!-- Image Lightbox Modal -->

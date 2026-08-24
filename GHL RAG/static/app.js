@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeRenameId = null;
 
     let appSettings = {
-        topK: parseInt(localStorage.getItem('ghl_top_k') || '4', 10)
+        topK: 1
     };
 
     // DOM Elements - Auth
@@ -48,6 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const chunksCountBadge = document.getElementById('chunks-count-badge');
 
+    // Floating Selection Reply Tooltip & Quote Preview Elements
+    const selectionTooltip = document.getElementById('selection-reply-tooltip');
+    const selectionReplyBtn = document.getElementById('selection-reply-btn');
+    const quoteReplyPreview = document.getElementById('quote-reply-preview');
+    const quoteReplyText = document.getElementById('quote-reply-text');
+    const quoteCancelBtn = document.getElementById('quote-cancel-btn');
+    let activeQuotedExcerpt = "";
+
     // Multimodal Elements
     const attachBtn = document.getElementById('attach-btn');
     const fileUploadInput = document.getElementById('file-upload-input');
@@ -81,12 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileSuccessAlert = document.getElementById('profile-success-alert');
     const modalTabBtns = document.querySelectorAll('.modal-tab-btn');
     const tabPanes = document.querySelectorAll('.tab-pane');
-
-    // Top-K Sources
-    const topKSlider = document.getElementById('top-k-slider');
-    const topKValSpan = document.getElementById('top-k-val');
-    const sourcesModeInfo = document.getElementById('sources-mode-info');
-    const saveSourcesBtn = document.getElementById('save-sources-btn');
 
     // Password Elements
     const oldPwdInput = document.getElementById('old-pwd-input');
@@ -335,6 +337,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 conversations = data.conversations;
                 renderConversationSidebar(conversations);
+
+                // Auto-restore last active conversation on page load / refresh
+                if (!currentConversationId && conversations && conversations.length > 0) {
+                    const savedConvId = localStorage.getItem('ghl_active_conv_id');
+                    if (savedConvId && conversations.some(c => c.id === savedConvId)) {
+                        openConversation(savedConvId);
+                    } else {
+                        openConversation(conversations[0].id);
+                    }
+                }
             }
         } catch (err) {
             console.error('Failed to load conversations:', err);
@@ -465,6 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startNewChat() {
         currentConversationId = null;
+        localStorage.removeItem('ghl_active_conv_id');
         messagesList.innerHTML = '';
         welcomeScreen.classList.remove('hidden');
         if (activeChatTitle) {
@@ -478,6 +491,11 @@ document.addEventListener('DOMContentLoaded', () => {
         stagedAttachments = [];
         renderAttachmentsTray();
 
+        // Reset quoted selection
+        activeQuotedExcerpt = "";
+        if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
+        if (userInput) userInput.placeholder = "Message GoHighLevel Assistant...";
+
         // Update active class in sidebar
         document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
 
@@ -487,9 +505,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Scroll directly to the last message sent by user
+    function scrollToLastUserMessage() {
+        if (!messagesList) return;
+        const userMsgs = messagesList.querySelectorAll('.message-wrapper.user');
+        if (userMsgs.length > 0) {
+            const lastMsg = userMsgs[userMsgs.length - 1];
+            setTimeout(() => {
+                lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        } else {
+            scrollToBottom();
+        }
+    }
+
     // Open Existing Conversation
     async function openConversation(convId) {
         currentConversationId = convId;
+        localStorage.setItem('ghl_active_conv_id', convId);
         welcomeScreen.classList.add('hidden');
         messagesList.innerHTML = '';
         if (headerDeleteBtn) {
@@ -499,6 +532,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset staged attachments
         stagedAttachments = [];
         renderAttachmentsTray();
+
+        // Reset quoted selection
+        activeQuotedExcerpt = "";
+        if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
+        if (userInput) userInput.placeholder = "Message GoHighLevel Assistant...";
 
         // Highlight Active in Sidebar
         document.querySelectorAll('.history-item').forEach(el => {
@@ -528,7 +566,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     appendMessageToDOM(msg.role, msg.content, msg.sources || [], false, msg.attachments || []);
                 });
 
-                scrollToBottom();
+                // Smoothly position screen starting at user's last message
+                scrollToLastUserMessage();
             }
         } catch (err) {
             console.error('Failed to load conversation details:', err);
@@ -695,12 +734,6 @@ document.addEventListener('DOMContentLoaded', () => {
             modalAvatarInitials.textContent = (currentUser.name || 'U').charAt(0).toUpperCase();
         }
 
-        // Populate Sources Settings
-        if (topKSlider) {
-            topKSlider.value = appSettings.topK;
-            updateSourcesInfo(appSettings.topK);
-        }
-
         // Clear Password fields & alerts
         if (oldPwdInput) oldPwdInput.value = '';
         if (newPwdInput) newPwdInput.value = '';
@@ -815,36 +848,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 setBtnLoading(saveNameBtn, false);
                 showProfileError('Connection error. Please try again.');
             }
-        });
-    }
-
-    // Sources Slider & Settings
-    function updateSourcesInfo(val) {
-        const num = parseInt(val, 10);
-        if (topKValSpan) topKValSpan.textContent = `${num} Chunks`;
-        if (sourcesModeInfo) {
-            if (num <= 2) {
-                sourcesModeInfo.innerHTML = `<span class="mode-icon">⚡</span><span class="mode-text"><strong>Fastest Mode (${num} chunks):</strong> Ultra-fast replies focusing on primary documentation matches.</span>`;
-            } else if (num <= 5) {
-                sourcesModeInfo.innerHTML = `<span class="mode-icon">⚖️</span><span class="mode-text"><strong>Balanced Mode (${num} chunks):</strong> Optimal balance between fast streaming and thorough technical coverage.</span>`;
-            } else {
-                sourcesModeInfo.innerHTML = `<span class="mode-icon">🔬</span><span class="mode-text"><strong>Deep Research Mode (${num} chunks):</strong> Maximized context extraction for intricate setups and multi-step workflows.</span>`;
-            }
-        }
-    }
-
-    if (topKSlider) {
-        topKSlider.addEventListener('input', (e) => {
-            updateSourcesInfo(e.target.value);
-        });
-    }
-
-    if (saveSourcesBtn) {
-        saveSourcesBtn.addEventListener('click', () => {
-            const newTopK = parseInt(topKSlider.value, 10) || 4;
-            appSettings.topK = newTopK;
-            localStorage.setItem('ghl_top_k', newTopK.toString());
-            showProfileSuccess(`Search preferences saved! Bot will retrieve ${newTopK} sources per query.`);
         });
     }
 
@@ -1231,6 +1234,94 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // CHAT EXECUTION & RAG PIPELINE
     // ==========================================
+
+    // ChatGPT-Style Text Selection Tooltip & Quote Reply Handlers
+    document.addEventListener('mouseup', handleSelectionEvent);
+    document.addEventListener('touchend', handleSelectionEvent);
+    document.addEventListener('selectionchange', handleSelectionDebounced);
+
+    let selectionDebounceTimer = null;
+    function handleSelectionDebounced() {
+        clearTimeout(selectionDebounceTimer);
+        selectionDebounceTimer = setTimeout(handleSelectionEvent, 80);
+    }
+
+    function handleSelectionEvent() {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+            hideSelectionTooltip();
+            return;
+        }
+
+        const text = sel.toString().trim();
+        if (text.length < 3) {
+            hideSelectionTooltip();
+            return;
+        }
+
+        // Only show tooltip if selection is within markdown content in assistant messages
+        const node = sel.anchorNode;
+        const elem = node ? (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement) : null;
+        if (!elem || !elem.closest('.markdown-content, .assistant-body')) {
+            hideSelectionTooltip();
+            return;
+        }
+
+        try {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (rect.width === 0 && rect.height === 0) {
+                hideSelectionTooltip();
+                return;
+            }
+
+            if (selectionTooltip) {
+                selectionTooltip.style.left = `${rect.left + rect.width / 2}px`;
+                selectionTooltip.style.top = `${rect.top - 6}px`;
+                selectionTooltip.classList.remove('hidden');
+            }
+        } catch (e) {
+            hideSelectionTooltip();
+        }
+    }
+
+    function hideSelectionTooltip() {
+        if (selectionTooltip && !selectionTooltip.classList.contains('hidden')) {
+            selectionTooltip.classList.add('hidden');
+        }
+    }
+
+    if (selectionReplyBtn) {
+        selectionReplyBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const sel = window.getSelection();
+            const text = sel ? sel.toString().trim() : '';
+            if (!text) return;
+
+            activeQuotedExcerpt = text;
+            if (quoteReplyText) quoteReplyText.textContent = `"${text}"`;
+            if (quoteReplyPreview) quoteReplyPreview.classList.remove('hidden');
+
+            sel.removeAllRanges();
+            hideSelectionTooltip();
+
+            if (userInput) {
+                userInput.focus();
+                userInput.placeholder = "Ask a question about this excerpt...";
+            }
+        });
+    }
+
+    if (quoteCancelBtn) {
+        quoteCancelBtn.addEventListener('click', () => {
+            activeQuotedExcerpt = "";
+            if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
+            if (quoteReplyText) quoteReplyText.textContent = "";
+            if (userInput) userInput.placeholder = "Message GoHighLevel Assistant...";
+        });
+    }
+
     userInput.addEventListener('input', () => {
         autoResizeTextarea();
         updateSendButtonState();
@@ -1267,9 +1358,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleSendMessage() {
-        const query = userInput.value.trim();
-        if (!query && stagedAttachments.length === 0) return;
-        sendUserQuery(query);
+        const rawQuery = userInput.value.trim();
+        if (!rawQuery && stagedAttachments.length === 0) return;
+
+        let queryToSend = rawQuery;
+        if (activeQuotedExcerpt) {
+            queryToSend = `> "${activeQuotedExcerpt}"\n\n${rawQuery}`;
+            activeQuotedExcerpt = "";
+            if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
+            if (quoteReplyText) quoteReplyText.textContent = "";
+            if (userInput) userInput.placeholder = "Message GoHighLevel Assistant...";
+        }
+
+        sendUserQuery(queryToSend);
     }
 
     function scrollToBottom() {
@@ -1291,7 +1392,14 @@ document.addEventListener('DOMContentLoaded', () => {
         sendBtn.disabled = true;
 
         // Append User Message to UI (with attachments)
-        appendMessageToDOM('user', query, [], true, attachmentsToSend);
+        const userMsgEl = appendMessageToDOM('user', query, [], true, attachmentsToSend);
+
+        // Position screen immediately starting at user's newly sent message
+        if (userMsgEl) {
+            setTimeout(() => {
+                userMsgEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 30);
+        }
 
         // Create Assistant Message Container with Thinking Indicator
         const msgWrapper = document.createElement('div');
@@ -1309,11 +1417,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         messagesList.appendChild(msgWrapper);
-
-        // Align directly to start of response so user can read naturally from top to bottom
-        setTimeout(() => {
-            msgWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 40);
 
         const contentEl = msgWrapper.querySelector('.markdown-content');
         const actionsEl = msgWrapper.querySelector('.message-actions');
@@ -1414,6 +1517,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         if (evt.type === 'meta') {
                             currentConversationId = evt.conversation_id;
+                            if (currentConversationId) {
+                                localStorage.setItem('ghl_active_conv_id', currentConversationId);
+                            }
                             if (activeChatTitle && evt.conversation_title) {
                                 activeChatTitle.textContent = evt.conversation_title;
                             }
@@ -1425,7 +1531,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else if (evt.type === 'sources') {
                             sources = evt.sources || [];
                         } else if (evt.type === 'done') {
-                            if (evt.conversation_id) currentConversationId = evt.conversation_id;
+                            if (evt.conversation_id) {
+                                currentConversationId = evt.conversation_id;
+                                localStorage.setItem('ghl_active_conv_id', currentConversationId);
+                            }
                             if (activeChatTitle && evt.conversation_title) activeChatTitle.textContent = evt.conversation_title;
                             loadConversations();
                         } else if (evt.type === 'error') {
@@ -1478,7 +1587,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 attachmentsHtml += '</div>';
             }
 
-            const textHtml = content ? `<div class="user-bubble-text">${escapeHtml(content)}</div>` : '';
+            let textHtml = '';
+            if (content) {
+                if (content.startsWith('> "') || content.startsWith('>')) {
+                    textHtml = `<div class="user-bubble-text markdown-content">${renderMarkdown(content)}</div>`;
+                } else {
+                    textHtml = `<div class="user-bubble-text">${escapeHtml(content)}</div>`;
+                }
+            }
 
             msgWrapper.innerHTML = `
                 <div class="user-bubble">
@@ -1518,13 +1634,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const copyBtn = msgWrapper.querySelector('.copy-btn');
             if (copyBtn) {
                 copyBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(content);
+                    navigator.clipboard.writeText(cleanLatexArtifacts(content));
                     const btnSpan = copyBtn.querySelector('span');
                     if (btnSpan) btnSpan.textContent = 'Copied!';
                     setTimeout(() => { if (btnSpan) btnSpan.textContent = 'Copy'; }, 2000);
                 });
             }
         }
+
+        return msgWrapper;
     }
 
     function scrollToBottom() {

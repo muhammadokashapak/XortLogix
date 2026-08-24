@@ -749,7 +749,7 @@ class RAGEngine:
         embed_model,
         user_name: str = "there",
         is_first_message: bool = True,
-        top_k: int = 5,
+        top_k: int = 1,
         history: List[Dict[str, Any]] = None
     ) -> Tuple[QueryAnalysis, str, List[str]]:
         start_t = time.time()
