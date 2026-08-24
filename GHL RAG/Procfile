@@ -1,0 +1,1 @@
+web: sh -c "cd 'GHL RAG' && uvicorn app:app --host 0.0.0.0 --port ${PORT:-7860}"
