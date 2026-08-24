@@ -3,9 +3,11 @@ uvicorn[standard]
 websockets
 pydantic
 requests
+python-multipart
 pypdf
-openai-whisper
-torch
+python-docx
+SpeechRecognition
+av
 numpy
 langchain
 langchain-community

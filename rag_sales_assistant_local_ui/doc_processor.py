@@ -157,7 +157,7 @@ class DocumentProcessor:
         # 2. Numbered Items / Rules / Chapters / Strategies (e.g. 1. , 2. , 1) , Rule 1: , Chapter 1:)
         if len(cards) < 2:
             num_pattern = r'(?=(?:^|\n)\s*(?:\d+[\.\)]\s+|Rule\s*\d+:?|Strategy\s*\d+:?|Tip\s*\d+:?|Step\s*\d+:?|Section\s*\d+:?|Chapter\s*\d+:?|Module\s*\d+:?|Topic\s*\d+:?))'
-            num_blocks = [b.strip() for b in re.split(num_pattern, clean_text, flags=re.IGNORECASE) if b.strip() and len(b.strip()) > 20]
+            num_blocks = [b.strip() for b in re.split(num_pattern, clean_text, flags=re.IGNORECASE) if b.strip() and len(b.strip()) >= 10]
             if len(num_blocks) >= 2:
                 card_id = 1
                 for nb in num_blocks:
@@ -179,7 +179,7 @@ class DocumentProcessor:
         # 3. Markdown Headers (# Header, ## Section)
         if len(cards) < 2:
             header_blocks = re.split(r'(?:^|\n)(?=#{1,4}\s+)', clean_text)
-            header_blocks = [hb.strip() for hb in header_blocks if hb.strip() and len(hb.strip()) > 20]
+            header_blocks = [hb.strip() for hb in header_blocks if hb.strip() and len(hb.strip()) >= 10]
             if len(header_blocks) >= 2:
                 card_id = 1
                 for hb in header_blocks:

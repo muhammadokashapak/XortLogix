@@ -178,7 +178,18 @@ async def upload_custom_document(file: UploadFile = File(...)):
         if not content:
             raise HTTPException(status_code=400, detail="Uploaded file is empty.")
         
-        result = await asyncio.to_thread(rag_engine.load_custom_document, content, file.filename)
+        # Max file size guard: 25 MB
+        MAX_FILE_SIZE = 25 * 1024 * 1024
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail=f"File too large ({len(content)/(1024*1024):.1f} MB). Maximum supported size is 25 MB.")
+
+        # Allowed extensions
+        allowed_exts = {".pdf", ".docx", ".doc", ".txt", ".md", ".csv", ".json", ".log"}
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if ext not in allowed_exts:
+            raise HTTPException(status_code=400, detail=f"Unsupported file format '{ext}'. Please upload PDF, DOCX, TXT, MD, or CSV.")
+        
+        result = await asyncio.to_thread(rag_engine.load_custom_document, content, file.filename or "uploaded_doc")
         
         # Broadcast real-time knowledge update to all connected UI clients & Chrome extension
         await manager.broadcast({
@@ -192,6 +203,8 @@ async def upload_custom_document(file: UploadFile = File(...)):
         })
         
         return result
+    except HTTPException:
+        raise
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
@@ -322,7 +335,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif msg_type == "audio_chunk":
                 # Audio blob uploaded over WebSocket
-                import base64
                 audio_b64 = msg.get("audio_base64", "")
                 audio_format = msg.get("format", ".raw_pcm")
                 if not audio_format.startswith("."):

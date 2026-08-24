@@ -331,28 +331,17 @@ class RAGEngine:
                 "cached": False,
                 "is_casual": True
             }
-            return {
-                "success": False,
-                "response": "Please speak or type a client question.",
-                "pitch": "",
-                "context": "",
-                "question_matched": "",
-                "q_number": None,
-                "relevance_score": 0.0,
-                "confidence_percent": 0,
-                "rag_latency_ms": 0,
-                "llm_latency_ms": 0,
-                "total_latency_ms": 0,
-                "match_source": "None",
-                "ollama_used": False,
-                "cached": False
-            }
 
-        # Check in-memory cache for instant <10ms replay
+        # Check in-memory cache for instant <10ms replay with TTL (300s)
         cache_key = clean_question.lower()
+        now = time.time()
         if cache_key in self.query_cache:
-            cached = dict(self.query_cache[cache_key])
-            cached["cached"] = True
+            entry = self.query_cache[cache_key]
+            if now - entry.get("_cached_at", 0) < 300:
+                cached = dict(entry["data"])
+                cached["cached"] = True
+                cached["total_latency_ms"] = int((time.time() - start_time) * 1000)
+                return cached
             cached["total_latency_ms"] = int((time.time() - start_time) * 1000)
             return cached
 
@@ -438,10 +427,13 @@ class RAGEngine:
             "cached": False
         }
 
-        # Save in cache
+        # Save in cache with TTL timestamp
         if len(self.query_cache) > 200:
             self.query_cache.clear()
-        self.query_cache[cache_key] = result_payload
+        self.query_cache[cache_key] = {
+            "_cached_at": time.time(),
+            "data": result_payload
+        }
 
         return result_payload
 
@@ -787,7 +779,6 @@ class RAGEngine:
     def reset_to_default_knowledge_base(self) -> Dict[str, Any]:
         """Restores the standard 70 battlecards from zoom.pdf."""
         logger.info("Resetting knowledge base to default zoom.pdf...")
-        self.documents = self._extract_qa_from_pdf(self.pdf_path)
         self.query_cache.clear()
         self.active_document_name = "zoom.pdf (Default 70 Battlecards)"
         self.active_document_uploaded_at = None
@@ -811,23 +802,27 @@ class RAGEngine:
         }
 
     def _export_battlecards_to_extension(self):
-        """Syncs active strategies to all chrome extension instances."""
+        """Syncs active strategies to all discovered chrome extension instances."""
         cards = self.get_all_battlecards()
-        import shutil
-
-        # Local extension directory
         base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Collect candidate extension directories dynamically
         ext_dirs = [
             os.path.join(base_dir, "chrome_extension"),
-            r"O:\Sales\XortLogix\rag_sales_assistant_local_ui\chrome_extension",
-            r"C:\Users\pc\Downloads\Sales\chrome_extension",
-            r"C:\Users\pc\Downloads\Sales\Sales\chrome_extension"
+            os.path.join(os.path.dirname(base_dir), "chrome_extension"),
+            os.path.join(base_dir, "..", "..", "chrome_extension")
         ]
 
+        # Add optional environment-configured paths
+        custom_ext_path = os.environ.get("CHROME_EXTENSION_PATH")
+        if custom_ext_path:
+            ext_dirs.append(custom_ext_path)
+
         for ed in ext_dirs:
-            if os.path.exists(ed):
+            norm_ed = os.path.normpath(ed)
+            if os.path.exists(norm_ed) and os.path.isdir(norm_ed):
                 try:
-                    lib_dir = os.path.join(ed, "lib")
+                    lib_dir = os.path.join(norm_ed, "lib")
                     os.makedirs(lib_dir, exist_ok=True)
                     json_path = os.path.join(lib_dir, "battlecards.json")
                     with open(json_path, "w", encoding="utf-8") as f:
@@ -837,6 +832,6 @@ class RAGEngine:
                     with open(js_path, "w", encoding="utf-8") as f:
                         f.write(f"window.SALES_BATTLECARDS = {json.dumps(cards, ensure_ascii=False, indent=2)};\n")
                 except Exception as e:
-                    logger.debug(f"Extension sync note for {ed}: {e}")
+                    logger.debug(f"Extension sync note for {norm_ed}: {e}")
 
 

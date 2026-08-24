@@ -137,20 +137,59 @@ function speakText(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-// WebSocket Setup
+// Safe Universal Clipboard Copy Helper
+function copyToClipboard(text, successMsg = 'Copied to clipboard!') {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(successMsg);
+    }).catch(() => {
+      fallbackCopyText(text, successMsg);
+    });
+  } else {
+    fallbackCopyText(text, successMsg);
+  }
+}
+
+function fallbackCopyText(text, successMsg) {
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showToast(successMsg);
+  } catch (err) {
+    showToast('Failed to copy text.');
+  }
+}
+
+// WebSocket Setup with Exponential Backoff
+let wsReconnectDelay = 2000;
+let wsReconnectTimer = null;
+
 function initWebSocket() {
+  if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
   state.ws = new WebSocket(wsUrl);
 
   state.ws.onopen = () => {
-    el.statusPill.textContent = '🟢 Online';
+    wsReconnectDelay = 2000;
+    if (el.statusPill) el.statusPill.textContent = '🟢 Online';
   };
 
   state.ws.onclose = () => {
-    el.statusPill.textContent = '🔴 Reconnecting...';
-    setTimeout(initWebSocket, 2000);
+    if (el.statusPill) el.statusPill.textContent = '🔴 Reconnecting...';
+    wsReconnectTimer = setTimeout(() => {
+      wsReconnectDelay = Math.min(wsReconnectDelay * 1.5, 30000);
+      initWebSocket();
+    }, wsReconnectDelay);
   };
 
   state.ws.onmessage = (event) => {
@@ -225,6 +264,11 @@ function handleBattlecardResponse(data) {
 
 // 🎯 Handle Client Intent & Strategy Modal Display
 function handleIntentStrategyResponse(data) {
+  if (state.intentTimeout) {
+    clearTimeout(state.intentTimeout);
+    state.intentTimeout = null;
+  }
+
   if (el.btnAnalyzeIntent) {
     el.btnAnalyzeIntent.classList.remove('loading');
     el.btnAnalyzeIntent.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Analyze Intent</span>';
@@ -350,9 +394,20 @@ async function analyzeClientIntent(text) {
     el.btnAnalyzeIntent.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Analyzing...</span>';
   }
 
-  el.stageBadgeText.textContent = 'Decoding client intent & mindset...';
+  if (el.stageBadgeText) {
+    el.stageBadgeText.textContent = 'Decoding client intent & mindset...';
+  }
 
   if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    if (state.intentTimeout) clearTimeout(state.intentTimeout);
+    state.intentTimeout = setTimeout(() => {
+      if (el.btnAnalyzeIntent) {
+        el.btnAnalyzeIntent.classList.remove('loading');
+        el.btnAnalyzeIntent.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Analyze Intent</span>';
+      }
+      showToast('Analysis timed out. Please try again.');
+    }, 10000);
+
     state.ws.send(JSON.stringify({ type: 'analyze_intent', text: queryText }));
   } else {
     try {
@@ -964,13 +1019,12 @@ function setupEvents() {
     showToast(state.autoTts ? 'Auto Voice Cue in Ear Enabled 🎧' : 'Auto Voice Cue Disabled');
   });
 
-  // Copy Buttons
+  // Copy Buttons using Universal Safe Helper
   if (el.btnCopyPitch) {
     el.btnCopyPitch.addEventListener('click', () => {
       const text = el.displayPitchResponse ? el.displayPitchResponse.textContent.trim() : '';
-      navigator.clipboard.writeText(text);
+      copyToClipboard(text, 'Pitch copied to clipboard');
       if (el.btnCopyText) el.btnCopyText.textContent = 'Copied!';
-      showToast('Pitch copied to clipboard');
       setTimeout(() => {
         if (el.btnCopyText) el.btnCopyText.textContent = 'Copy Pitch';
       }, 1800);
@@ -979,17 +1033,15 @@ function setupEvents() {
 
   if (el.btnPopupCopy) {
     el.btnPopupCopy.addEventListener('click', () => {
-      const text = el.popupPitchText.textContent.trim();
-      navigator.clipboard.writeText(text);
-      showToast('Popup strategy copied!');
+      const text = el.popupPitchText ? el.popupPitchText.textContent.trim() : '';
+      copyToClipboard(text, 'Popup strategy copied!');
     });
   }
 
   if (el.btnMiniCopy) {
     el.btnMiniCopy.addEventListener('click', () => {
-      const text = el.hudPitch.textContent.trim();
-      navigator.clipboard.writeText(text);
-      showToast('HUD strategy copied!');
+      const text = el.hudPitch ? el.hudPitch.textContent.trim() : '';
+      copyToClipboard(text, 'HUD strategy copied!');
     });
   }
 
@@ -1003,14 +1055,14 @@ function setupEvents() {
 
   if (el.btnPopupListen) {
     el.btnPopupListen.addEventListener('click', () => {
-      speakText(el.popupPitchText.textContent.trim());
+      if (el.popupPitchText) speakText(el.popupPitchText.textContent.trim());
     });
   }
 
   // Close Popup
   if (el.btnClosePopup) {
     el.btnClosePopup.addEventListener('click', () => {
-      el.smartStrategyPopup.style.display = 'none';
+      if (el.smartStrategyPopup) el.smartStrategyPopup.style.display = 'none';
     });
   }
 
@@ -1024,33 +1076,45 @@ function setupEvents() {
   }
 
   // Mini HUD Toggle & Opacity
-  el.btnToggleHud.addEventListener('click', () => {
-    const isShown = el.miniHudWidget.style.display === 'block';
-    el.miniHudWidget.style.display = isShown ? 'none' : 'block';
-    showToast(isShown ? 'Zoom HUD closed' : 'Zoom HUD opened');
-  });
+  if (el.btnToggleHud) {
+    el.btnToggleHud.addEventListener('click', () => {
+      const isShown = el.miniHudWidget && el.miniHudWidget.style.display === 'block';
+      if (el.miniHudWidget) el.miniHudWidget.style.display = isShown ? 'none' : 'block';
+      showToast(isShown ? 'Zoom HUD closed' : 'Zoom HUD opened');
+    });
+  }
 
-  el.btnCloseMiniHud.addEventListener('click', () => {
-    el.miniHudWidget.style.display = 'none';
-  });
+  if (el.btnCloseMiniHud) {
+    el.btnCloseMiniHud.addEventListener('click', () => {
+      if (el.miniHudWidget) el.miniHudWidget.style.display = 'none';
+    });
+  }
 
-  el.miniHudOpacity.addEventListener('input', (e) => {
-    el.miniHudWidget.style.opacity = e.target.value / 100;
-  });
+  if (el.miniHudOpacity) {
+    el.miniHudOpacity.addEventListener('input', (e) => {
+      if (el.miniHudWidget) el.miniHudWidget.style.opacity = e.target.value / 100;
+    });
+  }
 
   // Knowledge Base Modal
-  el.btnOpenKB.addEventListener('click', () => {
-    el.kbModal.style.display = 'flex';
-    loadKnowledgeBase();
-  });
+  if (el.btnOpenKB) {
+    el.btnOpenKB.addEventListener('click', () => {
+      if (el.kbModal) el.kbModal.style.display = 'flex';
+      loadKnowledgeBase();
+    });
+  }
 
-  el.btnCloseKBModal.addEventListener('click', () => {
-    el.kbModal.style.display = 'none';
-  });
+  if (el.btnCloseKBModal) {
+    el.btnCloseKBModal.addEventListener('click', () => {
+      if (el.kbModal) el.kbModal.style.display = 'none';
+    });
+  }
 
-  el.kbSearchInput.addEventListener('input', (e) => {
-    loadKnowledgeBase(e.target.value);
-  });
+  if (el.kbSearchInput) {
+    el.kbSearchInput.addEventListener('input', (e) => {
+      loadKnowledgeBase(e.target.value);
+    });
+  }
 
   // ==========================================================================
   // 🎯 Intent Analyzer & Strategy Modal Events
@@ -1083,18 +1147,15 @@ function setupEvents() {
     });
   }
 
-  // Close Intent Modal
-  if (el.btnCloseIntentModal) {
-    el.btnCloseIntentModal.addEventListener('click', () => {
-      if (el.intentStrategyModal) el.intentStrategyModal.style.display = 'none';
-    });
-  }
-
   // Backdrop click to close Intent Modal
   if (el.intentStrategyModal) {
     el.intentStrategyModal.addEventListener('click', (e) => {
       if (e.target === el.intentStrategyModal) {
-        el.intentStrategyModal.style.display = 'none';
+        if (typeof closeIntentModal === 'function') {
+          closeIntentModal();
+        } else {
+          el.intentStrategyModal.style.display = 'none';
+        }
       }
     });
   }
@@ -1102,10 +1163,9 @@ function setupEvents() {
   // Copy from Intent Modal
   if (el.btnModalCopy) {
     el.btnModalCopy.addEventListener('click', () => {
-      const pitch = el.modalPitchText.textContent.trim();
-      navigator.clipboard.writeText(pitch);
+      const pitch = el.modalPitchText ? el.modalPitchText.textContent.trim() : '';
+      copyToClipboard(pitch, 'Strategy pitch copied to clipboard!');
       if (el.btnModalCopyText) el.btnModalCopyText.textContent = 'Copied!';
-      showToast('Strategy pitch copied to clipboard!');
       setTimeout(() => {
         if (el.btnModalCopyText) el.btnModalCopyText.textContent = 'Copy Strategy Pitch';
       }, 1800);
