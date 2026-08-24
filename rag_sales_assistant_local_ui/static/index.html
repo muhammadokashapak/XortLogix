@@ -47,7 +47,7 @@
           <i class="fa-solid fa-window-restore"></i> Zoom HUD
         </button>
 
-        <button class="btn-clean" id="btnOpenUploadModal" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
+        <button class="btn-clean" id="btnOpenUploadModal" onclick="openPlaybookModal()" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
           <i class="fa-solid fa-cloud-arrow-up"></i> Upload Playbook
         </button>
 
@@ -138,7 +138,7 @@
           </div>
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-clean" id="btnMainUploadDoc" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+          <button class="btn-clean" id="btnMainUploadDoc" onclick="openPlaybookModal()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
             <i class="fa-solid fa-cloud-arrow-up"></i> Upload Custom Strategy Doc
           </button>
         </div>
@@ -428,7 +428,7 @@
           </span>
           <span class="confidence-pill" id="badgeActiveStatus">Default 70 Cards</span>
         </div>
-        <button class="btn-close-modal" id="btnCloseUploadModal" title="Close (Esc)"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-close-modal" id="btnCloseUploadModal" onclick="closePlaybookModal()" title="Close (Esc)"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Modal Body -->
@@ -474,7 +474,26 @@
   <!-- Toast Container -->
   <div class="toast-box" id="toastBox"></div>
 
+  <!-- Inline Direct Modal Functions for Instant Click Response -->
+  <script>
+    function openPlaybookModal() {
+      var modal = document.getElementById('modalUploadPlaybook');
+      if (modal) {
+        modal.style.display = 'flex';
+        if (typeof refreshPlaybookStatus === 'function') {
+          refreshPlaybookStatus();
+        }
+      }
+    }
+    function closePlaybookModal() {
+      var modal = document.getElementById('modalUploadPlaybook');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+  </script>
+
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_0140"></script>
+  <script src="/static/js/app.js?v=20260825_0145"></script>
 </body>
 </html>
