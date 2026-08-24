@@ -121,12 +121,22 @@ document.addEventListener('DOMContentLoaded', () => {
         breaks: true
     });
 
-    // Helper: Sanitize LaTeX / Math symbols into clean readable markdown/text
+    // Helper: Sanitize LaTeX / Math symbols and arrow commands into clean readable markdown/text
     function cleanLatexArtifacts(text) {
         if (!text || typeof text !== 'string') return text || '';
         let cleaned = text;
 
-        // Replace LaTeX comparison/math operators
+        // 1. Replace LaTeX Arrow Commands with Clean Unicode Arrows
+        cleaned = cleaned.replace(/\\(rightarrow|longrightarrow|to|mapsto|implies)\b/g, '→');
+        cleaned = cleaned.replace(/\\(leftarrow|longleftarrow)\b/g, '←');
+        cleaned = cleaned.replace(/\\(Rightarrow|Longrightarrow)\b/g, '⇒');
+        cleaned = cleaned.replace(/\\(Leftarrow|Longleftarrow)\b/g, '⇐');
+        cleaned = cleaned.replace(/\\(leftrightarrow|longleftrightarrow)\b/g, '↔');
+        cleaned = cleaned.replace(/\\(Leftrightarrow|Longleftrightarrow)\b/g, '⇔');
+        cleaned = cleaned.replace(/\\(uparrow|Uparrow)\b/g, '↑');
+        cleaned = cleaned.replace(/\\(downarrow|Downarrow)\b/g, '↓');
+
+        // 2. Replace LaTeX comparison/math operators
         cleaned = cleaned.replace(/\\ge\b/g, '>=');
         cleaned = cleaned.replace(/\\le\b/g, '<=');
         cleaned = cleaned.replace(/\\geq\b/g, '>=');
@@ -138,20 +148,20 @@ document.addEventListener('DOMContentLoaded', () => {
         cleaned = cleaned.replace(/\\pm\b/g, '±');
         cleaned = cleaned.replace(/\\cdot\b/g, '*');
 
-        // Clean \text{...}, \textbf{...}, \mathrm{...}, etc.
+        // 3. Clean \text{...}, \textbf{...}, \mathrm{...}, etc.
         cleaned = cleaned.replace(/\\textbf\{([^{}]+)\}/g, '**$1**');
         cleaned = cleaned.replace(/\\text\{([^{}]+)\}/g, '$1');
         cleaned = cleaned.replace(/\\mathrm\{([^{}]+)\}/g, '$1');
         cleaned = cleaned.replace(/\\mathbf\{([^{}]+)\}/g, '$1');
         cleaned = cleaned.replace(/\\mathit\{([^{}]+)\}/g, '$1');
 
-        // Clean fractions \frac{a}{b} -> (a / b)
+        // 4. Clean fractions \frac{a}{b} -> (a / b)
         cleaned = cleaned.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1 / $2)');
 
-        // Strip remaining backslashes from common math keywords
+        // 5. Strip remaining backslashes from common math keywords
         cleaned = cleaned.replace(/\\(min|max|log|ln|sin|cos|tan|sum|prod|int|sqrt)\b/g, '$1');
 
-        // Replace $$...$$ or $...$ with clean code formatting
+        // 6. Replace $$...$$ or $...$ with clean code formatting
         cleaned = cleaned.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => {
             const inner = p1.trim();
             return inner.includes('\n') ? `\n\`\`\`\n${inner}\n\`\`\`\n` : `\`${inner}\``;

@@ -449,10 +449,21 @@ class ContextAssembler:
 
 
 def clean_latex_artifacts(text: str) -> str:
-    """Sanitizes raw LaTeX / KaTeX math notation into clean, readable plain text / markdown."""
+    """Sanitizes raw LaTeX / KaTeX math notation and arrow commands into clean, readable plain text / unicode."""
     if not text:
         return text or ""
 
+    # 1. LaTeX Arrow Commands -> Clean Unicode Arrows
+    text = re.sub(r'\\(rightarrow|longrightarrow|to|mapsto|implies)\b', '→', text)
+    text = re.sub(r'\\(leftarrow|longleftarrow)\b', '←', text)
+    text = re.sub(r'\\(Rightarrow|Longrightarrow)\b', '⇒', text)
+    text = re.sub(r'\\(Leftarrow|Longleftarrow)\b', '⇐', text)
+    text = re.sub(r'\\(leftrightarrow|longleftrightarrow)\b', '↔', text)
+    text = re.sub(r'\\(Leftrightarrow|Longleftrightarrow)\b', '⇔', text)
+    text = re.sub(r'\\(uparrow|Uparrow)\b', '↑', text)
+    text = re.sub(r'\\(downarrow|Downarrow)\b', '↓', text)
+
+    # 2. LaTeX Comparison & Math operators
     text = re.sub(r'\\ge\b', '>=', text)
     text = re.sub(r'\\le\b', '<=', text)
     text = re.sub(r'\\geq\b', '>=', text)
@@ -471,6 +482,7 @@ def clean_latex_artifacts(text: str) -> str:
     text = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'(\1 / \2)', text)
     text = re.sub(r'\\(min|max|log|ln|sin|cos|tan|sum|prod|int|sqrt)\b', r'\1', text)
 
+    # 3. Clean inline/block math delimiters
     def _replace_double_dollar(m):
         inner = m.group(1).strip()
         if '\n' in inner:
@@ -531,8 +543,8 @@ Provide an authoritative, copy-paste ready technical blueprint structured as fol
 
 ### 4. 📍 Injection & Setup Instructions
 - Clearly specify where to paste the code:
-  * Agency Level: Agency Settings -> Company -> Custom JS / Custom CSS.
-  * Sub-Account Level: Settings -> Custom Code or Funnel Step Settings.
+  * Agency Level: Agency Settings → Company → Custom JS / Custom CSS.
+  * Sub-Account Level: Settings → Custom Code or Funnel Step Settings.
 - Testing and verification steps in the browser console.
 """
 
@@ -602,8 +614,9 @@ CORE CONSULTING & EXPERT PRINCIPLES:
 2. STRICT CODE QUALITY (NO PLACEHOLDERS OR PSEUDOCODE):
    - Every script must be 100% complete, executable, and copy-paste ready.
    - Zero abbreviations (`...` or `# logic goes here`).
-3. ABSOLUTELY NO RAW LATEX OR MATH DELIMITERS:
-   - Never output `$$...$$` or `$math$`. Express calculations and logic in plain text or markdown code blocks.
+3. ABSOLUTELY NO RAW LATEX, ARROW COMMANDS, OR MATH DELIMITERS:
+   - NEVER output LaTeX commands or delimiters (e.g. NEVER output \\rightarrow, \\leftarrow, \\Rightarrow, \\to, $$...$$, $...$, \\text{...}, \\ge, \\le, \\times, \\frac{...}{...}).
+   - For sequential navigation steps or workflow transitions (e.g. Funnels → Select Funnel → Settings), ALWAYS use clean unicode arrow '→' or '->' (NEVER \\rightarrow).
 4. GREETINGS & TONE:
    - First message: Greet politely by name ({first_name}).
    - Subsequent messages: Direct, professional, and crisp answers.

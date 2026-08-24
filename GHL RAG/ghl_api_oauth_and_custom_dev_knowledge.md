@@ -460,7 +460,7 @@ When answering user queries, the assistant must evaluate whether a requirement i
 | **Dynamic DOM & SPA Event Handling** | ❌ Standard static page rendering | ✅ Use **MutationObserver** + **`routeChangeEvent`** to monitor dynamic DOM rendering and apply role permissions. |
 | **External Script / Web Worker Loader** | ❌ No native script package manager | ✅ Inject **Async Script Loader** (`checkforformula404` / dynamic script tag) with idempotency check. |
 | **Complex Math / Dynamic Pricing in Forms** | ❌ Basic fixed form fields only | ✅ Inject **Custom JavaScript** in Funnel/Form to dynamically calculate prices and update custom fields. |
-| **Multi-System Database Sync (ERP / Custom DB)** | ❌ Limited to native marketplace integrations | ✅ Use **GHL Outbound Webhook** $\rightarrow$ Middleware (Python/Node.js/Laravel) $\rightarrow$ **GHL REST API v2** update. |
+| **Multi-System Database Sync (ERP / Custom DB)** | ❌ Limited to native marketplace integrations | ✅ Use **GHL Outbound Webhook** → Middleware (Python/Node.js/Laravel) → **GHL REST API v2** update. |
 | **Multi-Location Agency Management App** | ❌ Manual navigation in dashboard | ✅ Build a **Custom OAuth 2.0 Marketplace App** with `locations.readonly` and `contacts.write` scopes. |
 | **Custom Customer Portal / Dynamic Data View** | ❌ Standard client portal with limited UI | ✅ Build an external React/Vue/HTML frontend that authenticates via **OAuth 2.0 / REST API v2** and embeds via HighLevel Custom Menu Link. |
 
