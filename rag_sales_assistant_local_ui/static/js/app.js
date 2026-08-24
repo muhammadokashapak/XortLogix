@@ -1211,6 +1211,14 @@ function setupPlaybookUpload() {
   const resultMsg = document.getElementById('playbookUploadMsg');
   let selectedFile = null;
 
+  const btnMainOpen = document.getElementById('btnMainUploadDoc');
+  if (btnMainOpen && modal) {
+    btnMainOpen.addEventListener('click', () => {
+      modal.style.display = 'flex';
+      refreshPlaybookStatus();
+    });
+  }
+
   if (btnOpen && modal) {
     btnOpen.addEventListener('click', () => {
       modal.style.display = 'flex';
@@ -1221,6 +1229,15 @@ function setupPlaybookUpload() {
   if (btnClose && modal) {
     btnClose.addEventListener('click', () => {
       modal.style.display = 'none';
+    });
+  }
+
+  // Close on backdrop click
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
     });
   }
 
@@ -1345,9 +1362,14 @@ async function refreshPlaybookStatus() {
     const lblName = document.getElementById('lblActiveDocName');
     const lblMeta = document.getElementById('lblActiveDocMeta');
     const badge = document.getElementById('badgeActiveStatus');
+    const mainName = document.getElementById('mainActiveDocName');
+    const mainMeta = document.getElementById('mainActiveDocMeta');
 
     if (lblName) lblName.textContent = data.active_document || 'Default 70 Battlecards';
     if (lblMeta) lblMeta.textContent = `${data.total_chunks} Strategy Chunks Loaded ${data.uploaded_at ? `(Uploaded: ${data.uploaded_at})` : ''}`;
+    if (mainName) mainName.textContent = data.active_document || 'Default 70 Battlecards';
+    if (mainMeta) mainMeta.textContent = `${data.total_chunks} Strategy Chunks Loaded — Real-Time Voice Matching Active`;
+
     if (badge) {
       if (data.is_custom) {
         badge.textContent = 'Custom Playbook Active';
@@ -1371,4 +1393,5 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPlaybookUpload();
   refreshPlaybookStatus();
 });
+
 

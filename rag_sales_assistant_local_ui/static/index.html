@@ -126,6 +126,24 @@
         </div>
       </div>
 
+      <!-- Quick Playbook Status & Upload Card on Main Page -->
+      <div style="margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; color: #38bdf8; font-size: 18px;">
+            <i class="fa-solid fa-book-bookmark"></i>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #f8fafc;" id="mainActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
+            <div style="font-size: 11px; color: #94a3b8;" id="mainActiveDocMeta">70 Strategy Chunks Loaded — Real-Time Voice Matching Active</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-clean" id="btnMainUploadDoc" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Custom Strategy Doc
+          </button>
+        </div>
+      </div>
+
     </main>
 
   </div>
@@ -398,48 +416,55 @@
   </div>
 
   <!-- Custom Playbook Upload Modal -->
-  <div class="hud-modal" id="modalUploadPlaybook" style="display: none;">
-    <div class="hud-modal-content" style="max-width: 640px;">
-      <div class="hud-modal-header">
-        <div class="hud-modal-title">
-          <i class="fa-solid fa-cloud-arrow-up text-cyan"></i> Custom Sales Playbook & Strategy Embeddings
+  <div class="intent-modal-overlay" id="modalUploadPlaybook" style="display: none;">
+    <div class="intent-modal-card" style="max-width: 620px; width: 95%;">
+      
+      <!-- Modal Header -->
+      <div class="intent-modal-header">
+        <div class="intent-badge-wrap">
+          <span class="intent-tag-badge badge-cyan">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>CUSTOM SALES PLAYBOOK</span>
+          </span>
+          <span class="confidence-pill" id="badgeActiveStatus">Default 70 Cards</span>
         </div>
-        <button class="btn-icon" id="btnCloseUploadModal"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-close-modal" id="btnCloseUploadModal" title="Close (Esc)"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="hud-modal-body">
+
+      <!-- Modal Body -->
+      <div style="padding: 22px;">
         
         <!-- Active Playbook Status Card -->
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 700;">ACTIVE KNOWLEDGE BASE</span>
-            <span id="badgeActiveStatus" style="font-size: 11px; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">Default 70 Battlecards</span>
+            <span id="lblActiveDocMeta" style="font-size: 12px; color: #38bdf8; font-weight: 600;">70 Chunks Active</span>
           </div>
-          <div style="font-size: 14px; font-weight: 700; color: #f8fafc;" id="lblActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
-          <div style="font-size: 12px; color: #64748b; margin-top: 2px;" id="lblActiveDocMeta">70 Strategy Chunks Loaded</div>
+          <div style="font-size: 15px; font-weight: 700; color: #f8fafc;" id="lblActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
         </div>
 
         <!-- Drag & Drop Upload Zone -->
-        <div id="playbookDropZone" style="border: 2px dashed rgba(56, 189, 248, 0.4); border-radius: 12px; padding: 24px 16px; text-align: center; background: rgba(15, 23, 42, 0.3); cursor: pointer; transition: all 0.2s ease;">
+        <div id="playbookDropZone" style="border: 2px dashed rgba(56, 189, 248, 0.5); border-radius: 14px; padding: 30px 16px; text-align: center; background: rgba(15, 23, 42, 0.4); cursor: pointer; transition: all 0.2s ease;">
           <input type="file" id="playbookFileInput" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display: none;" />
-          <i class="fa-solid fa-file-arrow-up" style="font-size: 32px; color: #38bdf8; margin-bottom: 8px;"></i>
-          <div style="font-size: 14px; font-weight: 700; color: #f8fafc;">Click to Select or Drag & Drop Strategy File</div>
-          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Supports PDF, Word (.docx), TXT, Markdown (.md), and CSV</div>
-          <div id="selectedFileName" style="margin-top: 10px; font-size: 12px; font-weight: 700; color: #38bdf8; display: none;"></div>
+          <i class="fa-solid fa-file-arrow-up" style="font-size: 40px; color: #38bdf8; margin-bottom: 10px;"></i>
+          <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Click to Select or Drag & Drop Strategy Document</div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Supports PDF, Word (.docx), Plain Text (.txt), Markdown (.md), and CSV</div>
+          <div id="selectedFileName" style="margin-top: 12px; font-size: 13px; font-weight: 700; color: #38bdf8; display: none;"></div>
         </div>
 
         <!-- Action Buttons -->
-        <div style="display: flex; gap: 10px; margin-top: 16px;">
-          <button id="btnSubmitPlaybook" class="btn-popup-action primary" style="flex: 2;" disabled>
+        <div style="display: flex; gap: 12px; margin-top: 18px;">
+          <button id="btnSubmitPlaybook" class="btn-popup-action primary" style="flex: 2; padding: 12px; font-size: 14px;" disabled>
             <i class="fa-solid fa-bolt"></i> Chunk & Generate Embeddings
           </button>
-          <button id="btnResetPlaybook" class="btn-popup-action" style="flex: 1; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+          <button id="btnResetPlaybook" class="btn-popup-action" style="flex: 1; padding: 12px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 13px;">
             <i class="fa-solid fa-rotate-left"></i> Restore 70 Default
           </button>
         </div>
 
-        <!-- Upload Result / Preview Container -->
-        <div id="playbookUploadResult" style="display: none; margin-top: 16px; padding: 12px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 12px; color: #10b981;">
-          <div id="playbookUploadMsg" style="font-weight: 700;"></div>
+        <!-- Upload Result / Notification Box -->
+        <div id="playbookUploadResult" style="display: none; margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 13px;">
+          <div id="playbookUploadMsg"></div>
         </div>
 
       </div>
@@ -450,6 +475,6 @@
   <div class="toast-box" id="toastBox"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260820_2056"></script>
+  <script src="/static/js/app.js?v=20260825_0140"></script>
 </body>
 </html>
