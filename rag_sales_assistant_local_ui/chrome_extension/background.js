@@ -65,13 +65,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'content_ready':
-      console.log('[Sales Co-Pilot] Content script ready in tab:', sender.tab?.id);
       if (isCapturing && sender.tab?.id === activeTabId) {
         chrome.tabs.sendMessage(activeTabId, { type: 'capture_started' }).catch(() => {});
       }
       break;
   }
 });
+
+// Helper: Check if a URL is an internal browser page where capture is restricted
+function isInternalPage(url) {
+  if (!url) return true;
+  const lower = url.toLowerCase();
+  return lower.startsWith('chrome://') || 
+         lower.startsWith('chrome-extension://') || 
+         lower.startsWith('edge://') || 
+         lower.startsWith('about:') || 
+         lower.startsWith('chrome-search://') ||
+         lower.startsWith('devtools://');
+}
 
 // --- Tab Audio Capture Flow ---
 async function startCapture(meetingUrl = null) {
@@ -89,12 +100,13 @@ async function startCapture(meetingUrl = null) {
 
       // Check if tab with matching URL is already open
       const allTabs = await chrome.tabs.query({});
-      targetTab = allTabs.find(t => t.url && t.url.toLowerCase().includes(rawUrl.toLowerCase().replace(/https?:\/\//, '')));
+      const cleanMatch = rawUrl.toLowerCase().replace(/https?:\/\//, '').replace(/\/$/, '');
+      targetTab = allTabs.find(t => t.url && t.url.toLowerCase().includes(cleanMatch));
 
       if (targetTab) {
         // Activate existing meeting tab
         await chrome.tabs.update(targetTab.id, { active: true });
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 300));
       } else {
         // Create new tab for meeting URL
         targetTab = await chrome.tabs.create({ url: rawUrl, active: true });
@@ -107,22 +119,41 @@ async function startCapture(meetingUrl = null) {
             }
           };
           chrome.tabs.onUpdated.addListener(listener);
-          // Safety timeout after 5 seconds
           setTimeout(() => {
             chrome.tabs.onUpdated.removeListener(listener);
             resolve();
-          }, 5000);
+          }, 4500);
         });
       }
     } else {
-      // 1b. Use the current active tab
+      // 1b. Use current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) throw new Error('No active tab found');
+      if (!tab) {
+        return { success: false, error: 'No active tab found. Please open Google Meet or Zoom.' };
+      }
       targetTab = tab;
+
+      // If user is currently on an internal page (like chrome://extensions), auto-open Google Meet
+      if (isInternalPage(targetTab.url)) {
+        targetTab = await chrome.tabs.create({ url: 'https://meet.google.com/', active: true });
+        await new Promise((resolve) => {
+          const listener = (tabId, info) => {
+            if (tabId === targetTab.id && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }
+          };
+          chrome.tabs.onUpdated.addListener(listener);
+          setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }, 4000);
+        });
+      }
     }
 
-    if (targetTab.url && (targetTab.url.startsWith('chrome://') || targetTab.url.startsWith('edge://') || targetTab.url.startsWith('chrome-extension://') || targetTab.url.startsWith('about:'))) {
-      throw new Error('Cannot capture internal browser page. Please provide a meeting link (Google Meet / Zoom / Teams) or switch to a website tab.');
+    if (!targetTab || isInternalPage(targetTab.url)) {
+      return { success: false, error: 'Please paste a meeting link or switch to a meeting tab.' };
     }
 
     activeTabId = targetTab.id;
@@ -134,12 +165,20 @@ async function startCapture(meetingUrl = null) {
         files: ['content/content.js']
       });
     } catch (e) {
-      console.log('[Sales Co-Pilot] Content script injection note:', e);
+      // Content script already active or injected
     }
 
     // 3. Get stream ID using tabCapture API
-    const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: activeTabId });
-    if (!streamId) throw new Error('Failed to get media stream ID from meeting tab');
+    let streamId = null;
+    try {
+      streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: activeTabId });
+    } catch (err) {
+      return { success: false, error: 'Could not access audio on this tab. Please ensure you are on a live meeting page.' };
+    }
+
+    if (!streamId) {
+      return { success: false, error: 'Failed to initialize tab audio stream.' };
+    }
 
     // 4. Create offscreen document for audio processing
     await ensureOffscreenDocument();
@@ -157,7 +196,6 @@ async function startCapture(meetingUrl = null) {
     startHealthChecks();
 
     isCapturing = true;
-    console.log('[Sales Co-Pilot] Capture started on tab:', activeTabId);
 
     // Notify content script in the active tab to display floating widget HUD
     chrome.tabs.sendMessage(activeTabId, {
@@ -166,9 +204,8 @@ async function startCapture(meetingUrl = null) {
 
     return { success: true, tabId: activeTabId };
   } catch (error) {
-    console.error('[Sales Co-Pilot] Error starting capture:', error);
-    await stopCapture(); // Cleanup on failure
-    return { success: false, error: error.message };
+    await stopCapture();
+    return { success: false, error: error.message || 'Failed to start meeting capture' };
   }
 }
 
@@ -181,9 +218,7 @@ async function stopCapture() {
       chrome.runtime.sendMessage({ type: 'stop_stt' });
       await chrome.offscreen.closeDocument();
     }
-  } catch (e) {
-    console.error('[Sales Co-Pilot] Error closing offscreen:', e);
-  }
+  } catch (e) {}
 
   // Close WebSocket
   if (wsConnection) {
@@ -207,30 +242,31 @@ async function stopCapture() {
   broadcastToPopup({ type: 'status_update', data: { isCapturing: false } });
 
   activeTabId = null;
-  console.log('[Sales Co-Pilot] Capture stopped');
   return { success: true };
 }
 
 // --- Offscreen Document Management ---
 async function ensureOffscreenDocument() {
-  if (await chrome.offscreen.hasDocument()) return;
+  try {
+    if (await chrome.offscreen.hasDocument()) return;
 
-  await chrome.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: ['USER_MEDIA'],
-    justification: 'Capturing tab audio for real-time speech recognition'
-  });
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Capturing tab audio for real-time speech recognition'
+    });
+  } catch (e) {}
 }
 
 // --- Transcript Handling with Debouncing ---
 function handleFinalTranscript(text, timestamp) {
-  if (!text || text.trim().length < CONFIG.MIN_QUERY_LENGTH) return;
+  if (!text || text.trim().length < (CONFIG.MIN_QUERY_LENGTH || 3)) return;
 
   const cleanText = text.trim();
   const now = Date.now();
 
   // Debounce: skip if identical text was sent very recently
-  if (cleanText === lastTranscript && (now - lastTranscriptTime) < CONFIG.DEBOUNCE_MS) {
+  if (cleanText === lastTranscript && (now - lastTranscriptTime) < (CONFIG.DEBOUNCE_MS || 1500)) {
     return;
   }
 
@@ -252,7 +288,7 @@ function handleFinalTranscript(text, timestamp) {
   // Send to backend for RAG strategy lookup via WebSocket
   if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
     wsConnection.send(JSON.stringify({
-      type: 'extension_query',  // Uses server-side debounced extension handler
+      type: 'extension_query',
       text: cleanText
     }));
   }
@@ -268,7 +304,6 @@ function connectWebSocket(retryCount = 0) {
     wsConnection = new WebSocket(CONFIG.WS_URL);
 
     wsConnection.onopen = () => {
-      console.log('[Sales Co-Pilot] WebSocket connected to backend');
       backendOnline = true;
       retryCount = 0;
       broadcastToPopup({ type: 'status_update', data: { backendOnline: true } });
@@ -296,7 +331,6 @@ function connectWebSocket(retryCount = 0) {
         if (msg.type === 'extension_strategies' && activeTabId) {
           const strategies = msg.data?.strategies || [];
           if (strategies.length > 0) {
-            // Send ONLY the top matching strategy to the floating widget
             const bestStrategy = strategies[0];
             chrome.tabs.sendMessage(activeTabId, {
               type: 'show_strategy',
@@ -310,7 +344,6 @@ function connectWebSocket(retryCount = 0) {
               }
             }).catch(() => {});
 
-            // Notify popup of match
             broadcastToPopup({
               type: 'strategy_found',
               data: {
@@ -319,12 +352,11 @@ function connectWebSocket(retryCount = 0) {
               }
             });
 
-            // Store in storage for popup access
             chrome.storage.local.set({ latestStrategies: strategies });
           }
         }
 
-        // Also handle standard battlecard_response (fallback / compatibility)
+        // Handle standard battlecard_response
         if (msg.type === 'battlecard_response' && activeTabId) {
           const data = msg.data;
           if (data && data.success) {
@@ -347,35 +379,21 @@ function connectWebSocket(retryCount = 0) {
           }
         }
 
-        // Handle system_status (initial connection)
-        if (msg.type === 'system_status') {
-          console.log('[Sales Co-Pilot] Backend system status:', msg.data);
-        }
-
-      } catch (e) {
-        console.error('[Sales Co-Pilot] Error parsing WebSocket message:', e);
-      }
+      } catch (e) {}
     };
 
     wsConnection.onclose = () => {
-      console.log('[Sales Co-Pilot] WebSocket closed');
       backendOnline = false;
       broadcastToPopup({ type: 'status_update', data: { backendOnline: false } });
 
-      // Reconnect with exponential backoff if still capturing
       if (isCapturing) {
         const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-        console.log(`[Sales Co-Pilot] Reconnecting in ${delay}ms...`);
         reconnectTimeoutId = setTimeout(() => connectWebSocket(retryCount + 1), delay);
       }
     };
 
-    wsConnection.onerror = (error) => {
-      console.error('[Sales Co-Pilot] WebSocket error:', error);
-    };
-  } catch (error) {
-    console.error('[Sales Co-Pilot] WebSocket connection error:', error);
-  }
+    wsConnection.onerror = () => {};
+  } catch (error) {}
 }
 
 // --- Health Checks ---
@@ -393,9 +411,8 @@ function startHealthChecks() {
   }, CONFIG.PING_INTERVAL);
 }
 
-// --- Helper: Broadcast to popup (popup may or may not be open) ---
+// --- Helper: Broadcast to popup ---
 function broadcastToPopup(message) {
-  chrome.runtime.sendMessage(message).catch(() => {
-    // Popup not open — that's fine, ignore
-  });
+  chrome.runtime.sendMessage(message).catch(() => {});
 }
+
