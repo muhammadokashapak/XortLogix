@@ -467,6 +467,34 @@
           <div id="playbookUploadMsg"></div>
         </div>
 
+        <!-- Chunks & Vector Embeddings Explorer -->
+        <div id="playbookChunksSection" style="margin-top: 18px; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 12px; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">
+              <i class="fa-solid fa-layer-group text-cyan"></i> Active Strategy Chunks & Embeddings
+            </span>
+            <span id="chunksVectorStatusBadge" style="font-size: 11px; background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">
+              🟢 ChromaDB Vector Indexed
+            </span>
+          </div>
+
+          <!-- Quick Test Strategy Input -->
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="txtTestChunkQuery" placeholder="Type test objection (e.g. discount, timeline, NDA, rate)..." onkeydown="if(event.key==='Enter') testChunkRetrieval()" style="flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #f8fafc;" />
+            <button onclick="testChunkRetrieval()" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer;">
+              <i class="fa-solid fa-magnifying-glass"></i> Test Query
+            </button>
+          </div>
+
+          <!-- Test Result Highlight Box -->
+          <div id="testChunkResultBox" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 12px;"></div>
+
+          <!-- Scrollable Chunks Preview List -->
+          <div id="playbookChunksList" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+            <!-- Loaded dynamically -->
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -622,13 +650,110 @@
             badge.style.color = '#10b981';
           }
         }
+
+        loadAndRenderChunks();
       } catch (e) {}
+    }
+
+    async function loadAndRenderChunks() {
+      var container = document.getElementById('playbookChunksList');
+      if (!container) return;
+      try {
+        var res = await fetch('/api/battlecards');
+        var data = await res.json();
+        var cards = data.battlecards || [];
+        if (cards.length === 0) {
+          container.innerHTML = '<div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 12px;">No strategy chunks found.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        cards.forEach(function(card, idx) {
+          var qNum = card.q_number || (idx + 1);
+          var div = document.createElement('div');
+          div.id = 'chunk-card-' + qNum;
+          div.style.cssText = 'background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px 12px; transition: all 0.2s ease;';
+          div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 11px; font-weight: 700; color: #38bdf8;">CHUNK #${qNum}</span>
+              <span style="font-size: 10px; color: #10b981; background: rgba(16, 185, 129, 0.15); padding: 1px 6px; border-radius: 4px;">🟢 Vector Indexed</span>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">📌 ${escapeHtml(card.question || '')}</div>
+            <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">💡 <strong>Strategy Pitch:</strong> ${escapeHtml(card.pitch || card.response || '')}</div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (e) {
+        container.innerHTML = '<div style="color: #ef4444; font-size: 11px;">Error loading chunks list</div>';
+      }
+    }
+
+    function escapeHtml(text) {
+      return (text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    async function testChunkRetrieval() {
+      var input = document.getElementById('txtTestChunkQuery');
+      var q = input ? input.value.trim() : '';
+      if (!q) return;
+
+      var resBox = document.getElementById('testChunkResultBox');
+      if (resBox) {
+        resBox.style.display = 'block';
+        resBox.style.background = 'rgba(56, 189, 248, 0.15)';
+        resBox.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+        resBox.style.color = '#38bdf8';
+        resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Searching Vector Embeddings in ChromaDB...';
+      }
+
+      try {
+        var res = await fetch('/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q })
+        });
+        var data = await res.json();
+        if (res.ok && data.success) {
+          if (resBox) {
+            resBox.style.background = 'rgba(16, 185, 129, 0.15)';
+            resBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+            resBox.style.color = '#10b981';
+            resBox.innerHTML = `
+              <div style="font-weight: 700; margin-bottom: 2px;">🎯 Match Found (${data.confidence_percent}% Confidence, ${data.total_latency_ms}ms):</div>
+              <div style="color: #f8fafc; font-weight: 600;">"${data.question_matched}"</div>
+              <div style="color: #cbd5e1; margin-top: 4px; font-size: 11px;"><strong>Pitch:</strong> ${data.pitch}</div>
+            `;
+          }
+          if (data.q_number) {
+            var el = document.getElementById('chunk-card-' + data.q_number);
+            if (el) {
+              el.style.border = '2px solid #10b981';
+              el.style.background = 'rgba(16, 185, 129, 0.25)';
+              el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              setTimeout(() => {
+                el.style.border = '1px solid rgba(56, 189, 248, 0.2)';
+                el.style.background = 'rgba(15, 23, 42, 0.6)';
+              }, 4000);
+            }
+          }
+        } else {
+          if (resBox) {
+            resBox.style.background = 'rgba(239, 68, 68, 0.15)';
+            resBox.style.color = '#ef4444';
+            resBox.textContent = 'No matching strategy found.';
+          }
+        }
+      } catch (e) {
+        if (resBox) {
+          resBox.style.color = '#ef4444';
+          resBox.textContent = 'Error testing retrieval: ' + e.message;
+        }
+      }
     }
 
     document.addEventListener('DOMContentLoaded', fetchPlaybookStatus);
   </script>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_0150"></script>
+  <script src="/static/js/app.js?v=20260825_0155"></script>
 </body>
 </html>

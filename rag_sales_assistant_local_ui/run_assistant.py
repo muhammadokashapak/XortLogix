@@ -36,12 +36,25 @@ def open_browser():
     print("\n[*] Opening Real-Time Sales Co-Pilot UI at http://127.0.0.1:8000 ...")
     webbrowser.open("http://127.0.0.1:8000")
 
+def run_server_loop():
+    while True:
+        try:
+            uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
+            break
+        except KeyboardInterrupt:
+            print("\n[!] Server stopped by user (Ctrl+C).")
+            break
+        except Exception as e:
+            print(f"\n[!] Server process encountered an error: {e}")
+            print("[*] Automatically restarting server in 2 seconds...")
+            time.sleep(2)
+
 def main():
     print("=" * 75)
     print(" [*] REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT)")
     print("=" * 75)
     print(" - Audio & Voice: Web Speech API + Local OpenAI Whisper")
-    print(" - Retrieval Engine: ChromaDB + 70 Enterprise Q&A Battlecards (zoom.pdf)")
+    print(" - Retrieval Engine: ChromaDB + Dynamic Playbook Ingestion & Vector Embeddings")
     print(" - LLM Inference: Local Ollama (llama3.2:3b / 1b / phi3)")
     print(" - UI Interface: Cyber-Dark Glassmorphism Web Cockpit + Floating Zoom HUD")
     print("=" * 75)
@@ -51,7 +64,7 @@ def main():
         print(" [+] Ollama server detected at http://127.0.0.1:11434")
     else:
         print(" [!] Note: Ollama is not currently running.")
-        print("     The Sales Assistant will operate in Direct KB Mode with instant <50ms responses.")
+        print("     The Sales Assistant will operate in Direct KB Mode with instant <20ms responses.")
         print("     To enable Ollama LLM synthesis, run 'ollama serve' in a separate terminal.")
     
     import socket
@@ -72,9 +85,10 @@ def main():
     # Open browser in a separate background thread
     threading.Thread(target=open_browser, daemon=True).start()
 
-    # Run Uvicorn server on 0.0.0.0 for PC + Mobile access
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
+    # Run resilient server loop
+    run_server_loop()
 
 if __name__ == "__main__":
     main()
+
 
