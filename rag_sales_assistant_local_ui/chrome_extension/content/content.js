@@ -750,6 +750,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       lastMatchedQ = message.data?.q_number;
       showStrategy(message.data);
       break;
+
+    case 'knowledge_base_updated':
+      if (message.data && message.data.strategies) {
+        window.SALES_BATTLECARDS = message.data.strategies;
+        lastMatchedQ = null;
+        if (matchCountBadge) {
+          matchCountBadge.textContent = `Active: ${message.data.total_chunks || message.data.strategies.length} cards`;
+        }
+      }
+      break;
   }
 });
 

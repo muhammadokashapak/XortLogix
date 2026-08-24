@@ -13,6 +13,7 @@ import logging
 from typing import List, Dict, Any, Optional
 import requests
 from pypdf import PdfReader
+from doc_processor import DocumentProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -38,6 +39,9 @@ class RAGEngine:
         self.documents: List[Dict[str, Any]] = []
         self.vectorstore = None
         self.query_cache: Dict[str, Dict[str, Any]] = {}
+        self.active_document_name: str = "zoom.pdf (Default 70 Battlecards)"
+        self.active_document_uploaded_at: Optional[str] = None
+
         
         # Auto-detect best available Ollama model
         if self.check_ollama():
@@ -730,4 +734,129 @@ class RAGEngine:
             }
             for doc in self.documents
         ]
+
+    def load_custom_document(self, file_bytes: bytes, filename: str) -> Dict[str, Any]:
+        """
+        Parses a custom uploaded sales document, chunks it into strategies,
+        generates vector embeddings, updates active knowledge base, and syncs with extension.
+        """
+        logger.info(f"Ingesting custom document: {filename} ({len(file_bytes)} bytes)")
+        extracted_text = DocumentProcessor.extract_text(file_bytes, filename)
+        if not extracted_text:
+            raise ValueError("No readable text found in uploaded document.")
+
+        new_chunks = DocumentProcessor.chunk_strategies(extracted_text, filename)
+        if not new_chunks:
+            raise ValueError("Could not extract any strategies or chunks from the document. Please ensure file has text.")
+
+        # Assign full_text to each chunk
+        for chunk in new_chunks:
+            chunk["full_text"] = f"Question / Topic:\n{chunk['question']}\n\nContext:\n{chunk['context']}\n\nRecommended Pitch:\n{chunk['pitch']}"
+
+        # 1. Update In-Memory Documents
+        self.documents = new_chunks
+        self.query_cache.clear()
+        self.active_document_name = filename
+        self.active_document_uploaded_at = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        # 2. Re-index ChromaDB / Vector Store with new embeddings
+        try:
+            from langchain_community.vectorstores import Chroma
+            from langchain_community.embeddings import OllamaEmbeddings
+            from langchain_core.documents import Document
+            
+            if self.check_ollama():
+                embeddings = OllamaEmbeddings(
+                    model=self.embedding_model,
+                    base_url=self.ollama_base_url
+                )
+                langchain_docs = [
+                    Document(
+                        page_content=doc["full_text"],
+                        metadata={
+                            "q_number": doc["q_number"],
+                            "question": doc["question"],
+                            "context": doc["context"],
+                            "pitch": doc["pitch"],
+                            "source": doc["source"]
+                        }
+                    ) for doc in self.documents
+                ]
+                # Re-create vectorstore in memory or new collection
+                self.vectorstore = Chroma.from_documents(
+                    documents=langchain_docs,
+                    embedding=embeddings,
+                    collection_name=f"custom_{re.sub(r'[^a-zA-Z0-9]', '_', filename)[:20]}"
+                )
+                logger.info(f"ChromaDB vector embeddings updated with {len(langchain_docs)} custom chunks.")
+        except Exception as e:
+            logger.warning(f"Vectorstore re-indexing note: {e}")
+
+        # 3. Synchronize Extension In-Memory Battlecards Cache
+        self._export_battlecards_to_extension()
+
+        logger.info(f"Custom knowledge base activated: '{filename}' ({len(self.documents)} strategy chunks)")
+        return {
+            "success": True,
+            "filename": filename,
+            "total_chunks": len(self.documents),
+            "uploaded_at": self.active_document_uploaded_at,
+            "preview": self.get_all_battlecards()[:5]
+        }
+
+    def reset_to_default_knowledge_base(self) -> Dict[str, Any]:
+        """Restores the standard 70 battlecards from zoom.pdf."""
+        logger.info("Resetting knowledge base to default zoom.pdf...")
+        self.documents = self._extract_qa_from_pdf(self.pdf_path)
+        self.query_cache.clear()
+        self.active_document_name = "zoom.pdf (Default 70 Battlecards)"
+        self.active_document_uploaded_at = None
+
+        self._initialize_knowledge_base()
+        self._export_battlecards_to_extension()
+
+        return {
+            "success": True,
+            "active_document": self.active_document_name,
+            "total_chunks": len(self.documents)
+        }
+
+    def get_knowledge_metadata(self) -> Dict[str, Any]:
+        """Returns metadata about the active playbook."""
+        return {
+            "active_document": self.active_document_name,
+            "total_chunks": len(self.documents),
+            "is_custom": self.active_document_uploaded_at is not None,
+            "uploaded_at": self.active_document_uploaded_at
+        }
+
+    def _export_battlecards_to_extension(self):
+        """Syncs active strategies to all chrome extension instances."""
+        cards = self.get_all_battlecards()
+        import shutil
+
+        # Local extension directory
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        ext_dirs = [
+            os.path.join(base_dir, "chrome_extension"),
+            r"O:\Sales\XortLogix\rag_sales_assistant_local_ui\chrome_extension",
+            r"C:\Users\pc\Downloads\Sales\chrome_extension",
+            r"C:\Users\pc\Downloads\Sales\Sales\chrome_extension"
+        ]
+
+        for ed in ext_dirs:
+            if os.path.exists(ed):
+                try:
+                    lib_dir = os.path.join(ed, "lib")
+                    os.makedirs(lib_dir, exist_ok=True)
+                    json_path = os.path.join(lib_dir, "battlecards.json")
+                    with open(json_path, "w", encoding="utf-8") as f:
+                        json.dump(cards, f, ensure_ascii=False, indent=2)
+
+                    js_path = os.path.join(lib_dir, "battlecards_data.js")
+                    with open(js_path, "w", encoding="utf-8") as f:
+                        f.write(f"window.SALES_BATTLECARDS = {json.dumps(cards, ensure_ascii=False, indent=2)};\n")
+                except Exception as e:
+                    logger.debug(f"Extension sync note for {ed}: {e}")
+
 

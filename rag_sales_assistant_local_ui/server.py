@@ -157,6 +157,61 @@ async def get_battlecards(q: Optional[str] = None):
         ]
     return {"total": len(cards), "battlecards": cards}
 
+@app.get("/api/knowledge-status")
+async def get_knowledge_status():
+    """Returns metadata about the active custom or default sales playbook."""
+    return rag_engine.get_knowledge_metadata()
+
+@app.post("/api/upload-document")
+async def upload_custom_document(file: UploadFile = File(...)):
+    """
+    Receives a custom sales document (PDF, DOCX, TXT, CSV),
+    chunks it into strategy battlecards, computes vector embeddings, and activates it live.
+    """
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        
+        result = await asyncio.to_thread(rag_engine.load_custom_document, content, file.filename)
+        
+        # Broadcast real-time knowledge update to all connected UI clients & Chrome extension
+        await manager.broadcast({
+            "type": "knowledge_base_updated",
+            "data": {
+                "active_document": result["filename"],
+                "total_chunks": result["total_chunks"],
+                "uploaded_at": result["uploaded_at"],
+                "strategies": rag_engine.get_all_battlecards()
+            }
+        })
+        
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error processing custom document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+
+@app.post("/api/reset-knowledge")
+async def reset_knowledge_base():
+    """Restores default 70 sales battlecards from zoom.pdf."""
+    try:
+        result = await asyncio.to_thread(rag_engine.reset_to_default_knowledge_base)
+        await manager.broadcast({
+            "type": "knowledge_base_updated",
+            "data": {
+                "active_document": result["active_document"],
+                "total_chunks": result["total_chunks"],
+                "is_custom": False,
+                "strategies": rag_engine.get_all_battlecards()
+            }
+        })
+        return result
+    except Exception as e:
+        logger.error(f"Error resetting knowledge base: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/config")
 async def update_config(config: ConfigUpdateRequest):
     """Updates runtime configuration (e.g. minimum relevance threshold or model)."""
@@ -191,6 +246,8 @@ async def websocket_endpoint(websocket: WebSocket):
             "data": {
                 "status": "ready",
                 "total_cards": len(rag_engine.documents),
+                "active_document": rag_engine.active_document_name,
+                "is_custom": rag_engine.active_document_uploaded_at is not None,
                 "ollama_online": rag_engine.check_ollama(),
                 "model": rag_engine.llm_model
             }

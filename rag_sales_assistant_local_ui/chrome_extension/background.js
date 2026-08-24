@@ -379,6 +379,20 @@ function connectWebSocket(retryCount = 0) {
           }
         }
 
+        // Handle dynamic custom document / knowledge base update
+        if (msg.type === 'knowledge_base_updated') {
+          if (activeTabId) {
+            chrome.tabs.sendMessage(activeTabId, {
+              type: 'knowledge_base_updated',
+              data: msg.data
+            }).catch(() => {});
+          }
+          broadcastToPopup({
+            type: 'knowledge_base_updated',
+            data: msg.data
+          });
+        }
+
       } catch (e) {}
     };
 

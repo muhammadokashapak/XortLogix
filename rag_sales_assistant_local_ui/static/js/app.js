@@ -1197,10 +1197,178 @@ async function loadKnowledgeBase(query = '') {
   }
 }
 
+// Custom Playbook Upload & Embeddings Management
+function setupPlaybookUpload() {
+  const btnOpen = document.getElementById('btnOpenUploadModal');
+  const btnClose = document.getElementById('btnCloseUploadModal');
+  const modal = document.getElementById('modalUploadPlaybook');
+  const dropZone = document.getElementById('playbookDropZone');
+  const fileInput = document.getElementById('playbookFileInput');
+  const selectedName = document.getElementById('selectedFileName');
+  const btnSubmit = document.getElementById('btnSubmitPlaybook');
+  const btnReset = document.getElementById('btnResetPlaybook');
+  const resultBox = document.getElementById('playbookUploadResult');
+  const resultMsg = document.getElementById('playbookUploadMsg');
+  let selectedFile = null;
+
+  if (btnOpen && modal) {
+    btnOpen.addEventListener('click', () => {
+      modal.style.display = 'flex';
+      refreshPlaybookStatus();
+    });
+  }
+
+  if (btnClose && modal) {
+    btnClose.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+  }
+
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = '#38bdf8';
+      dropZone.style.background = 'rgba(56, 189, 248, 0.1)';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      dropZone.style.background = 'rgba(15, 23, 42, 0.3)';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      dropZone.style.background = 'rgba(15, 23, 42, 0.3)';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+  }
+
+  function handleFileSelect(file) {
+    selectedFile = file;
+    if (selectedName) {
+      selectedName.style.display = 'block';
+      selectedName.textContent = `📄 Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    }
+    if (btnSubmit) {
+      btnSubmit.removeAttribute('disabled');
+      btnSubmit.style.opacity = '1';
+    }
+  }
+
+  if (btnSubmit) {
+    btnSubmit.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Parsing & Embedding...';
+      if (resultBox) resultBox.style.display = 'none';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const res = await fetch('/api/upload-document', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`✅ ${data.total_chunks} Custom Strategy Chunks Activated!`);
+          if (resultBox && resultMsg) {
+            resultBox.style.display = 'block';
+            resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+            resultBox.style.color = '#10b981';
+            resultMsg.innerHTML = `🎉 Successfully loaded <strong>${data.filename}</strong> with <strong>${data.total_chunks} strategy chunks</strong>! All custom embeddings are now live across Chrome Extension and Web UI.`;
+          }
+          refreshPlaybookStatus();
+          loadKnowledgeBase();
+        } else {
+          throw new Error(data.detail || 'Upload failed');
+        }
+      } catch (err) {
+        showToast(`❌ Error: ${err.message}`);
+        if (resultBox && resultMsg) {
+          resultBox.style.display = 'block';
+          resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          resultBox.style.color = '#ef4444';
+          resultMsg.textContent = `Error: ${err.message}`;
+        }
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-bolt"></i> Chunk & Generate Embeddings';
+      }
+    });
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to reset to the default 70 sales battlecards?')) return;
+      btnReset.disabled = true;
+      try {
+        const res = await fetch('/api/reset-knowledge', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('🔄 Restored default 70 battlecards!');
+          refreshPlaybookStatus();
+          loadKnowledgeBase();
+          if (resultBox && resultMsg) {
+            resultBox.style.display = 'block';
+            resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
+            resultBox.style.color = '#38bdf8';
+            resultMsg.textContent = 'Restored default zoom.pdf with 70 sales battlecards.';
+          }
+        }
+      } catch (e) {
+        showToast('Error resetting knowledge base');
+      } finally {
+        btnReset.disabled = false;
+      }
+    });
+  }
+}
+
+async function refreshPlaybookStatus() {
+  try {
+    const res = await fetch('/api/knowledge-status');
+    const data = await res.json();
+    const lblName = document.getElementById('lblActiveDocName');
+    const lblMeta = document.getElementById('lblActiveDocMeta');
+    const badge = document.getElementById('badgeActiveStatus');
+
+    if (lblName) lblName.textContent = data.active_document || 'Default 70 Battlecards';
+    if (lblMeta) lblMeta.textContent = `${data.total_chunks} Strategy Chunks Loaded ${data.uploaded_at ? `(Uploaded: ${data.uploaded_at})` : ''}`;
+    if (badge) {
+      if (data.is_custom) {
+        badge.textContent = 'Custom Playbook Active';
+        badge.style.background = 'rgba(6, 182, 212, 0.2)';
+        badge.style.color = '#38bdf8';
+      } else {
+        badge.textContent = 'Default 70 Battlecards';
+        badge.style.background = 'rgba(16, 185, 129, 0.2)';
+        badge.style.color = '#10b981';
+      }
+    }
+  } catch (e) {}
+}
+
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initWebSocket();
   setupSpeechRecognition();
   setupEvents();
+  setupPlaybookUpload();
+  refreshPlaybookStatus();
 });
+
