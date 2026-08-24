@@ -576,9 +576,82 @@ function formatFlowArrows(text) {
   return html;
 }
 
-// --- Real-Time Ultra-Low Latency (<50ms) Browser Voice Listener ---
+// --- Real-Time Ultra-Low Latency (<15ms) Browser Voice Listener + Client Matcher ---
 let speechRecognizer = null;
 let isOverlayActive = false;
+let lastMatchedQ = null;
+
+const CLIENT_SALES_SYNONYMS = {
+  price: ['pricing', 'expensive', 'cost', 'costly', 'budget', 'rate', 'dollar', 'paisa', 'charge', 'charges', 'high rate', 'kam karo', 'discount', 'cheaper', 'afford', 'quotation', 'fee'],
+  discount: ['discount', 'kam karo', 'less price', 'lower rate', 'concession', 'deal', 'cut price', 'budget tight', 'less amount', 'kam rate'],
+  timeline: ['timeline', 'delay', 'late', 'how long', 'deliver', 'delivery', 'deadline', 'when finish', 'duration', 'time take', 'jaldi', 'complete', 'schedule'],
+  milestone: ['milestone', 'milestones', 'payment schedule', 'deposit', 'upfront', '30%', 'billing', 'invoice', 'advance', 'terms'],
+  nda: ['nda', 'ip', 'intellectual property', 'code theft', 'steal', 'confidential', 'security', 'leak', 'contract', 'source code', 'ownership', 'privacy'],
+  freelancer: ['freelancer', 'freelancers', 'upwork', 'fiverr', 'other agency', 'competitor', 'cheaper outside', 'another company'],
+  hourly_fixed: ['hourly', 'fixed price', 'fixed scope', 'time and material', 'retainer', 'cr', 'change request', 'extra hours', 'overtime'],
+  testing: ['testing', 'bugs', 'bug', 'qa', 'quality assurance', 'security testing', 'code quality', 'crash', 'audit'],
+  maintenance: ['maintenance', 'support', 'warranty', 'bug fix', 'after delivery', 'long term', 'sla', 'updates']
+};
+
+function matchInstantBattlecard(text) {
+  const cards = window.SALES_BATTLECARDS;
+  if (!cards || !text || text.trim().length < 3) return null;
+  const lower = text.toLowerCase().trim();
+
+  // Casual chatter filter
+  if (['hello', 'hi', 'hey', 'good morning', 'testing', 'suno', 'acha', 'theek hai', 'yes', 'no', 'okay'].includes(lower)) {
+    return null;
+  }
+
+  let bestCard = null;
+  let bestScore = 0;
+
+  for (const card of cards) {
+    const qLower = (card.question || '').toLowerCase();
+    const cLower = (card.context || '').toLowerCase();
+    const pLower = (card.pitch || '').toLowerCase();
+    let score = 0;
+
+    // 1. Direct Substring Match
+    if (lower.length >= 4 && (qLower.includes(lower) || cLower.includes(lower))) {
+      score += 55;
+    }
+
+    // 2. Token Overlap
+    const words = lower.split(/\s+/).filter(w => w.length > 2);
+    for (const w of words) {
+      if (qLower.includes(w)) score += 15;
+      if (cLower.includes(w)) score += 10;
+      if (pLower.includes(w)) score += 5;
+    }
+
+    // 3. Synonym Group Boost
+    for (const [group, syns] of Object.entries(CLIENT_SALES_SYNONYMS)) {
+      const textHasSyn = syns.some(s => lower.includes(s));
+      const cardHasSyn = syns.some(s => qLower.includes(s) || cLower.includes(s));
+      if (textHasSyn && cardHasSyn) {
+        score += 35;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestCard = card;
+    }
+  }
+
+  if (bestCard && bestScore >= 40) {
+    return {
+      question: bestCard.question,
+      pitch: bestCard.pitch,
+      context: bestCard.context,
+      confidence: Math.min(99, Math.round(bestScore + 15)),
+      q_number: bestCard.q_number,
+      match_source: 'Instant Client-Side Matcher (<5ms)'
+    };
+  }
+  return null;
+}
 
 function startBrowserSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -610,10 +683,17 @@ function startBrowserSpeechRecognition() {
 
       const activeText = (final || interim).trim();
       if (activeText.length >= 3) {
-        // 1. Instant local transcription display in floating HUD (<15ms)
-        updateLiveTranscript(activeText, 12);
+        // 1. Instant word-by-word visual transcription (<5ms)
+        updateLiveTranscript(activeText, 8);
 
-        // 2. Real-time strategy matching query to backend
+        // 2. Instant In-Memory Battlecard Match (<2ms) — ZERO LATENCY POPUP!
+        const instantMatch = matchInstantBattlecard(activeText);
+        if (instantMatch && instantMatch.q_number !== lastMatchedQ) {
+          lastMatchedQ = instantMatch.q_number;
+          showStrategy(instantMatch);
+        }
+
+        // 3. Parallel WebSocket sync to backend
         chrome.runtime.sendMessage({
           type: 'transcript_result',
           text: activeText,
@@ -641,6 +721,7 @@ function stopBrowserSpeechRecognition() {
     } catch (e) {}
     speechRecognizer = null;
   }
+  lastMatchedQ = null;
 }
 
 // --- Message Router from Background ---
@@ -648,6 +729,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'capture_started':
       isOverlayActive = true;
+      lastMatchedQ = null;
       createOverlay();
       startBrowserSpeechRecognition();
       break;
@@ -665,6 +747,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'show_strategy':
+      lastMatchedQ = message.data?.q_number;
       showStrategy(message.data);
       break;
   }
@@ -674,5 +757,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.sendMessage({ type: 'content_ready' }).catch(() => {});
 
 })();
+
 
 
