@@ -453,14 +453,23 @@ function sendQuery(queryText) {
   }
 }
 
-// Speech Recognition (Continuous Real-Time Listening)
+// ==========================================================================
+// 🎙️ Browser Built-In Native Web Speech Engine (0ms Device-Level Recognition)
+// ==========================================================================
+let interimDebounceTimer = null;
+let lastProcessedNativeText = '';
+
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return;
+  if (!SpeechRecognition) {
+    console.log('[SPEECH] Web Speech API not supported in this browser.');
+    return;
+  }
 
   state.recognition = new SpeechRecognition();
   state.recognition.continuous = true;
   state.recognition.interimResults = true;
+  state.recognition.maxAlternatives = 1;
   state.recognition.lang = 'en-US';
 
   state.recognition.onresult = (event) => {
@@ -475,21 +484,44 @@ function setupSpeechRecognition() {
       }
     }
 
-    const text = (final || interim).trim();
-    if (text) {
-      el.liveTranscriptDisplay.textContent = `"${text}"`;
+    const currentText = (final || interim).trim();
+    if (currentText) {
+      if (el.liveTranscriptDisplay) {
+        el.liveTranscriptDisplay.textContent = `"${currentText}"`;
+      }
+      if (el.stageBadgeText) {
+        el.stageBadgeText.textContent = '🟢 Hearing speech in real-time (0ms Native Speech)...';
+      }
     }
 
-    if (final.trim()) {
+    // 1. Immediate trigger on Final utterance
+    if (final.trim() && final.trim() !== lastProcessedNativeText) {
+      lastProcessedNativeText = final.trim();
+      if (interimDebounceTimer) clearTimeout(interimDebounceTimer);
+      console.log(`[SPEECH] ⚡ 0ms Native Final: '${final.trim()}'`);
       sendQuery(final.trim());
+      return;
+    }
+
+    // 2. Fast interim debounce: If user pauses for 380ms while speaking, trigger early matching!
+    if (interim.trim().length >= 8 && interim.trim() !== lastProcessedNativeText) {
+      if (interimDebounceTimer) clearTimeout(interimDebounceTimer);
+      interimDebounceTimer = setTimeout(() => {
+        const textToProcess = interim.trim();
+        if (textToProcess && textToProcess !== lastProcessedNativeText) {
+          lastProcessedNativeText = textToProcess;
+          console.log(`[SPEECH] ⚡ 0ms Native Interim Pause Trigger: '${textToProcess}'`);
+          sendQuery(textToProcess);
+        }
+      }, 380);
     }
   };
 
   state.recognition.onerror = (event) => {
-    console.log('SpeechRecognition event notice:', event.error);
-    if (state.isListening && event.error !== 'not-allowed') {
+    console.log('[SPEECH] SpeechRecognition status notice:', event.error);
+    if (state.isListening && event.error !== 'not-allowed' && event.error !== 'aborted') {
       setTimeout(() => {
-        if (state.isListening) {
+        if (state.isListening && state.recognition) {
           try { state.recognition.start(); } catch (e) {}
         }
       }, 100);
@@ -499,7 +531,7 @@ function setupSpeechRecognition() {
   state.recognition.onend = () => {
     if (state.isListening) {
       setTimeout(() => {
-        if (state.isListening) {
+        if (state.isListening && state.recognition) {
           try { state.recognition.start(); } catch (e) {}
         }
       }, 50);
