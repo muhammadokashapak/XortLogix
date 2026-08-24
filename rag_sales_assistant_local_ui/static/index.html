@@ -149,7 +149,7 @@
   </div>
 
   <!-- 🎯 DEDICATED CLIENT INTENT & STRATEGY POPUP MODAL -->
-  <div class="intent-modal-overlay" id="intentStrategyModal" style="display: none;">
+  <div class="intent-modal-overlay" id="intentStrategyModal" onclick="if(event.target===this)closeIntentModal()" style="display: none;">
     <div class="intent-modal-card">
       
       <!-- Modal Header -->
@@ -163,7 +163,7 @@
           <span class="kb-ref-tag" id="modalKbRef"><i class="fa-solid fa-book-bookmark"></i> Matched: Q14 Battlecard</span>
           <span class="modal-live-badge"><span class="live-pulse-dot"></span> Continuous Auto-Detect Active</span>
         </div>
-        <button class="btn-close-modal" id="btnCloseIntentModal" title="Close Popup (Esc)"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-close-modal" id="btnCloseIntentModal" onclick="closeIntentModal()" title="Close Popup (Esc)"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Modal Body (Widescreen 2-Column Dashboard) -->
@@ -520,6 +520,21 @@
         modal.style.display = 'none';
       }
     }
+
+    function closeIntentModal() {
+      var modal = document.getElementById('intentStrategyModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+    window.closeIntentModal = closeIntentModal;
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeIntentModal();
+        closePlaybookModal();
+      }
+    });
 
     function onPlaybookFileSelected(input) {
       if (input.files && input.files[0]) {
