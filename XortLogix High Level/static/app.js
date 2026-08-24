@@ -494,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset quoted selection
         activeQuotedExcerpt = "";
         if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
-        if (userInput) userInput.placeholder = "Message XortLogix High Level...";
+        if (userInput) userInput.placeholder = "Message XortLogix High Level Assistant...";
 
         // Update active class in sidebar
         document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
@@ -536,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset quoted selection
         activeQuotedExcerpt = "";
         if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
-        if (userInput) userInput.placeholder = "Message XortLogix High Level...";
+        if (userInput) userInput.placeholder = "Message XortLogix High Level Assistant...";
 
         // Highlight Active in Sidebar
         document.querySelectorAll('.history-item').forEach(el => {
@@ -1318,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeQuotedExcerpt = "";
             if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
             if (quoteReplyText) quoteReplyText.textContent = "";
-            if (userInput) userInput.placeholder = "Message XortLogix High Level...";
+            if (userInput) userInput.placeholder = "Message XortLogix High Level Assistant...";
         });
     }
 
@@ -1367,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activeQuotedExcerpt = "";
             if (quoteReplyPreview) quoteReplyPreview.classList.add('hidden');
             if (quoteReplyText) quoteReplyText.textContent = "";
-            if (userInput) userInput.placeholder = "Message XortLogix High Level...";
+            if (userInput) userInput.placeholder = "Message XortLogix High Level Assistant...";
         }
 
         sendUserQuery(queryToSend);
