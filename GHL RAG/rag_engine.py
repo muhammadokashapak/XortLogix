@@ -473,6 +473,58 @@ class ContextAssembler:
 
 
 # ==========================================
+# 4.5. LATEX & RAW MATH SANITIZER
+# ==========================================
+
+def clean_latex_artifacts(text: str) -> str:
+    """
+    Sanitizes raw LaTeX / KaTeX math notation into clean, readable plain text / markdown.
+    Example: $$\\text{Current Time} \\ge \\text{expires_at} - 5\\text{ mins}$$
+    Becomes: `Current Time >= expires_at - 5 mins`
+    """
+    if not text:
+        return text or ""
+
+    # 1. Replace LaTeX operators & comparisons
+    text = re.sub(r'\\ge\b', '>=', text)
+    text = re.sub(r'\\le\b', '<=', text)
+    text = re.sub(r'\\geq\b', '>=', text)
+    text = re.sub(r'\\leq\b', '<=', text)
+    text = re.sub(r'\\neq\b', '!=', text)
+    text = re.sub(r'\\ne\b', '!=', text)
+    text = re.sub(r'\\times\b', '*', text)
+    text = re.sub(r'\\approx\b', '≈', text)
+    text = re.sub(r'\\pm\b', '±', text)
+    text = re.sub(r'\\cdot\b', '*', text)
+
+    # 2. Clean \text{...}, \textbf{...}, \mathrm{...}, etc.
+    text = re.sub(r'\\textbf\{([^{}]+)\}', r'**\1**', text)
+    text = re.sub(r'\\text\{([^{}]+)\}', r'\1', text)
+    text = re.sub(r'\\mathrm\{([^{}]+)\}', r'\1', text)
+    text = re.sub(r'\\mathbf\{([^{}]+)\}', r'\1', text)
+    text = re.sub(r'\\mathit\{([^{}]+)\}', r'\1', text)
+
+    # 3. Clean fractions \frac{a}{b} -> (a / b)
+    text = re.sub(r'\\frac\{([^{}]+)\}\{([^{}]+)\}', r'(\1 / \2)', text)
+
+    # 4. Clean common math function names with leading slash
+    text = re.sub(r'\\(min|max|log|ln|sin|cos|tan|sum|prod|int|sqrt)\b', r'\1', text)
+
+    # 5. Convert $$...$$ and $...$ into clean markdown code blocks or inline code
+    def _replace_double_dollar(m):
+        inner = m.group(1).strip()
+        if '\n' in inner:
+            return f"\n```\n{inner}\n```\n"
+        return f"`{inner}`"
+
+    text = re.sub(r'\$\$([\s\S]+?)\$\$', _replace_double_dollar, text)
+    text = re.sub(r'\$([^\$\n]+?)\$', r'`\1`', text)
+    text = text.replace('$$', '')
+
+    return text
+
+
+# ==========================================
 # 5. INTENT-AWARE PROMPT BUILDER
 # ==========================================
 
@@ -646,11 +698,16 @@ CORE CONSULTING & EXPERT PRINCIPLES:
      * Custom JavaScript MUST be complete, wrapped in `document.addEventListener('DOMContentLoaded', ...)`, use modern `async/await` with `try...catch` error handling, and include clear comments on where to inject it (Funnel Step Settings vs Agency Custom Code).
      * NEVER provide broken, half-baked, or untested code snippets. Every line of code must be production quality.
 
-4. GREETINGS & TONE:
+4. ABSOLUTELY NO RAW LATEX OR MATH DELIMITERS:
+   - NEVER output LaTeX math expressions or syntax (e.g., NEVER use `$$...$$`, `$...$`, `\\text{...}`, `\\ge`, `\\le`, `\\times`, `\\frac{...}{...}`, `\\approx`, or `\\neq`).
+   - Always express calculations, token expiry buffers, logical conditions, and comparisons using standard plain text or code notation (e.g. `Current Time >= expires_at - 5 minutes` or code snippets in backticks/code blocks).
+
+5. GREETINGS & TONE:
    - If this is the FIRST message of a conversation, greet politely by name ({first_name}).
    - If this is an ONGOING conversation, DO NOT repeat "Hello [Name]" or "Hi [Name]". Answer directly, crisply, and professionally.
    - Maintain an authoritative, polished, and structured format using markdown headers, bullet points, and actionable steps.
-5. NO RAW CHUNK DUMPING:
+
+6. NO RAW CHUNK DUMPING:
    - Do NOT append raw document chunks or citations dumps in the generated text. Present synthesized, cohesive insights.
 """
 

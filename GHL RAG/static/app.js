@@ -119,6 +119,51 @@ document.addEventListener('DOMContentLoaded', () => {
         breaks: true
     });
 
+    // Helper: Sanitize LaTeX / Math symbols into clean readable markdown/text
+    function cleanLatexArtifacts(text) {
+        if (!text || typeof text !== 'string') return text || '';
+        let cleaned = text;
+
+        // Replace LaTeX comparison/math operators
+        cleaned = cleaned.replace(/\\ge\b/g, '>=');
+        cleaned = cleaned.replace(/\\le\b/g, '<=');
+        cleaned = cleaned.replace(/\\geq\b/g, '>=');
+        cleaned = cleaned.replace(/\\leq\b/g, '<=');
+        cleaned = cleaned.replace(/\\neq\b/g, '!=');
+        cleaned = cleaned.replace(/\\ne\b/g, '!=');
+        cleaned = cleaned.replace(/\\times\b/g, '*');
+        cleaned = cleaned.replace(/\\approx\b/g, '≈');
+        cleaned = cleaned.replace(/\\pm\b/g, '±');
+        cleaned = cleaned.replace(/\\cdot\b/g, '*');
+
+        // Clean \text{...}, \textbf{...}, \mathrm{...}, etc.
+        cleaned = cleaned.replace(/\\textbf\{([^{}]+)\}/g, '**$1**');
+        cleaned = cleaned.replace(/\\text\{([^{}]+)\}/g, '$1');
+        cleaned = cleaned.replace(/\\mathrm\{([^{}]+)\}/g, '$1');
+        cleaned = cleaned.replace(/\\mathbf\{([^{}]+)\}/g, '$1');
+        cleaned = cleaned.replace(/\\mathit\{([^{}]+)\}/g, '$1');
+
+        // Clean fractions \frac{a}{b} -> (a / b)
+        cleaned = cleaned.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1 / $2)');
+
+        // Strip remaining backslashes from common math keywords
+        cleaned = cleaned.replace(/\\(min|max|log|ln|sin|cos|tan|sum|prod|int|sqrt)\b/g, '$1');
+
+        // Replace $$...$$ or $...$ with clean code formatting
+        cleaned = cleaned.replace(/\$\$([\s\S]+?)\$\$/g, (match, p1) => {
+            const inner = p1.trim();
+            return inner.includes('\n') ? `\n\`\`\`\n${inner}\n\`\`\`\n` : `\`${inner}\``;
+        });
+        cleaned = cleaned.replace(/\$([^\$\n]+?)\$/g, '`$1`');
+        cleaned = cleaned.replace(/\$\$/g, '');
+
+        return cleaned;
+    }
+
+    function renderMarkdown(text) {
+        return marked.parse(cleanLatexArtifacts(text));
+    }
+
     // Helper: Authenticated Fetch (Persists across browser refreshes)
     async function authFetch(url, options = {}) {
         options = options || {};
@@ -1296,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 currentText += targetText.slice(currentText.length, currentText.length + step);
-                contentEl.innerHTML = marked.parse(currentText) + '<span class="typing-cursor"></span>';
+                contentEl.innerHTML = renderMarkdown(currentText) + '<span class="typing-cursor"></span>';
 
                 // Keep view readable: gently scroll if typing line extends past bottom
                 const rect = msgWrapper.getBoundingClientRect();
@@ -1311,13 +1356,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 // Final clean render without cursor
-                contentEl.innerHTML = marked.parse(currentText || 'No response generated.');
+                contentEl.innerHTML = renderMarkdown(currentText || 'No response generated.');
 
                 // Show copy button
                 if (actionsEl) actionsEl.classList.remove('hidden');
                 if (copyBtn) {
                     copyBtn.addEventListener('click', () => {
-                        navigator.clipboard.writeText(currentText);
+                        navigator.clipboard.writeText(cleanLatexArtifacts(currentText));
                         const btnSpan = copyBtn.querySelector('span');
                         if (btnSpan) btnSpan.textContent = 'Copied!';
                         setTimeout(() => { if (btnSpan) btnSpan.textContent = 'Copy'; }, 2000);
@@ -1344,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) {
                 if (animationTimer) clearInterval(animationTimer);
                 const errData = await response.json().catch(() => ({ detail: response.statusText }));
-                contentEl.innerHTML = marked.parse(`⚠️ **Error (${response.status}):** ${errData.detail || 'Failed to generate answer. Please check your Gemini API key or login session.'}`);
+                contentEl.innerHTML = renderMarkdown(`⚠️ **Error (${response.status}):** ${errData.detail || 'Failed to generate answer. Please check your Gemini API key or login session.'}`);
                 return;
             }
 
@@ -1396,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             if (animationTimer) clearInterval(animationTimer);
-            contentEl.innerHTML = marked.parse(`❌ **Network Error:** Could not connect to server: ${err.message}`);
+            contentEl.innerHTML = renderMarkdown(`❌ **Network Error:** Could not connect to server: ${err.message}`);
         } finally {
             updateSendButtonState();
         }
@@ -1450,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } else {
-            const htmlContent = marked.parse(content);
+            const htmlContent = renderMarkdown(content);
 
             msgWrapper.innerHTML = `
                 <div class="assistant-avatar">⚡</div>

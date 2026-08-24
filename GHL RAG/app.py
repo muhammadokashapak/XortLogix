@@ -22,7 +22,7 @@ SentenceTransformer = None
 from dotenv import load_dotenv
 
 import db
-from rag_engine import RAGEngine, QueryUnderstandingEngine
+from rag_engine import RAGEngine, QueryUnderstandingEngine, clean_latex_artifacts
 
 # Fix Windows console UTF-8 output encoding
 if sys.platform == "win32":
@@ -688,8 +688,9 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                 yield f"data: {json.dumps({'type': 'done', 'model': 'error-fallback', 'elapsed_ms': 0, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
                 return
 
-            # Save assistant message to DB
-            db.add_message(conv_id, user['id'], 'assistant', full_text, sources=source_labels)
+            # Save sanitized assistant message to DB
+            sanitized_text = clean_latex_artifacts(full_text)
+            db.add_message(conv_id, user['id'], 'assistant', sanitized_text, sources=source_labels)
             elapsed_ms = round((time.time() - start_time) * 1000, 2)
 
             yield f"data: {json.dumps({'type': 'done', 'model': used_model, 'elapsed_ms': elapsed_ms, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
