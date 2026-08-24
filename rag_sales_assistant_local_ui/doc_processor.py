@@ -14,6 +14,14 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("DocProcessor")
 
+def sanitize_unicode(text: str) -> str:
+    """Removes lone unicode surrogates and unencodable characters that break JSON serialization."""
+    if not isinstance(text, str):
+        return ""
+    # Strip lone surrogates
+    cleaned = "".join(ch for ch in text if not (0xD800 <= ord(ch) <= 0xDFFF))
+    return cleaned.encode("utf-8", "ignore").decode("utf-8", "ignore")
+
 class DocumentProcessor:
     @staticmethod
     def extract_text(file_bytes: bytes, filename: str) -> str:
@@ -25,7 +33,8 @@ class DocumentProcessor:
                 from pypdf import PdfReader
                 reader = PdfReader(io.BytesIO(file_bytes))
                 pages = [p.extract_text() or "" for p in reader.pages]
-                return "\n".join(pages).strip()
+                raw_text = "\n".join(pages).strip()
+                return sanitize_unicode(raw_text)
             except Exception as e:
                 logger.error(f"Error parsing PDF {filename}: {e}")
                 raise ValueError(f"Failed to read PDF document: {e}")
@@ -43,7 +52,7 @@ class DocumentProcessor:
                         row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
                         if row_text:
                             full_text.append(" | ".join(row_text))
-                return "\n".join(full_text).strip()
+                return sanitize_unicode("\n".join(full_text).strip())
             except Exception as e:
                 # Fallback to XML extraction from zip
                 try:
@@ -53,26 +62,26 @@ class DocumentProcessor:
                         xml_content = zf.read('word/document.xml')
                         tree = ET.fromstring(xml_content)
                         texts = [node.text for node in tree.iter() if node.text]
-                        return " ".join(texts).strip()
+                        return sanitize_unicode(" ".join(texts).strip())
                 except Exception as inner_e:
                     logger.error(f"Error parsing DOCX {filename}: {e} / {inner_e}")
                     raise ValueError(f"Failed to read Word document: {e}")
 
         elif ext in (".txt", ".md", ".json", ".log"):
             try:
-                return file_bytes.decode("utf-8", errors="ignore").strip()
+                return sanitize_unicode(file_bytes.decode("utf-8", errors="ignore").strip())
             except Exception as e:
                 logger.error(f"Error reading text file {filename}: {e}")
                 raise ValueError(f"Failed to read text file: {e}")
 
         elif ext == ".csv":
             try:
-                content = file_bytes.decode("utf-8", errors="ignore")
+                content = sanitize_unicode(file_bytes.decode("utf-8", errors="ignore"))
                 reader = csv.reader(io.StringIO(content))
                 rows = []
-                for row in reader:
-                    if any(row):
-                        rows.append(" - ".join([c.strip() for c in row if c.strip()]))
+                for r in reader:
+                    if any(r):
+                        rows.append(" | ".join([c.strip() for c in r if c.strip()]))
                 return "\n".join(rows).strip()
             except Exception as e:
                 logger.error(f"Error reading CSV {filename}: {e}")
@@ -81,7 +90,7 @@ class DocumentProcessor:
         else:
             # Attempt generic UTF-8 fallback
             try:
-                return file_bytes.decode("utf-8", errors="ignore").strip()
+                return sanitize_unicode(file_bytes.decode("utf-8", errors="ignore").strip())
             except Exception:
                 raise ValueError(f"Unsupported file format '{ext}'. Please upload PDF, DOCX, TXT, MD, or CSV.")
 
@@ -95,7 +104,8 @@ class DocumentProcessor:
             return []
 
         # Normalize line indents and encoding artifacts
-        raw_lines = [l.strip() for l in text.replace("\ufffd", "-").replace("\u00ad", "").splitlines()]
+        clean_text = sanitize_unicode(text.replace("\ufffd", "-").replace("\u00ad", ""))
+        raw_lines = [l.strip() for l in clean_text.splitlines()]
         clean_text = "\n".join([l for l in raw_lines if l])
 
         # 1. Check for Structured Q&A / Objection Blocks (e.g. Q1., Q:, Objection:, Scenario:)
@@ -136,10 +146,10 @@ class DocumentProcessor:
                 if q_text and pitch_text:
                     structured_cards.append({
                         "q_number": card_id,
-                        "question": q_text,
-                        "context": context_text,
-                        "pitch": pitch_text,
-                        "source": source_filename
+                        "question": sanitize_unicode(q_text),
+                        "context": sanitize_unicode(context_text),
+                        "pitch": sanitize_unicode(pitch_text),
+                        "source": sanitize_unicode(source_filename)
                     })
                     card_id += 1
 
@@ -157,10 +167,10 @@ class DocumentProcessor:
                     body = "\n".join(lines[1:]).strip()
                     structured_cards.append({
                         "q_number": card_id,
-                        "question": header,
+                        "question": sanitize_unicode(header),
                         "context": f"Section: {header} from {source_filename}",
-                        "pitch": body,
-                        "source": source_filename
+                        "pitch": sanitize_unicode(body),
+                        "source": sanitize_unicode(source_filename)
                     })
                     card_id += 1
 
@@ -173,10 +183,10 @@ class DocumentProcessor:
                 first_sentence = first_sentence_m.group(1).strip() if first_sentence_m else p[:60] + "..."
                 structured_cards.append({
                     "q_number": card_id,
-                    "question": f"Topic: {first_sentence}",
-                    "context": f"Document context from {source_filename}",
-                    "pitch": p,
-                    "source": source_filename
+                    "question": sanitize_unicode(f"Topic: {first_sentence}"),
+                    "context": sanitize_unicode(f"Document context from {source_filename}"),
+                    "pitch": sanitize_unicode(p),
+                    "source": sanitize_unicode(source_filename)
                 })
                 card_id += 1
 
