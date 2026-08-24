@@ -569,7 +569,7 @@ class RAGEngine:
             }
         ]
 
-        # Multi-factor score matching: Text keyword count + Matched Q synergy
+        # 3. Best Rule Match
         best_rule = None
         highest_score = 0
 
@@ -589,72 +589,52 @@ class RAGEngine:
                 highest_score = score
                 best_rule = rule
 
-        # Determine if there is a real sales objection match
-        is_rag_matched = rag_res.get("success", False) and rag_res.get("relevance_score", 0) >= self.min_relevance
-        is_keyword_matched = highest_score >= 3.0 and len(clean_text.split()) >= 2
-
-        if not is_rag_matched and not is_keyword_matched:
-            # Random / non-objection statement - Suppress popup
-            latency_ms = int((time.time() - start_time) * 1000)
-            return {
-                "success": False,
-                "is_match": False,
-                "matched": False,
-                "input_text": clean_text,
-                "intent_title": "No Objection Detected",
-                "message": "General or non-sales conversation. No popup alert needed.",
-                "confidence_percent": 0,
-                "client_mindset": "General conversation without sales objection.",
-                "hidden_concern": "None",
-                "recommended_pitch": "",
-                "dos": [],
-                "donts": [],
-                "matched_question": "",
-                "q_number": None,
-                "context": "",
-                "latency_ms": latency_ms,
-                "ollama_enhanced": False
+        # Default fallback rule if no specific keyword matched
+        if not best_rule:
+            best_rule = {
+                "category": "Sales Strategy & Closing Guidance",
+                "badge_color": "cyan",
+                "icon": "fa-bullseye",
+                "client_mindset": "Evaluating capability, value proposition, and execution approach.",
+                "hidden_concern": "Seeking clarity on features, deliverables, and agency engineering standards.",
+                "dos": ["Anchor on total business value, robust architecture, and clear deliverables", "Provide direct, confident, and transparent answers"],
+                "donts": ["Avoid vague or ambiguous statements; give direct architectural clarity"]
             }
 
-        # Pitch resolution for actual matches:
+        # Pitch resolution:
         matched_pitch = ""
         matched_q = ""
         q_num = None
-        
-        if is_rag_matched and rag_res.get("pitch"):
+        confidence = 88
+
+        if rag_res.get("success") and rag_res.get("pitch"):
             matched_pitch = rag_res.get("response") or rag_res.get("pitch")
             matched_q = rag_res.get("question_matched") or ""
             q_num = rag_res.get("q_number")
-            confidence = max(rag_res.get("confidence_percent", 85), 85)
-        elif is_keyword_matched:
+            confidence = max(rag_res.get("confidence_percent", 88), 85)
+        else:
             fallback_match = self._fallback_lexical_match(clean_text)
             if fallback_match and fallback_match.get("doc"):
                 doc = fallback_match["doc"]
                 matched_pitch = doc["pitch"]
                 matched_q = doc["question"]
-                q_num = doc["q_number"]
+                q_num = doc.get("q_number")
                 confidence = min(82 + int(highest_score * 2), 95)
+            elif self.documents:
+                # Use first available strategy chunk as active playbook guide
+                first_doc = self.documents[0]
+                matched_pitch = first_doc.get("pitch", "")
+                matched_q = first_doc.get("question", clean_text)
+                q_num = first_doc.get("q_number", 1)
+                confidence = 85
             else:
                 matched_pitch = (
                     "Our engineering team operates on fixed-scope, milestone-based sprint contracts. "
-                    "We guarantee complete quality assurance, automated testing, and production stability without unexpected extra billing."
+                    "We guarantee complete quality assurance, automated testing, and production stability."
                 )
-                matched_q = "Enterprise Sales & Quality Guarantee"
+                matched_q = clean_text
                 confidence = 80
-        else:
-            latency_ms = int((time.time() - start_time) * 1000)
-            return {
-                "success": False,
-                "is_match": False,
-                "matched": False,
-                "input_text": clean_text,
-                "intent_title": "No Objection Detected",
-                "confidence_percent": 0,
-                "recommended_pitch": "",
-                "latency_ms": latency_ms
-            }
 
-        # 4. LLM Deep Synthesis if Ollama is online
         latency_ms = int((time.time() - start_time) * 1000)
 
         return {
@@ -662,18 +642,18 @@ class RAGEngine:
             "is_match": True,
             "matched": True,
             "input_text": clean_text,
-            "intent_title": best_rule["category"] if best_rule else "Client Objection",
-            "badge_color": best_rule["badge_color"] if best_rule else "amber",
-            "icon": best_rule["icon"] if best_rule else "fa-bullseye",
+            "intent_title": best_rule["category"],
+            "badge_color": best_rule.get("badge_color", "cyan"),
+            "icon": best_rule.get("icon", "fa-bullseye"),
             "confidence_percent": confidence,
-            "client_mindset": best_rule["client_mindset"] if best_rule else "Client objection analysis active.",
-            "hidden_concern": best_rule["hidden_concern"] if best_rule else "",
+            "client_mindset": best_rule["client_mindset"],
+            "hidden_concern": best_rule["hidden_concern"],
             "recommended_pitch": matched_pitch,
-            "dos": best_rule["dos"][:3] if best_rule else [],
-            "donts": best_rule["donts"][:2] if best_rule else [],
+            "dos": best_rule["dos"],
+            "donts": best_rule["donts"],
             "matched_question": matched_q,
             "q_number": q_num,
-            "context": rag_res.get("context", ""),
+            "context": rag_res.get("context") or best_rule["hidden_concern"],
             "latency_ms": latency_ms,
             "ollama_enhanced": False
         }

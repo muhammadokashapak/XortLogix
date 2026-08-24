@@ -230,21 +230,13 @@ function handleIntentStrategyResponse(data) {
     el.btnAnalyzeIntent.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Analyze Intent</span>';
   }
 
-  // 🛑 Strict Guard: If random talk / no match, do NOT open popup!
-  if (!data || !data.success || !data.is_match || !data.matched || !data.recommended_pitch || (data.confidence_percent && data.confidence_percent < 40)) {
-    console.log('Popup suppressed: Casual speech or no objection matched:', data);
-    
-    // Ensure modal stays closed
+  // Guard: If response has no pitch or is not successful
+  if (!data || !data.success || !data.recommended_pitch) {
+    console.log('No strategy pitch in response:', data);
     if (el.intentStrategyModal) {
       el.intentStrategyModal.style.display = 'none';
     }
-    if (state.isListening && el.stageBadgeText) {
-      el.stageBadgeText.textContent = '🟢 Live Listening Active... Speak naturally';
-    }
-    // If user clicked manually, notify them gently
-    if (data && data.input_text && document.activeElement === el.btnAnalyzeIntent) {
-      showToast('No sales objection detected in statement.');
-    }
+    showToast('No sales strategy detected.');
     return;
   }
 
@@ -381,6 +373,7 @@ async function analyzeClientIntent(text) {
     }
   }
 }
+window.analyzeClientIntent = analyzeClientIntent;
 
 // Send query to backend (routes to both KB and Intent Decider)
 function sendQuery(queryText) {
