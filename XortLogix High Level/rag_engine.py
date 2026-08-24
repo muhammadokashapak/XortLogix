@@ -322,14 +322,18 @@ class HybridRetriever:
         batch_inputs = [f"search_query: {q}" for q in search_queries if q]
         query_embs = []
         if embed_model and batch_inputs:
-            try:
-                if hasattr(embed_model, 'embed'):
-                    embs = list(embed_model.embed(batch_inputs))
-                    query_embs = [e.tolist() if hasattr(e, 'tolist') else list(e) for e in embs]
-                elif hasattr(embed_model, 'encode'):
-                    query_embs = embed_model.encode(batch_inputs).tolist()
-            except Exception as e_emb:
-                print(f"⚠️ Batch embedding note: {e_emb}")
+            for q_text in batch_inputs:
+                try:
+                    if hasattr(embed_model, 'embed'):
+                        embs = list(embed_model.embed([q_text]))
+                        if embs:
+                            e_item = embs[0]
+                            query_embs.append(e_item.tolist() if hasattr(e_item, 'tolist') else list(e_item))
+                    elif hasattr(embed_model, 'encode'):
+                        emb = embed_model.encode(q_text)
+                        query_embs.append(emb.tolist() if hasattr(emb, 'tolist') else list(emb))
+                except Exception as e_emb:
+                    print(f"⚠️ Query embedding note for '{q_text[:30]}...': {e_emb}")
 
         for q_idx, query_emb in enumerate(query_embs):
             try:

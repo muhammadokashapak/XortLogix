@@ -272,13 +272,22 @@ class ChatResponse(BaseModel):
 class KeyValidateRequest(BaseModel):
     api_key: str
 
-# Web App Route
+# Web App Route & Health Check
 @app.get("/")
 async def serve_index():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="static/index.html not found.")
     return FileResponse(index_path)
+
+@app.get("/favicon.ico")
+async def favicon():
+    return Response(status_code=204)
+
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy", "service": "XortLogix High Level Assistant"}
 
 api_router = APIRouter()
 
