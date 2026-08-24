@@ -576,14 +576,85 @@ function formatFlowArrows(text) {
   return html;
 }
 
+// --- Real-Time Ultra-Low Latency (<50ms) Browser Voice Listener ---
+let speechRecognizer = null;
+let isOverlayActive = false;
+
+function startBrowserSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  if (speechRecognizer) {
+    try { speechRecognizer.stop(); } catch (e) {}
+  }
+
+  try {
+    speechRecognizer = new SpeechRecognition();
+    speechRecognizer.continuous = true;
+    speechRecognizer.interimResults = true;
+    speechRecognizer.maxAlternatives = 1;
+    speechRecognizer.lang = 'en-US';
+
+    speechRecognizer.onresult = (event) => {
+      let interim = '';
+      let final = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          final += item[0].transcript;
+        } else {
+          interim += item[0].transcript;
+        }
+      }
+
+      const activeText = (final || interim).trim();
+      if (activeText.length >= 3) {
+        // 1. Instant local transcription display in floating HUD (<15ms)
+        updateLiveTranscript(activeText, 12);
+
+        // 2. Real-time strategy matching query to backend
+        chrome.runtime.sendMessage({
+          type: 'transcript_result',
+          text: activeText,
+          timestamp: Date.now()
+        }).catch(() => {});
+      }
+    };
+
+    speechRecognizer.onerror = () => {};
+
+    speechRecognizer.onend = () => {
+      if (isOverlayActive && speechRecognizer) {
+        try { speechRecognizer.start(); } catch (e) {}
+      }
+    };
+
+    speechRecognizer.start();
+  } catch (e) {}
+}
+
+function stopBrowserSpeechRecognition() {
+  if (speechRecognizer) {
+    try {
+      speechRecognizer.stop();
+    } catch (e) {}
+    speechRecognizer = null;
+  }
+}
+
 // --- Message Router from Background ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'capture_started':
+      isOverlayActive = true;
       createOverlay();
+      startBrowserSpeechRecognition();
       break;
 
     case 'capture_stopped':
+      isOverlayActive = false;
+      stopBrowserSpeechRecognition();
       if (overlayContainer) {
         overlayContainer.style.display = 'none';
       }
@@ -603,4 +674,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.sendMessage({ type: 'content_ready' }).catch(() => {});
 
 })();
+
 

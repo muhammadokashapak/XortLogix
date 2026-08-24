@@ -146,14 +146,14 @@ function startRecordingCycle() {
 
   mediaRecorder.start();
 
-  // 1.8-second slices (Perfect balance for Groq 30 RPM limit + ultra low 200ms latency)
+  // 750ms high-speed slices for instantaneous sub-second speech detection
   recordCycleTimeout = setTimeout(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       try {
         mediaRecorder.stop();
       } catch (e) {}
     }
-  }, 1800);
+  }, 750);
 }
 
 function stopAudioProcessing() {
