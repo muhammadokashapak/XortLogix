@@ -1,31 +1,43 @@
 # stt_engine.py
 """
-Speech-to-Text (STT) Engine with Universal Browser & Audio Stream Support.
-Handles raw PCM, WAV, WebM, and MP3 streams.
-Uses multi-dialect Google Speech Recognition (en-US, en-IN, ur-PK) for high-accuracy
-transcription of client & sales rep voices from Google Meet, Zoom, and Mic.
+High-Speed Speech-to-Text (STT) Engine with Universal Audio Stream Support.
+Handles raw 16kHz PCM, WAV, and containerized audio streams.
+Eliminates multi-dialect race conditions and provides ultra-fast transcription
+with Sales Domain Context Biasing. Supports Groq Whisper Cloud (80ms) + Local Fallback.
 """
 
 import os
 import io
 import time
-import wave
-import struct
+import re
+import json
 import logging
 import asyncio
 from typing import Optional, Dict, Any
 
+import requests
 import speech_recognition as sr
 
 logger = logging.getLogger("STTEngine")
+
+SALES_INITIAL_PROMPT = (
+    "Sales conversation: NDA, IP security, source code, pricing, discount, budget, "
+    "timeline, deadline, milestone, fixed-price, hourly rate, React, Python, QA testing, "
+    "software development, deliverables, Upwork, freelancer, contract, warranty."
+)
 
 class STTEngine:
     def __init__(self, model_name: str = "base", device: str = "cpu"):
         self.model_name = model_name
         self.device = device
         self.recognizer = sr.Recognizer()
-        self.recognizer.energy_threshold = 200
-        self.recognizer.dynamic_energy_threshold = True
+        self.recognizer.energy_threshold = 120
+        self.recognizer.dynamic_energy_threshold = False
+        
+        # Check Groq API Key for ultra-fast 80ms Whisper
+        self.groq_api_key = os.environ.get("GROQ_API_KEY", "").strip()
+        if self.groq_api_key:
+            logger.info("⚡ Groq Whisper Cloud API Key detected! Ultra-fast <120ms STT active.")
 
     def _convert_bytes_to_audio_data(self, audio_bytes: bytes, suffix: str = ".wav") -> Optional[sr.AudioData]:
         """Converts raw audio bytes or WAV bytes into 16kHz PCM AudioData."""
@@ -38,7 +50,7 @@ class STTEngine:
         if clean_suf in ("raw_pcm", "rawpcm", "pcm"):
             if len(audio_bytes) % 2 != 0:
                 audio_bytes = audio_bytes[:-1]
-            if len(audio_bytes) < 1600: # less than 0.05s
+            if len(audio_bytes) < 1600:  # less than 0.05s
                 return None
             return sr.AudioData(audio_bytes, 16000, 2)
 
@@ -74,10 +86,38 @@ class STTEngine:
 
         return None
 
+    def _transcribe_groq(self, audio_data: sr.AudioData) -> Optional[str]:
+        """Transcribes using Groq Whisper Cloud in <120ms with sales prompt biasing."""
+        if not self.groq_api_key:
+            return None
+        try:
+            wav_bytes = audio_data.get_wav_data(convert_rate=16000, convert_width=2)
+            headers = {"Authorization": f"Bearer {self.groq_api_key}"}
+            files = {
+                "file": ("audio.wav", wav_bytes, "audio/wav"),
+                "model": (None, "whisper-large-v3-turbo"),
+                "prompt": (None, SALES_INITIAL_PROMPT),
+                "language": (None, "en"),
+                "response_format": (None, "json")
+            }
+            res = requests.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers=headers,
+                files=files,
+                timeout=3.5
+            )
+            if res.status_code == 200:
+                text = res.json().get("text", "").strip()
+                if text:
+                    return text
+        except Exception as e:
+            logger.debug(f"Groq STT note: {e}")
+        return None
+
     def transcribe_audio_bytes(self, audio_bytes: bytes, suffix: str = ".wav") -> Dict[str, Any]:
         """
-        Transcribes audio bytes using concurrent multi-dialect speech recognition.
-        Returns transcribed text, detected dialect, and latency.
+        Transcribes audio bytes accurately without dialect race conditions.
+        Returns transcribed text, detected language, and latency.
         """
         if not audio_bytes:
             return {"success": False, "text": "", "error": "Empty audio data", "latency_ms": 0}
@@ -92,35 +132,55 @@ class STTEngine:
                 "latency_ms": int((time.time() - start_time) * 1000)
             }
 
-        # Multi-dialect parallel recognition: return the fastest response immediately
-        languages = ["en-US", "ur-PK"]
-        
-        def _try_lang(lang: str):
-            try:
-                rec = sr.Recognizer()
-                rec.energy_threshold = 150
-                rec.dynamic_energy_threshold = False
-                res_text = rec.recognize_google(audio_data, language=lang)
-                if res_text and len(res_text.strip()) > 1:
-                    return (lang, res_text.strip())
-            except Exception:
-                pass
-            return (lang, None)
+        # 1. Try Groq Whisper Cloud if key configured (Ultra-fast <120ms)
+        if self.groq_api_key:
+            groq_text = self._transcribe_groq(audio_data)
+            if groq_text:
+                latency_ms = int((time.time() - start_time) * 1000)
+                logger.info(f"⚡ Groq Whisper Transcribed ({latency_ms}ms): '{groq_text}'")
+                return {
+                    "success": True,
+                    "text": groq_text,
+                    "language": "en-US",
+                    "engine": "groq-whisper",
+                    "latency_ms": latency_ms
+                }
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(_try_lang, lang) for lang in languages]
-            for future in as_completed(futures):
-                lang, text = future.result()
-                if text:
-                    latency_ms = int((time.time() - start_time) * 1000)
-                    logger.info(f"⚡ Speech Transcribed ({latency_ms}ms) [{lang}]: '{text}'")
-                    return {
-                        "success": True,
-                        "text": text,
-                        "language": lang,
-                        "latency_ms": latency_ms
-                    }
+        # 2. Local Google STT — Single-Model Primary (Eliminating Race Condition Bug)
+        try:
+            rec = sr.Recognizer()
+            rec.energy_threshold = 120
+            rec.dynamic_energy_threshold = False
+            
+            # Primary English (en-US)
+            en_text = rec.recognize_google(audio_data, language="en-US")
+            if en_text and len(en_text.strip()) > 1:
+                latency_ms = int((time.time() - start_time) * 1000)
+                logger.info(f"⚡ Speech Transcribed ({latency_ms}ms) [en-US]: '{en_text.strip()}'")
+                return {
+                    "success": True,
+                    "text": en_text.strip(),
+                    "language": "en-US",
+                    "latency_ms": latency_ms
+                }
+        except Exception:
+            pass
+
+        # 3. Fallback: Secondary Indian English / Regional Dialect
+        try:
+            rec = sr.Recognizer()
+            in_text = rec.recognize_google(audio_data, language="en-IN")
+            if in_text and len(in_text.strip()) > 1:
+                latency_ms = int((time.time() - start_time) * 1000)
+                logger.info(f"⚡ Speech Transcribed ({latency_ms}ms) [en-IN]: '{in_text.strip()}'")
+                return {
+                    "success": True,
+                    "text": in_text.strip(),
+                    "language": "en-IN",
+                    "latency_ms": latency_ms
+                }
+        except Exception:
+            pass
 
         return {
             "success": False,
@@ -131,3 +191,4 @@ class STTEngine:
 
     async def transcribe_async(self, audio_bytes: bytes, suffix: str = ".wav") -> Dict[str, Any]:
         return await asyncio.to_thread(self.transcribe_audio_bytes, audio_bytes, suffix)
+

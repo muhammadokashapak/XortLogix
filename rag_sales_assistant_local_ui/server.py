@@ -360,8 +360,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         now = time.time()
 
                         # Smart Rolling Sentence Memory:
-                        # If client continues speaking within 3.5s pause, combine fragments into one complete thought
-                        if sentence_buffer and (now - last_chunk_time) < 3.5:
+                        # If client continues speaking within 1.0s natural pause, combine fragments into one complete thought
+                        if sentence_buffer and (now - last_chunk_time) < 1.0:
                             # Avoid duplicate consecutive words
                             if new_fragment.lower() not in " ".join(sentence_buffer).lower():
                                 sentence_buffer.append(new_fragment)

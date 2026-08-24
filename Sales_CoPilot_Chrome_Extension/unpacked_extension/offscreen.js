@@ -75,6 +75,9 @@ async function startAudioProcessing(streamId) {
   }
 }
 
+let speechActiveTime = 0;
+let silenceActiveTime = 0;
+
 function startVADMonitoring() {
   if (vadCheckInterval) clearInterval(vadCheckInterval);
   const dataArray = new Uint8Array(128);
@@ -89,17 +92,35 @@ function startVADMonitoring() {
     }
     const avg = sum / dataArray.length;
 
-    // If audio level is above background threshold, mark as active speech
-    if (avg > 5.0) {
+    // Audio level above background speech threshold
+    if (avg > 4.5) {
       speechDetectedInCurrentChunk = true;
+      speechActiveTime += 60;
+      silenceActiveTime = 0;
+    } else {
+      if (speechDetectedInCurrentChunk) {
+        silenceActiveTime += 60;
+      }
     }
-  }, 100);
+
+    // Natural phrase boundary: Speech was active and speaker paused for >240ms OR 1.2s max phrase reached
+    const naturalPause = speechDetectedInCurrentChunk && (silenceActiveTime >= 240) && (speechActiveTime >= 350);
+    const maxPhraseReached = speechActiveTime >= 1200;
+
+    if ((naturalPause || maxPhraseReached) && mediaRecorder && mediaRecorder.state === 'recording') {
+      try {
+        mediaRecorder.stop();
+      } catch (e) {}
+    }
+  }, 60);
 }
 
 function startRecordingCycle() {
   if (!isCapturing || !mediaStream) return;
 
   speechDetectedInCurrentChunk = false;
+  speechActiveTime = 0;
+  silenceActiveTime = 0;
   const audioChunks = [];
 
   try {
@@ -120,7 +141,7 @@ function startRecordingCycle() {
   };
 
   mediaRecorder.onstop = async () => {
-    // ONLY send if voice/audio was actually detected (saves Groq API 429 rate limit!)
+    // ONLY send if voice/audio was actually detected (preserves phrase continuity)
     if (audioChunks.length > 0 && isCapturing && speechDetectedInCurrentChunk) {
       try {
         const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
@@ -146,14 +167,15 @@ function startRecordingCycle() {
 
   mediaRecorder.start();
 
-  // 750ms high-speed slices for instantaneous sub-second speech detection
+  // Safety maximum fallback (2.0s max timeout if no silence detected)
+  if (recordCycleTimeout) clearTimeout(recordCycleTimeout);
   recordCycleTimeout = setTimeout(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       try {
         mediaRecorder.stop();
       } catch (e) {}
     }
-  }, 750);
+  }, 2000);
 }
 
 function stopAudioProcessing() {

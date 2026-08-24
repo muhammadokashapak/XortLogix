@@ -15,6 +15,7 @@
   let shadowRoot = null;
   let isMinimized = false;
   let cardsStack = [];
+  let lastProcessedText = '';
   const MAX_CARDS = 5;
 
 // --- Create Floating Widget Overlay inside Shadow DOM ---
@@ -683,6 +684,10 @@ function startBrowserSpeechRecognition() {
 
       const activeText = (final || interim).trim();
       if (activeText.length >= 3) {
+        // Prevent duplicate spam if identical to last processed sentence
+        if (activeText === lastProcessedText) return;
+        lastProcessedText = activeText;
+
         // 1. Instant word-by-word visual transcription (<5ms)
         updateLiveTranscript(activeText, 8);
 

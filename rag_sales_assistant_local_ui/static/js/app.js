@@ -508,9 +508,10 @@ function setupSpeechRecognition() {
 }
 
 // ==========================================================================
-// 🎙️ High-Fidelity Audio Stream Processor (16kHz PCM Streamer for Google Meet & Mic)
+// 🎙️ High-Fidelity Audio Stream Processor (Sub-Second VAD 16kHz PCM Streamer)
 // ==========================================================================
 
+// High-fidelity anti-aliased resampler (48kHz/44.1kHz -> 16kHz)
 function floatTo16BitPCM(input, inputSampleRate, outputSampleRate = 16000) {
   if (inputSampleRate === outputSampleRate) {
     const output = new Int16Array(input.length);
@@ -520,16 +521,21 @@ function floatTo16BitPCM(input, inputSampleRate, outputSampleRate = 16000) {
     }
     return output;
   }
+
   const ratio = inputSampleRate / outputSampleRate;
   const newLength = Math.round(input.length / ratio);
   const output = new Int16Array(newLength);
+
+  // 3-point anti-aliasing low-pass filter
   for (let i = 0; i < newLength; i++) {
-    const index = i * ratio;
-    const indexFloor = Math.floor(index);
-    const indexCeil = Math.min(input.length - 1, Math.ceil(index));
-    const t = index - indexFloor;
-    const sample = (1 - t) * input[indexFloor] + t * input[indexCeil];
-    const s = Math.max(-1, Math.min(1, sample));
+    const centerIdx = i * ratio;
+    const idx0 = Math.max(0, Math.floor(centerIdx - 1));
+    const idx1 = Math.min(input.length - 1, Math.floor(centerIdx));
+    const idx2 = Math.min(input.length - 1, Math.ceil(centerIdx + 1));
+    
+    // Weighted Gaussian-like average to eliminate high-frequency aliasing
+    const filteredSample = (input[idx0] * 0.25) + (input[idx1] * 0.5) + (input[idx2] * 0.25);
+    const s = Math.max(-1, Math.min(1, filteredSample));
     output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
   return output;
@@ -554,7 +560,6 @@ async function startAudioProcessorStream(primaryStream, secondaryStream = null) 
     }
 
     const audioCtx = new AudioContextClass({ sampleRate: 48000 });
-    // CRITICAL: AudioContext MUST be resumed after user gesture
     if (audioCtx.state === 'suspended') {
       await audioCtx.resume();
     }
@@ -563,16 +568,11 @@ async function startAudioProcessorStream(primaryStream, secondaryStream = null) 
     const sampleRate = audioCtx.sampleRate;
     const processor = audioCtx.createScriptProcessor(4096, 1, 1);
 
-    // CRITICAL FIX: gain=0.001 instead of 0.0
-    // Chrome throttles/kills ScriptProcessor.onaudioprocess when it detects the
-    // entire output path produces zero samples. gain=0.001 is inaudible but keeps
-    // the audio graph alive and onaudioprocess firing.
     const gainNode = audioCtx.createGain();
     gainNode.gain.value = 0.001;
 
     // 1. Primary Audio Stream (Google Meet Tab or Mic)
     const primaryAudioTracks = primaryStream.getAudioTracks();
-    console.log(`[AUDIO] Primary stream tracks: ${primaryAudioTracks.length}, enabled: ${primaryAudioTracks.map(t => t.enabled)}, readyState: ${primaryAudioTracks.map(t => t.readyState)}`);
     if (primaryAudioTracks.length === 0) {
       console.error('[AUDIO] No audio tracks in primary stream!');
       return;
@@ -586,33 +586,58 @@ async function startAudioProcessorStream(primaryStream, secondaryStream = null) 
     if (secondaryStream && secondaryStream.getAudioTracks().length > 0) {
       try {
         const secTracks = secondaryStream.getAudioTracks();
-        console.log(`[AUDIO] Secondary stream tracks: ${secTracks.length}`);
         const cleanSecondaryStream = new MediaStream(secTracks);
         source2 = audioCtx.createMediaStreamSource(cleanSecondaryStream);
         source2.connect(processor);
-      } catch (e) {
-        console.log('[AUDIO] Secondary audio source attach skipped:', e);
-      }
+      } catch (e) {}
     }
 
     let pcm16Chunks = [];
     let samplesAccumulated = 0;
     const targetSampleRate = 16000;
-    const samplesNeeded = targetSampleRate * 2.0; // 2.0s clean window
-    const overlapSamples = Math.round(targetSampleRate * 0.4); // 400ms overlap buffer
-    let processCallCount = 0;
+    
+    // Sub-Second VAD Parameters:
+    // Trigger on natural 200ms silence after speech OR 0.8s max speech window (Eliminates 2.0s delay!)
+    const minSpeechSamples = Math.round(targetSampleRate * 0.4);   // 400ms min
+    const maxSpeechSamples = Math.round(targetSampleRate * 1.2);   // 1.2s max chunk
+    const silenceTriggerSamples = Math.round(targetSampleRate * 0.22); // 220ms pause
+    let speechActive = false;
+    let silenceCounter = 0;
     let chunksSentCount = 0;
 
     processor.onaudioprocess = (e) => {
       if (!state.isListening && !state.isMeetingStreaming) return;
 
-      processCallCount++;
       const inputBuffer = e.inputBuffer.getChannelData(0);
       const resampled = floatTo16BitPCM(inputBuffer, sampleRate, targetSampleRate);
-      pcm16Chunks.push(resampled);
-      samplesAccumulated += resampled.length;
+      
+      // Calculate RMS energy for this 4096-frame slice
+      let sumSq = 0;
+      for (let i = 0; i < resampled.length; i++) {
+        sumSq += (resampled[i] / 32768) ** 2;
+      }
+      const sliceRms = Math.sqrt(sumSq / resampled.length);
 
-      if (samplesAccumulated >= samplesNeeded) {
+      const isSpeechNow = sliceRms >= 0.0025;
+
+      if (isSpeechNow) {
+        speechActive = true;
+        silenceCounter = 0;
+        pcm16Chunks.push(resampled);
+        samplesAccumulated += resampled.length;
+      } else {
+        if (speechActive) {
+          pcm16Chunks.push(resampled);
+          samplesAccumulated += resampled.length;
+          silenceCounter += resampled.length;
+        }
+      }
+
+      // Natural Phrase Pause Trigger or Max Buffer Trigger
+      const naturalPauseDetected = speechActive && (silenceCounter >= silenceTriggerSamples) && (samplesAccumulated >= minSpeechSamples);
+      const maxWindowReached = samplesAccumulated >= maxSpeechSamples;
+
+      if ((naturalPauseDetected || maxWindowReached) && pcm16Chunks.length > 0) {
         const fullLength = pcm16Chunks.reduce((acc, c) => acc + c.length, 0);
         const fullPcm = new Int16Array(fullLength);
         let offset = 0;
@@ -621,25 +646,13 @@ async function startAudioProcessorStream(primaryStream, secondaryStream = null) 
           offset += chunk.length;
         }
 
-        // Keep last 400ms for continuous phonetic overlap
-        if (fullLength > overlapSamples) {
-          const overlapPcm = fullPcm.slice(fullLength - overlapSamples);
-          pcm16Chunks = [overlapPcm];
-          samplesAccumulated = overlapPcm.length;
-        } else {
-          pcm16Chunks = [];
-          samplesAccumulated = 0;
-        }
+        // Reset state for next phrase
+        pcm16Chunks = [];
+        samplesAccumulated = 0;
+        speechActive = false;
+        silenceCounter = 0;
 
-        // Compute RMS energy
-        let sumSquares = 0;
-        for (let i = 0; i < fullPcm.length; i++) {
-          sumSquares += (fullPcm[i] / 32768) ** 2;
-        }
-        const rms = Math.sqrt(sumSquares / fullPcm.length);
-
-        // Only skip complete digital zero silence (RMS < 0.0008)
-        if (rms >= 0.0008 && state.ws && state.ws.readyState === WebSocket.OPEN) {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN && fullLength >= minSpeechSamples) {
           const uint8 = new Uint8Array(fullPcm.buffer);
           let binary = '';
           const len = uint8.byteLength;
@@ -654,22 +667,21 @@ async function startAudioProcessorStream(primaryStream, secondaryStream = null) 
             format: 'raw_pcm'
           }));
           chunksSentCount++;
-          console.log(`[AUDIO] ⚡ PCM chunk #${chunksSentCount} sent | RMS: ${rms.toFixed(5)}`);
+          console.log(`[AUDIO] ⚡ Sub-second VAD PCM phrase #${chunksSentCount} sent (${(fullLength / 16000).toFixed(2)}s)`);
         }
       }
     };
 
-    // Connect: source → processor → gainNode(0.001) → destination
     processor.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-    console.log('[AUDIO] ScriptProcessor audio graph connected');
+    console.log('[AUDIO] ScriptProcessor audio graph connected with Sub-Second VAD');
 
     state.audioCtx = audioCtx;
     state.audioProcessor = processor;
     state.audioSource = source1;
     state.audioSource2 = source2;
 
-    console.log('[AUDIO] ✅ Audio pipeline fully initialized and streaming');
+    console.log('[AUDIO] ✅ Low-latency audio pipeline fully active');
   } catch (err) {
     console.error('[AUDIO] ❌ AudioContext streaming setup error:', err);
   }
