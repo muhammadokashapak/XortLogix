@@ -3,11 +3,19 @@
 // Displays a draggable widget with live transcription + urgent strategy popups
 // ============================================================
 
-let overlayContainer = null;
-let shadowRoot = null;
-let isMinimized = false;
-let cardsStack = [];
-const MAX_CARDS = 5;
+(() => {
+  if (window.__salesCopilotInitialized) {
+    const existing = document.getElementById('sales-copilot-root');
+    if (existing) existing.style.display = 'block';
+    return;
+  }
+  window.__salesCopilotInitialized = true;
+
+  let overlayContainer = null;
+  let shadowRoot = null;
+  let isMinimized = false;
+  let cardsStack = [];
+  const MAX_CARDS = 5;
 
 // --- Create Floating Widget Overlay inside Shadow DOM ---
 function createOverlay() {
@@ -592,5 +600,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Notify background that content script is ready
-chrome.runtime.sendMessage({ type: 'content_ready' });
+chrome.runtime.sendMessage({ type: 'content_ready' }).catch(() => {});
+
+})();
 
