@@ -443,21 +443,21 @@
           <div style="font-size: 15px; font-weight: 700; color: #f8fafc;" id="lblActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
         </div>
 
-        <!-- Drag & Drop Upload Zone -->
-        <div id="playbookDropZone" style="border: 2px dashed rgba(56, 189, 248, 0.5); border-radius: 14px; padding: 30px 16px; text-align: center; background: rgba(15, 23, 42, 0.4); cursor: pointer; transition: all 0.2s ease;">
-          <input type="file" id="playbookFileInput" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display: none;" />
-          <i class="fa-solid fa-file-arrow-up" style="font-size: 40px; color: #38bdf8; margin-bottom: 10px;"></i>
-          <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Click to Select or Drag & Drop Strategy Document</div>
-          <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Supports PDF, Word (.docx), Plain Text (.txt), Markdown (.md), and CSV</div>
-          <div id="selectedFileName" style="margin-top: 12px; font-size: 13px; font-weight: 700; color: #38bdf8; display: none;"></div>
-        </div>
+        <!-- Native Clickable & Drag & Drop Upload Zone -->
+        <label for="playbookFileInput" id="playbookDropZone" style="display: block; border: 2px dashed #38bdf8; border-radius: 14px; padding: 32px 16px; text-align: center; background: rgba(15, 23, 42, 0.5); cursor: pointer; transition: all 0.2s ease;">
+          <input type="file" id="playbookFileInput" onchange="onPlaybookFileSelected(this)" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display: none;" />
+          <i class="fa-solid fa-file-arrow-up" style="font-size: 44px; color: #38bdf8; margin-bottom: 12px; display: inline-block;"></i>
+          <div style="font-size: 16px; font-weight: 700; color: #f8fafc;">Click to Select or Drag & Drop Strategy Document</div>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Supports PDF, Word (.docx), Plain Text (.txt), Markdown (.md), and CSV</div>
+          <div id="selectedFileName" style="margin-top: 14px; font-size: 14px; font-weight: 700; color: #38bdf8; display: none; background: rgba(56, 189, 248, 0.15); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);"></div>
+        </label>
 
         <!-- Action Buttons -->
-        <div style="display: flex; gap: 12px; margin-top: 18px;">
-          <button id="btnSubmitPlaybook" class="btn-popup-action primary" style="flex: 2; padding: 12px; font-size: 14px;" disabled>
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+          <button id="btnSubmitPlaybook" onclick="uploadPlaybookNow()" class="btn-popup-action primary" style="flex: 2; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;" disabled>
             <i class="fa-solid fa-bolt"></i> Chunk & Generate Embeddings
           </button>
-          <button id="btnResetPlaybook" class="btn-popup-action" style="flex: 1; padding: 12px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 13px;">
+          <button id="btnResetPlaybook" onclick="resetPlaybookNow()" class="btn-popup-action" style="flex: 1; padding: 13px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600; cursor: pointer;">
             <i class="fa-solid fa-rotate-left"></i> Restore 70 Default
           </button>
         </div>
@@ -474,26 +474,161 @@
   <!-- Toast Container -->
   <div class="toast-box" id="toastBox"></div>
 
-  <!-- Inline Direct Modal Functions for Instant Click Response -->
+  <!-- Inline Direct Modal & Upload Functions (100% Standalone & Reliable) -->
   <script>
+    var globalSelectedPlaybookFile = null;
+
     function openPlaybookModal() {
       var modal = document.getElementById('modalUploadPlaybook');
       if (modal) {
         modal.style.display = 'flex';
-        if (typeof refreshPlaybookStatus === 'function') {
-          refreshPlaybookStatus();
-        }
+        fetchPlaybookStatus();
       }
     }
+
     function closePlaybookModal() {
       var modal = document.getElementById('modalUploadPlaybook');
       if (modal) {
         modal.style.display = 'none';
       }
     }
+
+    function onPlaybookFileSelected(input) {
+      if (input.files && input.files[0]) {
+        var file = input.files[0];
+        globalSelectedPlaybookFile = file;
+        var nameDisplay = document.getElementById('selectedFileName');
+        if (nameDisplay) {
+          nameDisplay.style.display = 'block';
+          nameDisplay.innerHTML = '📄 <strong>Selected:</strong> ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        }
+        var btn = document.getElementById('btnSubmitPlaybook');
+        if (btn) {
+          btn.disabled = false;
+          btn.removeAttribute('disabled');
+          btn.style.opacity = '1';
+          btn.style.boxShadow = '0 0 20px rgba(56, 189, 248, 0.5)';
+        }
+      }
+    }
+
+    async function uploadPlaybookNow() {
+      var fileInput = document.getElementById('playbookFileInput');
+      var file = globalSelectedPlaybookFile || (fileInput && fileInput.files ? fileInput.files[0] : null);
+      if (!file) {
+        alert('Please select a strategy document first.');
+        return;
+      }
+
+      var btn = document.getElementById('btnSubmitPlaybook');
+      var resultBox = document.getElementById('playbookUploadResult');
+      var resultMsg = document.getElementById('playbookUploadMsg');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Parsing & Generating Embeddings...';
+      }
+
+      try {
+        var formData = new FormData();
+        formData.append('file', file);
+
+        var res = await fetch('/api/upload-document', {
+          method: 'POST',
+          body: formData
+        });
+
+        var data = await res.json();
+        if (res.ok && data.success) {
+          if (resultBox && resultMsg) {
+            resultBox.style.display = 'block';
+            resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+            resultBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+            resultBox.style.color = '#10b981';
+            resultMsg.innerHTML = '🎉 <strong>Success!</strong> Activated <strong>' + data.filename + '</strong> with <strong>' + data.total_chunks + ' strategy chunks</strong>. Embeddings are live!';
+          }
+          fetchPlaybookStatus();
+          if (typeof loadKnowledgeBase === 'function') loadKnowledgeBase();
+        } else {
+          throw new Error(data.detail || 'Upload failed');
+        }
+      } catch (err) {
+        if (resultBox && resultMsg) {
+          resultBox.style.display = 'block';
+          resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          resultBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          resultBox.style.color = '#ef4444';
+          resultMsg.textContent = '❌ Error: ' + err.message;
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Chunk & Generate Embeddings';
+        }
+      }
+    }
+
+    async function resetPlaybookNow() {
+      if (!confirm('Are you sure you want to restore the default 70 sales battlecards?')) return;
+      var btn = document.getElementById('btnResetPlaybook');
+      var resultBox = document.getElementById('playbookUploadResult');
+      var resultMsg = document.getElementById('playbookUploadMsg');
+
+      if (btn) btn.disabled = true;
+      try {
+        var res = await fetch('/api/reset-knowledge', { method: 'POST' });
+        var data = await res.json();
+        if (res.ok) {
+          if (resultBox && resultMsg) {
+            resultBox.style.display = 'block';
+            resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
+            resultBox.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+            resultBox.style.color = '#38bdf8';
+            resultMsg.textContent = '🔄 Restored default zoom.pdf with 70 sales battlecards.';
+          }
+          fetchPlaybookStatus();
+          if (typeof loadKnowledgeBase === 'function') loadKnowledgeBase();
+        }
+      } catch (e) {
+        alert('Error resetting knowledge base');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function fetchPlaybookStatus() {
+      try {
+        var res = await fetch('/api/knowledge-status');
+        var data = await res.json();
+        var lblName = document.getElementById('lblActiveDocName');
+        var lblMeta = document.getElementById('lblActiveDocMeta');
+        var badge = document.getElementById('badgeActiveStatus');
+        var mainName = document.getElementById('mainActiveDocName');
+        var mainMeta = document.getElementById('mainActiveDocMeta');
+
+        if (lblName) lblName.textContent = data.active_document || 'Default 70 Battlecards';
+        if (lblMeta) lblMeta.textContent = data.total_chunks + ' Strategy Chunks Active ' + (data.uploaded_at ? '(Uploaded: ' + data.uploaded_at + ')' : '');
+        if (mainName) mainName.textContent = data.active_document || 'Default 70 Battlecards';
+        if (mainMeta) mainMeta.textContent = data.total_chunks + ' Strategy Chunks Active — Real-Time Voice Matching Active';
+
+        if (badge) {
+          if (data.is_custom) {
+            badge.textContent = 'Custom Playbook Active';
+            badge.style.background = 'rgba(6, 182, 212, 0.25)';
+            badge.style.color = '#38bdf8';
+          } else {
+            badge.textContent = 'Default 70 Battlecards';
+            badge.style.background = 'rgba(16, 185, 129, 0.25)';
+            badge.style.color = '#10b981';
+          }
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchPlaybookStatus);
   </script>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_0145"></script>
+  <script src="/static/js/app.js?v=20260825_0150"></script>
 </body>
 </html>
