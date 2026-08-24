@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
 RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='nomic-ai/nomic-embed-text-v1.5')" || true
 
 # Copy all GHL RAG application files into /app
-COPY ["GHL RAG/", "/app/"]
+COPY ["XortLogix High Level/", "/app/"]
 COPY ["start.py", "/app/start.py"]
 
 EXPOSE 7860

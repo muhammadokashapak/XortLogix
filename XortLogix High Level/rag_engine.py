@@ -546,7 +546,7 @@ class IntentAwarePromptBuilder:
         first_name = user_name.split()[0].capitalize() if user_name else "there"
 
         # Base Persona & Consultant Standard
-        base_header = f"""You are an elite GoHighLevel (GHL) Senior Technical Consultant & AI Growth Architect.
+        base_header = f"""You are an elite XortLogix High Level Senior Technical Consultant & AI Growth Architect.
 User's Name: {first_name}
 Is Opening Conversation: {is_first_message}
 User Detected Intent: {analysis.intent}

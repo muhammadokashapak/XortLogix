@@ -71,7 +71,7 @@ def get_default_api_key() -> str:
 
 # Initialize FastAPI App
 app = FastAPI(
-    title="GoHighLevel RAG Assistant",
+    title="XortLogix High Level Assistant",
     description="ChatGPT-Style interface powered by ChromaDB Vector Store, Gemini API & Production Auth",
     version="3.0.0"
 )
@@ -499,7 +499,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
     def get_conversational_reply(query_lower: str, name: str, is_first: bool) -> str:
         if any(k in query_lower for k in ["salam", "aoa", "assalam"]):
             if is_first:
-                return f"Walaikum Assalam {name}! 🤝 I'm your GoHighLevel AI Technical Assistant. How can I help you today with your GoHighLevel workflows, funnels, APIs, or CRM automations?"
+                return f"Walaikum Assalam {name}! 🤝 I'm your XortLogix High Level AI Technical Assistant. How can I help you today with your GoHighLevel workflows, funnels, APIs, or CRM automations?"
             else:
                 return "Walaikum Assalam! 🤝 How can I assist you with your GoHighLevel setup or workflow?"
         
@@ -529,11 +529,11 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
         
         elif any(k in query_lower for k in ["who are you", "what can you do", "about yourself"]):
             prefix = f"Hello {name}! 👋 " if is_first else ""
-            return f"{prefix}I am your dedicated **GoHighLevel (GHL) Technical Assistant**.\n\nI can help you with:\n- ⚡ **Workflow Automations & Custom Triggers**\n- 🔄 **REST APIs, Webhooks & Custom Values**\n- 🏗️ **Funnels, Websites & Form Builders**\n- 👥 **Contacts, Pipelines, Sub-accounts & CRM Settings**\n\nFeel free to ask any question regarding GoHighLevel!"
+            return f"{prefix}I am your dedicated **XortLogix High Level Technical Assistant**.\n\nI can help you with:\n- ⚡ **Workflow Automations & Custom Triggers**\n- 🔄 **REST APIs, Webhooks & Custom Values**\n- 🏗️ **Funnels, Websites & Form Builders**\n- 👥 **Contacts, Pipelines, Sub-accounts & CRM Settings**\n\nFeel free to ask any question regarding GoHighLevel!"
         
         else:
             if is_first:
-                return f"Hello {name}! 👋 I'm your GoHighLevel AI Technical Assistant. How can I help you today with GoHighLevel workflows, funnels, APIs, or CRM settings?"
+                return f"Hello {name}! 👋 I'm your XortLogix High Level AI Technical Assistant. How can I help you today with GoHighLevel workflows, funnels, APIs, or CRM settings?"
             else:
                 return "How can I assist you further with your GoHighLevel setup or technical questions?"
 
