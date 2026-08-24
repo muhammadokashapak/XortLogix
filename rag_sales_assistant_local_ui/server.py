@@ -94,6 +94,11 @@ class ConfigUpdateRequest(BaseModel):
 
 # --- REST Endpoints ---
 
+@app.get("/api/ping")
+async def ping_check():
+    """Lightweight ping endpoint for Chrome extension health checks."""
+    return {"status": "pong", "time": time.time()}
+
 @app.get("/api/health")
 async def health_check():
     """Returns system status, Ollama connectivity, and knowledge base stats."""
