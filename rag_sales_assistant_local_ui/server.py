@@ -6,8 +6,10 @@ and serves the modern HTML5/CSS3/JavaScript Glassmorphism UI.
 """
 
 import os
+import re
 import time
 import json
+import base64
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
@@ -92,11 +94,6 @@ class ConfigUpdateRequest(BaseModel):
 
 # --- REST Endpoints ---
 
-@app.get("/api/ping")
-async def ping():
-    """Ultra-lightweight health check for Chrome extension status indicator (<5ms)."""
-    return {"status": "ok"}
-
 @app.get("/api/health")
 async def health_check():
     """Returns system status, Ollama connectivity, and knowledge base stats."""
@@ -130,15 +127,6 @@ async def analyze_client_intent(req: IntentRequest):
     
     result = await asyncio.to_thread(rag_engine.analyze_intent, req.text)
     return result
-
-@app.post("/api/query_multi")
-async def process_query_multi(req: QueryRequest):
-    """Returns ALL matching strategies (for Chrome extension multi-result popup)."""
-    if not req.query.strip():
-        raise HTTPException(status_code=400, detail="Query cannot be empty.")
-    
-    results = await asyncio.to_thread(rag_engine.query_multi, req.query, req.top_k or 5)
-    return results
 
 @app.post("/api/stt")
 async def transcribe_audio(file: UploadFile = File(...)):
@@ -190,6 +178,12 @@ async def update_config(config: ConfigUpdateRequest):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
+    # Conversational Rolling Sentence Memory & Utterance Accumulator
+    sentence_buffer: List[str] = []
+    last_chunk_time: float = 0.0
+    last_analyzed_sentence: str = ""
+    conversation_history: List[Dict[str, Any]] = []
+
     try:
         # Send initial welcome and state
         await websocket.send_json({
@@ -264,107 +258,88 @@ async def websocket_endpoint(websocket: WebSocket):
                     "data": intent_res
                 })
 
-            elif msg_type == "extension_query":
-                # Chrome Extension continuous mode with server-side debouncing
-                query_text = msg.get("text", "").strip()
-                if not query_text or len(query_text) < 3:
-                    continue
-
-                # Debounce: skip if same/similar text was queried recently
-                now = time.time()
-                last_ext_query = getattr(websocket, '_last_ext_query', "")
-                last_ext_time = getattr(websocket, '_last_ext_time', 0)
-                
-                # Skip if less than 1.5s since last query and text is very similar
-                if (now - last_ext_time) < 1.5:
-                    old_words = set(last_ext_query.lower().split())
-                    new_words = set(query_text.lower().split())
-                    if old_words and new_words:
-                        overlap = len(old_words & new_words) / max(len(old_words), len(new_words))
-                        if overlap > 0.7:
-                            continue
-                
-                websocket._last_ext_query = query_text
-                websocket._last_ext_time = now
-
-                # Execute multi-result RAG query for extension (all matching strategies)
-                results = await asyncio.to_thread(rag_engine.query_multi, query_text, 5)
-                
-                await websocket.send_json({
-                    "type": "extension_strategies",
-                    "data": results
-                })
-
             elif msg_type == "audio_chunk":
-                # Audio blob uploaded over WebSocket (from Extension or Web UI)
+                # Audio blob uploaded over WebSocket
                 import base64
                 audio_b64 = msg.get("audio_base64", "")
-                audio_fmt = msg.get("format", ".webm")
-                if not audio_fmt.startswith("."):
-                    audio_fmt = f".{audio_fmt}"
+                audio_format = msg.get("format", ".raw_pcm")
+                if not audio_format.startswith("."):
+                    audio_format = f".{audio_format}"
 
-                if audio_b64 and isinstance(audio_b64, str) and len(audio_b64.strip()) > 10:
+                if audio_b64:
                     try:
-                        # Clean data URL prefix if present
-                        if "," in audio_b64:
-                            audio_b64 = audio_b64.split(",", 1)[1]
-                        
-                        audio_b64 = audio_b64.strip().replace("\n", "").replace("\r", "")
-                        
-                        # Add missing base64 padding
-                        missing_padding = len(audio_b64) % 4
-                        if missing_padding:
-                            audio_b64 += "=" * (4 - missing_padding)
-                            
-                        raw_audio = base64.b64decode(audio_b64)
-                    except Exception as b64_err:
-                        logger.warning(f"Skipping malformed base64 audio frame: {b64_err}")
-                        continue
+                        clean_b64 = re.sub(r'[^A-Za-z0-9+/=]', '', audio_b64.strip())
+                        pad_needed = (4 - len(clean_b64) % 4) % 4
+                        if pad_needed:
+                            clean_b64 += '=' * pad_needed
+                        raw_audio = base64.b64decode(clean_b64)
+                        stt_res = await stt_engine.transcribe_async(raw_audio, suffix=audio_format)
+                    except Exception as e:
+                        logger.error(f"Error decoding or transcribing audio chunk: {e}")
+                        stt_res = {"success": False, "error": str(e)}
+                    
+                    if stt_res.get("success") and stt_res.get("text"):
+                        raw_fragment = stt_res["text"].strip()
+                        # Apply instant AI contextual correction (e.g. 'what youtube' -> 'what will you do')
+                        new_fragment = rag_engine.correct_speech_transcript(raw_fragment)
+                        stt_lat = stt_res.get("latency_ms", 0)
+                        now = time.time()
 
-                    try:
-                        stt_res = await stt_engine.transcribe_async(raw_audio, suffix=audio_fmt)
-                        
-                        if stt_res.get("success") and stt_res.get("text"):
-                            transcribed_text = stt_res["text"].strip()
-                            if len(transcribed_text) >= 3:
-                                await websocket.send_json({
-                                    "type": "transcription_complete",
-                                    "text": transcribed_text,
-                                    "stt_latency_ms": stt_res.get("latency_ms", 0)
-                                })
-
-                                # 1. Multi-strategy search for extension
-                                ext_results = await asyncio.to_thread(rag_engine.query_multi, transcribed_text, 5)
-                                await websocket.send_json({
-                                    "type": "extension_strategies",
-                                    "data": ext_results
-                                })
-
-                                # 2. Single strategy for standard UI
-                                rag_res = await asyncio.to_thread(rag_engine.query, transcribed_text)
-                                rag_res["stt_latency_ms"] = stt_res.get("latency_ms", 0)
-                                rag_res["total_latency_ms"] += rag_res["stt_latency_ms"]
-                                
-                                await websocket.send_json({
-                                    "type": "battlecard_response",
-                                    "data": rag_res
-                                })
-
-                                # 3. Intent Strategy response for real-time live objection decider
-                                intent_res = await asyncio.to_thread(rag_engine.analyze_intent, transcribed_text)
-                                await websocket.send_json({
-                                    "type": "intent_strategy_response",
-                                    "data": intent_res
-                                })
+                        # Smart Rolling Sentence Memory:
+                        # If client continues speaking within 3.5s pause, combine fragments into one complete thought
+                        if sentence_buffer and (now - last_chunk_time) < 3.5:
+                            # Avoid duplicate consecutive words
+                            if new_fragment.lower() not in " ".join(sentence_buffer).lower():
+                                sentence_buffer.append(new_fragment)
                         else:
-                            await websocket.send_json({
-                                "type": "stage_update",
-                                "stage": "idle",
-                                "error": stt_res.get("error", "No speech detected.")
+                            # Reset for fresh sentence
+                            sentence_buffer = [new_fragment]
+
+                        last_chunk_time = now
+                        full_sentence = " ".join(sentence_buffer).strip()
+
+                        # Double check full accumulated sentence with contextual correction
+                        full_sentence = rag_engine.correct_speech_transcript(full_sentence)
+
+                        logger.info(f"⚡ Clean Client Thought (Memory: {len(sentence_buffer)} chunks): '{full_sentence}'")
+                        
+                        # 1. Send live accumulated clean sentence to UI
+                        await websocket.send_json({
+                            "type": "transcription_complete",
+                            "text": full_sentence,
+                            "chunk_text": new_fragment,
+                            "stt_latency_ms": stt_lat
+                        })
+
+                        # 2. Run RAG & Intent Analysis on the COMPLETE sentence
+                        if full_sentence and full_sentence != last_analyzed_sentence:
+                            last_analyzed_sentence = full_sentence
+
+                            rag_task = asyncio.to_thread(rag_engine.query, full_sentence)
+                            intent_task = asyncio.to_thread(rag_engine.analyze_intent, full_sentence)
+                            rag_res, intent_res = await asyncio.gather(rag_task, intent_task)
+
+                            rag_res["stt_latency_ms"] = stt_lat
+                            rag_res["total_latency_ms"] += stt_lat
+
+                            # Save to session conversation memory
+                            conversation_history.append({
+                                "client_sentence": full_sentence,
+                                "intent": intent_res.get("intent_title"),
+                                "matched_q": rag_res.get("q_number")
                             })
-                    except Exception as trans_err:
-                        logger.warning(f"Audio transcription error: {trans_err}")
-                        continue
+
+                            # Send Intent & Psychology Strategy Response
+                            await websocket.send_json({
+                                "type": "intent_strategy_response",
+                                "data": intent_res
+                            })
+
+                            # Send Battlecard Response
+                            await websocket.send_json({
+                                "type": "battlecard_response",
+                                "data": rag_res
+                            })
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
@@ -388,10 +363,16 @@ async def serve_index():
     return HTMLResponse("<h1>Sales Assistant UI Initializing...</h1>")
 
 if __name__ == "__main__":
+    import sys
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     print("==================================================================")
-    print(" 🚀 REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT) ")
+    print(" [READY] REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT) ")
     print("==================================================================")
-    print(" Server running on: http://localhost:8000")
+    print(" Server running on: http://127.0.0.1:8000")
     print(" Knowledge Base loaded: 70 Q&A Battlecards from zoom.pdf")
     print("==================================================================")
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")

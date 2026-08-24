@@ -15,7 +15,7 @@ const state = {
   meetingStream: null,
   mediaRecorder: null,
   isMeetingStreaming: false,
-  audioSourceType: 'tab'
+  audioSourceType: 'tab' // Default: Google Meet Tab Audio (Client Voice)
 };
 
 // DOM References
@@ -127,27 +127,13 @@ function showToast(text) {
   }, 2200);
 }
 
-// Text-to-Speech (Speaks in Rep's earphone in fluent English)
+// Text-to-Speech (Speaks in Rep's earphone)
 function speakText(text) {
   if (!text || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  
-  const cleanText = text.replace(/[*#_`"]/g, '').trim();
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.rate = 1.0;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1.05;
   utterance.pitch = 1.0;
-  utterance.lang = 'en-US';
-
-  // Pick best available English voice
-  const voices = window.speechSynthesis.getVoices();
-  const naturalEnglish = voices.find(v => (v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('David') || v.name.includes('Jenny') || v.name.includes('Guy')))) 
-    || voices.find(v => v.lang === 'en-US') 
-    || voices.find(v => v.lang.startsWith('en'));
-
-  if (naturalEnglish) {
-    utterance.voice = naturalEnglish;
-  }
-  
   window.speechSynthesis.speak(utterance);
 }
 
@@ -196,20 +182,20 @@ function initWebSocket() {
 
 // Handle AI / RAG Strategy Response
 function handleBattlecardResponse(data) {
-  if (!state.isMeetingStreaming) {
-    el.stageBadgeText.textContent = 'Hold Spacebar or Click Mic to Listen';
-    el.btnMasterMic.classList.remove('listening');
-    el.voiceBar.classList.remove('listening');
-    state.isListening = false;
-  } else {
-    el.stageBadgeText.textContent = '🟢 Live Meeting Stream Active — Listening to client voice...';
-    el.btnMasterMic.classList.add('listening');
-    el.voiceBar.classList.add('listening');
+  // 🛑 Guard: If random talk / no match found, do NOT show popup alert
+  if (!data || !data.success || !data.pitch || data.pitch === 'No response found.' || !data.question_matched) {
+    if (state.isListening && el.stageBadgeText) {
+      el.stageBadgeText.textContent = '🟢 Live Listening Active... Speak naturally';
+    }
+    if (el.smartStrategyPopup) el.smartStrategyPopup.style.display = 'none';
+    return;
   }
 
   const matchedQ = data.question_matched || 'Client Objection';
-  const pitch = data.response || data.pitch || 'No response found.';
+  const pitch = data.response || data.pitch || '';
   state.activePitch = pitch;
+
+  if (el.stageBadgeText) el.stageBadgeText.textContent = `🎯 Strategy Matched: Q${data.q_number || 'Objection'}`;
 
   // 1. Update Main UI Card if present
   if (el.displayMatchedQuestion) el.displayMatchedQuestion.textContent = `Client: "${matchedQ}"`;
@@ -223,15 +209,15 @@ function handleBattlecardResponse(data) {
   if (el.hudDetectedQ) el.hudDetectedQ.textContent = `Client: "${matchedQ}"`;
   if (el.hudPitch) el.hudPitch.textContent = pitch;
 
-  // 3. 🚨 Show Smart Strategy Popup if enabled
-  if (state.autoPopup) {
+  // 3. 🚨 Show Smart Strategy Popup ONLY if enabled AND matched
+  if (state.autoPopup && pitch) {
     if (el.popupMatchedQ) el.popupMatchedQ.textContent = `"${matchedQ}"`;
     if (el.popupPitchText) el.popupPitchText.textContent = pitch;
     if (el.smartStrategyPopup) el.smartStrategyPopup.style.display = 'block';
   }
 
   // 4. 🎧 Auto Read Strategy Aloud (Audio Voice in Ear) if enabled
-  if (state.autoTts) {
+  if (state.autoTts && pitch) {
     speakText(pitch);
     showToast('Speaking strategy cue into earphone (TTS)');
   }
@@ -244,17 +230,31 @@ function handleIntentStrategyResponse(data) {
     el.btnAnalyzeIntent.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Analyze Intent</span>';
   }
 
-  if (!data || !data.success) {
-    showToast('Could not analyze intent. Please try another phrase.');
+  // 🛑 Strict Guard: If random talk / no match, do NOT open popup!
+  if (!data || !data.success || !data.is_match || !data.matched || !data.recommended_pitch || (data.confidence_percent && data.confidence_percent < 40)) {
+    console.log('Popup suppressed: Casual speech or no objection matched:', data);
+    
+    // Ensure modal stays closed
+    if (el.intentStrategyModal) {
+      el.intentStrategyModal.style.display = 'none';
+    }
+    if (state.isListening && el.stageBadgeText) {
+      el.stageBadgeText.textContent = '🟢 Live Listening Active... Speak naturally';
+    }
+    // If user clicked manually, notify them gently
+    if (data && data.input_text && document.activeElement === el.btnAnalyzeIntent) {
+      showToast('No sales objection detected in statement.');
+    }
     return;
   }
 
+  // ✅ Real objection / intent matched & strategy decided -> OPEN POPUP!
   const badgeColor = data.badge_color || 'amber';
   const iconClass = data.icon || 'fa-bullseye';
   const intentTitle = data.intent_title || 'Client Objection';
   const confidence = data.confidence_percent || 88;
   const clientText = data.input_text || (el.txtClientIntentInput ? el.txtClientIntentInput.value : '');
-  const pitch = data.recommended_pitch || 'Strategic response prepared.';
+  const pitch = data.recommended_pitch || '';
 
   // 1. Update Modal Elements
   if (el.modalIntentBadge) {
@@ -311,7 +311,7 @@ function handleIntentStrategyResponse(data) {
     }
   }
 
-  // 2. Open Modal Popup or smooth live update if already open
+  // 🎯 2. Open Modal Popup on genuine strategy match!
   if (el.intentStrategyModal) {
     el.intentStrategyModal.style.display = 'flex';
   }
@@ -341,7 +341,7 @@ function handleIntentStrategyResponse(data) {
     speakText(pitch);
   }
 
-  showToast(`Detected: ${intentTitle}`);
+  showToast(`🎯 Matched: ${intentTitle}`);
 }
 
 // 🎯 Analyze Client Intent (API + WebSocket) - Real-time continuous detection
@@ -433,23 +433,199 @@ function setupSpeechRecognition() {
     }
 
     if (final.trim()) {
-      // Automatically detect and continuously update strategy modal
       sendQuery(final.trim());
     }
   };
 
+  state.recognition.onerror = (event) => {
+    console.log('SpeechRecognition event notice:', event.error);
+    if (state.isListening && event.error !== 'not-allowed') {
+      setTimeout(() => {
+        if (state.isListening) {
+          try { state.recognition.start(); } catch (e) {}
+        }
+      }, 100);
+    }
+  };
+
   state.recognition.onend = () => {
-    if (state.isListening || state.continuousVad || state.isMeetingStreaming) {
-      try { state.recognition.start(); } catch (e) {}
-    } else {
-      stopListening();
+    if (state.isListening) {
+      setTimeout(() => {
+        if (state.isListening) {
+          try { state.recognition.start(); } catch (e) {}
+        }
+      }, 50);
     }
   };
 }
 
 // ==========================================================================
-// 🎙️ Live Meeting Audio & Stream Controller
+// 🎙️ High-Fidelity Audio Stream Processor (16kHz PCM Streamer for Google Meet & Mic)
 // ==========================================================================
+
+function floatTo16BitPCM(input, inputSampleRate, outputSampleRate = 16000) {
+  if (inputSampleRate === outputSampleRate) {
+    const output = new Int16Array(input.length);
+    for (let i = 0; i < input.length; i++) {
+      const s = Math.max(-1, Math.min(1, input[i]));
+      output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return output;
+  }
+  const ratio = inputSampleRate / outputSampleRate;
+  const newLength = Math.round(input.length / ratio);
+  const output = new Int16Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const index = i * ratio;
+    const indexFloor = Math.floor(index);
+    const indexCeil = Math.min(input.length - 1, Math.ceil(index));
+    const t = index - indexFloor;
+    const sample = (1 - t) * input[indexFloor] + t * input[indexCeil];
+    const s = Math.max(-1, Math.min(1, sample));
+    output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  return output;
+}
+
+async function startAudioProcessorStream(primaryStream, secondaryStream = null) {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.error('[AUDIO] No AudioContext support');
+      return;
+    }
+
+    // Close previous context cleanly
+    if (state.audioCtx) {
+      try { state.audioCtx.close(); } catch (e) {}
+      state.audioCtx = null;
+    }
+    if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+      try { state.mediaRecorder.stop(); } catch (e) {}
+      state.mediaRecorder = null;
+    }
+
+    const audioCtx = new AudioContextClass({ sampleRate: 48000 });
+    // CRITICAL: AudioContext MUST be resumed after user gesture
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    console.log(`[AUDIO] AudioContext created. State: ${audioCtx.state}, SampleRate: ${audioCtx.sampleRate}`);
+
+    const sampleRate = audioCtx.sampleRate;
+    const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+    // CRITICAL FIX: gain=0.001 instead of 0.0
+    // Chrome throttles/kills ScriptProcessor.onaudioprocess when it detects the
+    // entire output path produces zero samples. gain=0.001 is inaudible but keeps
+    // the audio graph alive and onaudioprocess firing.
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0.001;
+
+    // 1. Primary Audio Stream (Google Meet Tab or Mic)
+    const primaryAudioTracks = primaryStream.getAudioTracks();
+    console.log(`[AUDIO] Primary stream tracks: ${primaryAudioTracks.length}, enabled: ${primaryAudioTracks.map(t => t.enabled)}, readyState: ${primaryAudioTracks.map(t => t.readyState)}`);
+    if (primaryAudioTracks.length === 0) {
+      console.error('[AUDIO] No audio tracks in primary stream!');
+      return;
+    }
+    const cleanPrimaryStream = new MediaStream(primaryAudioTracks);
+    const source1 = audioCtx.createMediaStreamSource(cleanPrimaryStream);
+    source1.connect(processor);
+
+    // 2. Secondary Stream (Microphone if available)
+    let source2 = null;
+    if (secondaryStream && secondaryStream.getAudioTracks().length > 0) {
+      try {
+        const secTracks = secondaryStream.getAudioTracks();
+        console.log(`[AUDIO] Secondary stream tracks: ${secTracks.length}`);
+        const cleanSecondaryStream = new MediaStream(secTracks);
+        source2 = audioCtx.createMediaStreamSource(cleanSecondaryStream);
+        source2.connect(processor);
+      } catch (e) {
+        console.log('[AUDIO] Secondary audio source attach skipped:', e);
+      }
+    }
+
+    let pcm16Chunks = [];
+    let samplesAccumulated = 0;
+    const targetSampleRate = 16000;
+    const samplesNeeded = targetSampleRate * 2.0; // 2.0s clean window
+    const overlapSamples = Math.round(targetSampleRate * 0.4); // 400ms overlap buffer
+    let processCallCount = 0;
+    let chunksSentCount = 0;
+
+    processor.onaudioprocess = (e) => {
+      if (!state.isListening && !state.isMeetingStreaming) return;
+
+      processCallCount++;
+      const inputBuffer = e.inputBuffer.getChannelData(0);
+      const resampled = floatTo16BitPCM(inputBuffer, sampleRate, targetSampleRate);
+      pcm16Chunks.push(resampled);
+      samplesAccumulated += resampled.length;
+
+      if (samplesAccumulated >= samplesNeeded) {
+        const fullLength = pcm16Chunks.reduce((acc, c) => acc + c.length, 0);
+        const fullPcm = new Int16Array(fullLength);
+        let offset = 0;
+        for (const chunk of pcm16Chunks) {
+          fullPcm.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        // Keep last 400ms for continuous phonetic overlap
+        if (fullLength > overlapSamples) {
+          const overlapPcm = fullPcm.slice(fullLength - overlapSamples);
+          pcm16Chunks = [overlapPcm];
+          samplesAccumulated = overlapPcm.length;
+        } else {
+          pcm16Chunks = [];
+          samplesAccumulated = 0;
+        }
+
+        // Compute RMS energy
+        let sumSquares = 0;
+        for (let i = 0; i < fullPcm.length; i++) {
+          sumSquares += (fullPcm[i] / 32768) ** 2;
+        }
+        const rms = Math.sqrt(sumSquares / fullPcm.length);
+
+        // Only skip complete digital zero silence (RMS < 0.0008)
+        if (rms >= 0.0008 && state.ws && state.ws.readyState === WebSocket.OPEN) {
+          const uint8 = new Uint8Array(fullPcm.buffer);
+          let binary = '';
+          const len = uint8.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(uint8[i]);
+          }
+          const base64Pcm = btoa(binary);
+
+          state.ws.send(JSON.stringify({
+            type: 'audio_chunk',
+            audio_base64: base64Pcm,
+            format: 'raw_pcm'
+          }));
+          chunksSentCount++;
+          console.log(`[AUDIO] ⚡ PCM chunk #${chunksSentCount} sent | RMS: ${rms.toFixed(5)}`);
+        }
+      }
+    };
+
+    // Connect: source → processor → gainNode(0.001) → destination
+    processor.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    console.log('[AUDIO] ScriptProcessor audio graph connected');
+
+    state.audioCtx = audioCtx;
+    state.audioProcessor = processor;
+    state.audioSource = source1;
+    state.audioSource2 = source2;
+
+    console.log('[AUDIO] ✅ Audio pipeline fully initialized and streaming');
+  } catch (err) {
+    console.error('[AUDIO] ❌ AudioContext streaming setup error:', err);
+  }
+}
 
 function openMeetingModal() {
   if (el.meetingModal) {
@@ -465,17 +641,16 @@ function closeMeetingModal() {
 
 async function startMeetingAudioStream() {
   try {
-    let stream = null;
+    let tabStream = null;
     const isTab = state.audioSourceType === 'tab';
 
     if (isTab) {
-      // Capture Tab/System Audio
       if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        showToast('Tab audio not supported in this browser. Using microphone.');
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        showToast('Screen/Tab audio not supported in this browser. Using microphone.');
+        tabStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } else {
-        showToast('Select your Google Meet/Zoom tab & check "Share tab audio"');
-        stream = await navigator.mediaDevices.getDisplayMedia({
+        showToast('Select your Google Meet tab and check "Also share tab audio"');
+        tabStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
           audio: {
             echoCancellation: false,
@@ -483,102 +658,50 @@ async function startMeetingAudioStream() {
             autoGainControl: false
           }
         });
-        
-        // Mute video track to save CPU without terminating the underlying display media stream
-        stream.getVideoTracks().forEach(track => {
-          track.enabled = false;
-        });
       }
     } else {
-      // Capture Direct Microphone
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tabStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     }
 
-    if (!stream || stream.getAudioTracks().length === 0) {
-      showToast('⚠️ "Also share tab audio" switch was OFF. Using Direct Microphone...');
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (micErr) {
-        showToast('⚠️ Could not access microphone: ' + micErr.message);
-        return;
-      }
-    }
-
-    if (!stream || stream.getAudioTracks().length === 0) {
-      showToast('⚠️ No audio stream available. Please grant mic/audio permissions.');
+    if (!tabStream || tabStream.getAudioTracks().length === 0) {
+      showToast('⚠️ No audio track found! Make sure you checked "Also share tab audio" in Chrome.');
       return;
     }
 
-    state.meetingStream = stream;
-    state.isMeetingStreaming = true;
-
-    // Listen for user stopping share from browser banner
-    if (stream.getAudioTracks()[0]) {
-      stream.getAudioTracks()[0].addEventListener('ended', () => {
-        stopMeetingAudioStream();
-        showToast('Meeting audio stream ended');
-      });
-    }
-
-    // Setup MediaRecorder for streaming chunks
-    let mimeType = 'audio/webm;codecs=opus';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      if (MediaRecorder.isTypeSupported('audio/webm')) mimeType = 'audio/webm';
-      else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
-      else mimeType = '';
-    }
-
-    const options = mimeType ? { mimeType } : {};
-    state.mediaRecorder = new MediaRecorder(stream, options);
-
-    state.mediaRecorder.ondataavailable = async (e) => {
-      if (e.data && e.data.size > 200) {
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (typeof reader.result === 'string' && reader.result.includes(',')) {
-              const base64data = reader.result.split(',')[1];
-              if (base64data && base64data.length > 50 && state.ws && state.ws.readyState === WebSocket.OPEN) {
-                state.ws.send(JSON.stringify({
-                  type: 'audio_chunk',
-                  audio_base64: base64data,
-                  format: mimeType.includes('webm') ? 'webm' : 'wav'
-                }));
-              }
-            }
-          };
-          reader.readAsDataURL(e.data);
-        }
-      }
-    };
-
-    // Send audio slice every 2.5 seconds
-    state.mediaRecorder.start(2500);
-
-    // Also start browser speech recognition if supported for ultra fast local feedback
+    // Stop physical mic recognition if running so rep voice is NEVER transcribed
     if (state.recognition) {
-      try { state.recognition.start(); } catch (e) {}
+      try { state.recognition.stop(); } catch (e) {}
     }
+
+    state.meetingStream = tabStream;
+    state.meetingMicStream = null;
+    state.isMeetingStreaming = true;
+    state.isListening = true;
+
+    // Listen for user stopping share
+    tabStream.getAudioTracks()[0].addEventListener('ended', () => {
+      stopMeetingAudioStream();
+      showToast('Meeting audio stream ended');
+    });
+
+    // Start 16kHz PCM Audio Streamer for CLIENT TAB AUDIO ONLY
+    await startAudioProcessorStream(tabStream, null);
 
     // UI Updates
+    closeMeetingModal();
     if (el.meetingStreamStatus) el.meetingStreamStatus.style.display = 'flex';
     if (el.btnStartMeetingAudio) el.btnStartMeetingAudio.style.display = 'none';
     if (el.btnStopMeetingAudio) el.btnStopMeetingAudio.style.display = 'flex';
     if (el.meetingStatusBadge) {
       el.meetingStatusBadge.className = 'confidence-pill';
       el.meetingStatusBadge.style.color = '#10b981';
-      el.meetingStatusBadge.textContent = '🟢 Live Streaming';
+      el.meetingStatusBadge.textContent = '🟢 Client-Only Audio Active';
     }
 
     el.btnMasterMic.classList.add('listening');
     el.voiceBar.classList.add('listening');
-    el.stageBadgeText.textContent = '🟢 Live Meeting Stream Active — Listening to client voice...';
-    showToast('Meeting Audio Connected! Listening to client...');
-
-    // Auto-close modal on successful connection
-    setTimeout(() => {
-      closeMeetingModal();
-    }, 500);
+    el.stageBadgeText.textContent = '🟢 Listening to Client Voice (Google Meet Tab Only)...';
+    showToast('Client Audio Stream Connected! Listening ONLY to client voice.');
 
   } catch (err) {
     console.error('Error accessing meeting audio:', err);
@@ -589,15 +712,37 @@ async function startMeetingAudioStream() {
 
 function stopMeetingAudioStream() {
   state.isMeetingStreaming = false;
+  state.isListening = false;
 
   if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
     try { state.mediaRecorder.stop(); } catch (e) {}
   }
   state.mediaRecorder = null;
 
+  if (state.audioProcessor) {
+    try { state.audioProcessor.disconnect(); } catch (e) {}
+    state.audioProcessor = null;
+  }
+  if (state.audioSource) {
+    try { state.audioSource.disconnect(); } catch (e) {}
+    state.audioSource = null;
+  }
+  if (state.audioSource2) {
+    try { state.audioSource2.disconnect(); } catch (e) {}
+    state.audioSource2 = null;
+  }
+  if (state.audioCtx) {
+    try { state.audioCtx.close(); } catch (e) {}
+    state.audioCtx = null;
+  }
+
   if (state.meetingStream) {
     state.meetingStream.getTracks().forEach(t => t.stop());
     state.meetingStream = null;
+  }
+  if (state.meetingMicStream) {
+    state.meetingMicStream.getTracks().forEach(t => t.stop());
+    state.meetingMicStream = null;
   }
 
   if (state.recognition) {
@@ -619,39 +764,60 @@ function stopMeetingAudioStream() {
   el.stageBadgeText.textContent = 'Hold Spacebar or Click Mic to Listen';
 }
 
-function startListening() {
-  if (state.isListening || state.isMeetingStreaming) return;
+async function startListening() {
+  if (state.isListening) return;
   state.isListening = true;
   el.btnMasterMic.classList.add('listening');
   el.voiceBar.classList.add('listening');
-  el.stageBadgeText.textContent = 'Listening to client... (Release spacebar to get strategy)';
+  el.stageBadgeText.textContent = '🟢 Listening Live... Speak naturally';
 
+  // 1. Browser Web Speech Recognition
   if (state.recognition) {
     try { state.recognition.start(); } catch (e) {}
+  }
+
+  // 2. Microphone Stream via AudioProcessor
+  try {
+    if (!state.meetingStream) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      state.meetingStream = stream;
+      await startAudioProcessorStream(stream);
+    }
+  } catch (err) {
+    console.log('Microphone stream notice:', err);
   }
 }
 
 function stopListening() {
-  if (state.isMeetingStreaming) return;
   if (!state.isListening) return;
   state.isListening = false;
   el.btnMasterMic.classList.remove('listening');
   el.voiceBar.classList.remove('listening');
-  el.stageBadgeText.textContent = 'Processing speech...';
+  el.stageBadgeText.textContent = 'Hold Spacebar or Click Mic to Listen';
 
   if (state.recognition) {
     try { state.recognition.stop(); } catch (e) {}
   }
 
+  if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    try { state.mediaRecorder.stop(); } catch (e) {}
+  }
+  state.mediaRecorder = null;
+
+  if (state.meetingStream && !state.isMeetingStreaming) {
+    state.meetingStream.getTracks().forEach(t => t.stop());
+    state.meetingStream = null;
+  }
+
   const spokenText = el.liveTranscriptDisplay.textContent.replace(/^"|"$/g, '').trim();
-  if (spokenText && !spokenText.startsWith('Client ki baat')) {
+  if (spokenText && !spokenText.startsWith('Listening for client') && !spokenText.startsWith('Client ki baat')) {
     sendQuery(spokenText);
   }
 }
 
 // Event Bindings
 function setupEvents() {
-  // Push to talk: Spacebar
+  // Push to talk: Spacebar (Desktop)
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && !state.isSpacePressed && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
@@ -670,20 +836,29 @@ function setupEvents() {
     }
   });
 
-  // Mic Click -> Toggle streaming or open connection modal
-  el.btnMasterMic.addEventListener('click', () => {
-    if (state.isMeetingStreaming) {
+  // Mic Click -> Direct Connect Google Meet Tab (Client Voice)
+  el.btnMasterMic.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (state.isMeetingStreaming || state.isListening) {
       stopMeetingAudioStream();
-      showToast('Meeting stream disconnected');
+      stopListening();
+      showToast('Client Audio Stream Stopped');
     } else {
       openMeetingModal();
     }
   });
 
+  // Mobile Push-to-Talk (Touch & Hold Support)
+  el.btnMasterMic.addEventListener('touchstart', (e) => {
+    if (!state.isMeetingStreaming && !state.isListening) {
+      openMeetingModal();
+    }
+  }, { passive: true });
+
   el.btnMiniMic.addEventListener('click', () => {
-    if (state.isMeetingStreaming) {
+    if (state.isMeetingStreaming || state.isListening) {
       stopMeetingAudioStream();
-      showToast('Meeting stream disconnected');
+      stopListening();
     } else {
       openMeetingModal();
     }

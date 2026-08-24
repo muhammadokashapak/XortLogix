@@ -33,35 +33,48 @@ def check_ollama():
 
 def open_browser():
     time.sleep(1.5)
-    print("\n🌐 Opening Real-Time Sales Co-Pilot UI in default browser...")
+    print("\n[*] Opening Real-Time Sales Co-Pilot UI at http://127.0.0.1:8000 ...")
     webbrowser.open("http://127.0.0.1:8000")
 
 def main():
     print("=" * 75)
-    print(" 🚀 REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT)")
+    print(" [*] REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT)")
     print("=" * 75)
-    print(" • Audio & Voice: Web Speech API + Local OpenAI Whisper")
-    print(" • Retrieval Engine: ChromaDB + 70 Enterprise Q&A Battlecards (zoom.pdf)")
-    print(" • LLM Inference: Local Ollama (llama3.2:3b / 1b / phi3)")
-    print(" • UI Interface: Cyber-Dark Glassmorphism Web Cockpit + Floating Zoom HUD")
+    print(" - Audio & Voice: Web Speech API + Local OpenAI Whisper")
+    print(" - Retrieval Engine: ChromaDB + 70 Enterprise Q&A Battlecards (zoom.pdf)")
+    print(" - LLM Inference: Local Ollama (llama3.2:3b / 1b / phi3)")
+    print(" - UI Interface: Cyber-Dark Glassmorphism Web Cockpit + Floating Zoom HUD")
     print("=" * 75)
     
     ollama_ok = check_ollama()
     if ollama_ok:
-        print(" [✓] Ollama server detected at http://127.0.0.1:11434")
+        print(" [+] Ollama server detected at http://127.0.0.1:11434")
     else:
         print(" [!] Note: Ollama is not currently running.")
         print("     The Sales Assistant will operate in Direct KB Mode with instant <50ms responses.")
         print("     To enable Ollama LLM synthesis, run 'ollama serve' in a separate terminal.")
     
-    print("\n [✓] Server starting on http://127.0.0.1:8000 ...")
+    import socket
+    local_ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    print("\n [+] Server listening on all interfaces:")
+    print(f"     - Local PC:   http://127.0.0.1:8000")
+    print(f"     - Mobile/LAN: http://{local_ip}:8000")
     print("     Press Ctrl+C to stop the server.\n")
 
     # Open browser in a separate background thread
     threading.Thread(target=open_browser, daemon=True).start()
 
-    # Run Uvicorn server
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=False, log_level="info")
+    # Run Uvicorn server on 0.0.0.0 for PC + Mobile access
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
 
 if __name__ == "__main__":
     main()
+

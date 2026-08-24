@@ -31,13 +31,13 @@
 
       <!-- Quick Mode Switches & Popup Toggles -->
       <div class="header-options">
-        <label class="toggle-control" title="Automatically displays strategy popup when client objection is detected">
+        <label class="toggle-control" title="Automatically displays strategy popup when objection is detected">
           <input type="checkbox" id="chkAutoPopup" checked />
           <span class="toggle-slider"></span>
           <span class="toggle-label">🔔 Auto Popup Alert</span>
         </label>
 
-        <label class="toggle-control" title="Automatically speaks closing strategy into your earpiece using text-to-speech">
+        <label class="toggle-control" title="Speaks suggested strategy cue into earphones via Text-to-Speech">
           <input type="checkbox" id="chkAutoTts" />
           <span class="toggle-slider"></span>
           <span class="toggle-label">🎧 Voice Cue in Ear (TTS)</span>
@@ -64,22 +64,22 @@
       
       <!-- Mic & Live Listening Bar -->
       <div class="voice-hero-bar">
-        <button class="main-mic-btn" id="btnMasterMic" title="Click to start or Hold Spacebar">
-          <i class="fa-solid fa-microphone"></i>
+        <button class="main-mic-btn" id="btnMasterMic" title="Click to Connect Google Meet (Client Voice)">
+          <i class="fa-solid fa-satellite-dish"></i>
         </button>
         
         <div class="voice-hero-info">
-          <div class="voice-status-title" id="stageBadgeText">Hold <kbd>Spacebar</kbd> or Click Mic to Listen</div>
+          <div class="voice-status-title" id="stageBadgeText">Click to Connect Google Meet (Listens to Client Only)</div>
           <div class="voice-transcript-snippet" id="liveTranscriptDisplay">
-            "Listening in real-time to recommend optimal closing strategies instantly..."
+            "Listening for client objections in meeting to provide instant closing strategies..."
           </div>
         </div>
 
         <div class="voice-controls-right">
           <label class="toggle-control auto-listen-toggle">
-            <input type="checkbox" id="chkContinuousVad" />
+            <input type="checkbox" id="chkAutoPopup" checked />
             <span class="toggle-slider"></span>
-            <span class="toggle-label">Auto-Listen (Hands-Free)</span>
+            <span class="toggle-label">Auto-Popup on Objection</span>
           </label>
         </div>
       </div>
@@ -100,7 +100,7 @@
             <input 
               type="text" 
               id="txtClientIntentInput" 
-              placeholder="e.g. 'Your pricing is significantly higher than freelancers' or 'We need a 20% discount to sign'..." 
+              placeholder="e.g. 'Freelancers are offering $500, why are you charging $2,000?' or 'Can we get a 20% discount?'..." 
               autocomplete="off"
             />
           </div>
@@ -160,11 +160,11 @@
           <div class="psychology-box">
             <div class="psychology-item">
               <span class="psy-title"><i class="fa-solid fa-brain text-cyan"></i> Client Mindset:</span>
-              <p id="modalClientMindset">Cost-conscious, evaluating value gap vs cheaper options.</p>
+              <p id="modalClientMindset">Cost-conscious, evaluating value gap versus low-cost alternatives.</p>
             </div>
             <div class="psychology-item">
               <span class="psy-title"><i class="fa-solid fa-shield-halved text-yellow"></i> Hidden Fear:</span>
-              <p id="modalHiddenConcern">Fear of overpaying for development without guaranteed ROI or delivery.</p>
+              <p id="modalHiddenConcern">Afraid of overpaying, project failure, or receiving low return on investment.</p>
             </div>
           </div>
 
@@ -173,13 +173,13 @@
             <div class="tactical-card dos">
               <div class="tactical-title"><i class="fa-solid fa-circle-check text-emerald"></i> Do:</div>
               <ul id="modalDosList">
-                <li>Anchor on total cost of ownership & QA</li>
+                <li>Anchor on total cost of ownership, automated testing, and security</li>
               </ul>
             </div>
             <div class="tactical-card donts">
               <div class="tactical-title"><i class="fa-solid fa-circle-xmark text-rose"></i> Avoid:</div>
               <ul id="modalDontsList">
-                <li>Never reduce rates without adjusting the project scope</li>
+                <li>Do not lower pricing without proportionally adjusting project scope</li>
               </ul>
             </div>
           </div>
@@ -191,11 +191,11 @@
           
           <div class="pitch-box modal-pitch">
             <div class="pitch-header-strip">
-              <span class="pitch-label"><i class="fa-solid fa-lightbulb text-yellow"></i> RECOMMENDED CLOSING PITCH (SPEAK TO CLIENT):</span>
+              <span class="pitch-label"><i class="fa-solid fa-lightbulb text-yellow"></i> RECOMMENDED CLOSING RESPONSE (EXACT PITCH):</span>
               <span class="script-badge">Ready-to-Speak</span>
             </div>
             <div class="pitch-text modal-pitch-text" id="modalPitchText">
-              "Our pricing covers end-to-end software engineering, dedicated architecture, automated testing, and comprehensive project management with zero surprise billing..."
+              "Our pricing covers end-to-end software engineering, production-grade security, automated testing, and dedicated project management to ensure zero technical debt and guaranteed business continuity."
             </div>
           </div>
 
@@ -234,7 +234,7 @@
       <div class="popup-strategy-cue">
         <span class="cue-label">💡 SUGGESTED STRATEGY:</span>
         <p class="cue-text" id="popupPitchText">
-          "Our pricing covers end-to-end software engineering, dedicated architecture, automated testing, and comprehensive project management with zero surprise billing..."
+          "Our pricing covers end-to-end software engineering, production-grade security, automated testing, and dedicated project management..."
         </p>
       </div>
 
@@ -261,7 +261,7 @@
     <div class="mini-hud-body">
       <div class="mini-hud-q" id="hudDetectedQ">Client: "Pricing higher than freelancers"</div>
       <div class="mini-hud-pitch" id="hudPitch">
-        "Our pricing covers end-to-end software engineering, dedicated architecture, automated testing, and comprehensive project management with zero surprise billing..."
+        "Our pricing covers end-to-end software engineering, production-grade security, testing, and complete project accountability."
       </div>
       <div class="mini-hud-actions">
         <button class="btn-mini" id="btnMiniCopy"><i class="fa-solid fa-copy"></i> Copy</button>
@@ -397,6 +397,6 @@
   <div class="toast-box" id="toastBox"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v=20260820_2056"></script>
 </body>
 </html>
