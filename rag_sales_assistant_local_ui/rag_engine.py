@@ -212,11 +212,11 @@ class RAGEngine:
             "acha", "accha", "theek hai", "sahi hai", "zabardast", "shuru karein", "awaz aa rahi hai"
         }
         
-        normalized = re.sub(r'[^\w\s]', '', clean).strip()
+        normalized = re.sub(r'[^\w\s]', '', clean, flags=re.UNICODE).strip()
         if normalized in casual_exact_phrases:
             return True
             
-        words = re.findall(r'[a-z0-9\-]+', normalized)
+        words = re.findall(r'[\w\-]+', normalized, re.UNICODE)
         if not words:
             return True
             
@@ -229,7 +229,7 @@ class RAGEngine:
             "haan", "nahi", "theek", "acha", "accha", "sahi", "suno", "bolo", "bhai", "sir", "guys"
         }
         
-        non_filler_words = [w for w in words if w not in fillers and w not in self.stopwords and len(w) > 2]
+        non_filler_words = [w for w in words if w not in fillers and w not in self.stopwords and len(w) > 1]
         if not non_filler_words:
             return True
             
@@ -243,9 +243,9 @@ class RAGEngine:
         if self.is_casual_or_random_speech(query):
             return None
             
-        clean_query = query.lower().strip()
-        raw_words = re.findall(r'[a-z0-9\-]+', clean_query)
-        content_words = [w for w in raw_words if w not in self.stopwords and len(w) > 2]
+        clean_query = self.correct_speech_transcript(query.lower().strip())
+        raw_words = re.findall(r'[\w\-]+', clean_query, re.UNICODE)
+        content_words = [w for w in raw_words if w not in self.stopwords and len(w) > 1]
         if not content_words:
             return None
 
@@ -660,7 +660,7 @@ class RAGEngine:
 
         text = raw_text.strip()
 
-        # 1. Common Sales Speech Acoustic Mishearing Dictionary (Fast 0ms Lookup)
+        # 1. Common Sales Speech Acoustic Mishearing & Urdu Script Dictionary (Fast 0ms Lookup)
         acoustic_repairs = [
             (r'\bwhat youtube\b', 'what will you do'),
             (r'\bwhat you to\b', 'what will you do'),
@@ -682,10 +682,19 @@ class RAGEngine:
             (r'\bhow much charge\b', 'how much do you charge'),
             (r'\btime to take\b', 'time will you take'),
             (r'\bhow many time\b', 'how much time'),
-            (r'\bcan you less\b', 'can you reduce'),
-            (r'\bkam karo\b', 'give a discount'),
-            (r'\bpaisa\b', 'pricing'),
-            (r'\bjaldi karo\b', 'deliver urgently')
+            (r'\bcan you less\b', 'can you reduce price discount'),
+            (r'\bkam karo\b', 'give a discount pricing'),
+            (r'\bpaisa\b', 'pricing rate cost'),
+            (r'\bpaiso\b', 'pricing rate cost'),
+            (r'\bzyada hai\b', 'price too expensive'),
+            (r'\bjaldi karo\b', 'deliver urgently timeline deadline'),
+            # Urdu Nastaliq Script Mapping
+            (r'قیمت|ریٹ|لاگت', 'price cost hourly rate'),
+            (r'رعایت|کم کرو|کمی', 'discount concession price'),
+            (r'معاہدہ|این ڈی اے|این۔ڈی۔اے', 'NDA Non-Disclosure Agreement contract'),
+            (r'وقت|تاخیر|ڈیڈ لائن', 'timeline deadline delayed schedule'),
+            (r'اضافی|نیا فیچر|تبدیلی', 'extra charges change request scope'),
+            (r'فکسڈ|مقررہ', 'fixed price contract')
         ]
 
         cleaned = text
