@@ -92,13 +92,13 @@ class STTEngine:
                 "latency_ms": int((time.time() - start_time) * 1000)
             }
 
-        # Multi-dialect parallel recognition: test en-US, en-IN, and ur-PK concurrently
-        languages = ["en-US", "en-IN", "ur-PK"]
+        # Multi-dialect parallel recognition: return the fastest response immediately
+        languages = ["en-US", "ur-PK"]
         
         def _try_lang(lang: str):
             try:
                 rec = sr.Recognizer()
-                rec.energy_threshold = 180
+                rec.energy_threshold = 150
                 rec.dynamic_energy_threshold = False
                 res_text = rec.recognize_google(audio_data, language=lang)
                 if res_text and len(res_text.strip()) > 1:
@@ -108,31 +108,19 @@ class STTEngine:
             return (lang, None)
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            future_to_lang = {executor.submit(_try_lang, lang): lang for lang in languages}
-            
-            # Prefer first valid result (prioritizing English if both return)
-            results = {}
-            for future in as_completed(future_to_lang):
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(_try_lang, lang) for lang in languages]
+            for future in as_completed(futures):
                 lang, text = future.result()
                 if text:
-                    results[lang] = text
-                    # If en-US or en-IN succeeded, we can return immediately
-                    if lang in ("en-US", "en-IN"):
-                        break
-
-        # Select best match: en-US -> en-IN -> ur-PK
-        for preferred_lang in ["en-US", "en-IN", "ur-PK"]:
-            if preferred_lang in results:
-                clean_text = results[preferred_lang]
-                latency_ms = int((time.time() - start_time) * 1000)
-                logger.info(f"⚡ Speech Transcribed ({latency_ms}ms) [{preferred_lang}]: '{clean_text}'")
-                return {
-                    "success": True,
-                    "text": clean_text,
-                    "language": preferred_lang,
-                    "latency_ms": latency_ms
-                }
+                    latency_ms = int((time.time() - start_time) * 1000)
+                    logger.info(f"⚡ Speech Transcribed ({latency_ms}ms) [{lang}]: '{text}'")
+                    return {
+                        "success": True,
+                        "text": text,
+                        "language": lang,
+                        "latency_ms": latency_ms
+                    }
 
         return {
             "success": False,

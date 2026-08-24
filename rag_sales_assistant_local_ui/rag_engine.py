@@ -716,36 +716,6 @@ class RAGEngine:
         for pattern, replacement in acoustic_repairs:
             cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
 
-        # 2. Local Ollama Fast Contextual Grammar Repair if text has suspicious phrasing
-        if self.check_ollama() and any(w in cleaned.lower() for w in ["youtube", "to complete project", "will you take", "discount", "freelance"]):
-            try:
-                prompt = (
-                    "You are a sales speech transcriber. Fix minor speech recognition acoustic errors and return ONLY the corrected clean sentence. Do not add explanations.\n\n"
-                    f"Raw Audio Transcript: \"{cleaned}\"\n"
-                    "Corrected Sentence:"
-                )
-                resp = requests.post(
-                    f"{self.ollama_base_url}/api/generate",
-                    json={
-                        "model": self.llm_model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.0,
-                            "num_predict": 30,
-                            "stop": ["\n", "\"", "."]
-                        }
-                    },
-                    timeout=0.6
-                )
-                if resp.status_code == 200:
-                    ai_corrected = resp.json().get("response", "").strip().strip('"').strip("'")
-                    if ai_corrected and len(ai_corrected) > 3 and not ai_corrected.lower().startswith("here"):
-                        logger.info(f"🧠 AI Phonetic Auto-Correct: '{text}' -> '{ai_corrected}'")
-                        return ai_corrected
-            except Exception as e:
-                logger.debug(f"Ollama speech corrector skip: {e}")
-
         return cleaned
 
     def get_all_battlecards(self) -> List[Dict[str, Any]]:
