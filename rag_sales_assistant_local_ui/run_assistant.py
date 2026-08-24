@@ -36,7 +36,24 @@ def open_browser():
     print("\n[*] Opening Real-Time Sales Co-Pilot UI at http://127.0.0.1:8000 ...")
     webbrowser.open("http://127.0.0.1:8000")
 
+def free_port(port=8000):
+    """Automatically terminates any lingering process occupying port 8000 on Windows."""
+    try:
+        import subprocess
+        out = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True).decode(errors='ignore')
+        for line in out.strip().splitlines():
+            if "LISTENING" in line:
+                parts = line.strip().split()
+                pid = parts[-1]
+                if pid and pid != str(os.getpid()):
+                    print(f"[*] Freeing port {port} from previous process (PID: {pid})...")
+                    subprocess.run(f"taskkill /F /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    time.sleep(0.5)
+    except Exception:
+        pass
+
 def run_server_loop():
+    free_port(8000)
     while True:
         try:
             uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
@@ -45,9 +62,14 @@ def run_server_loop():
             print("\n[!] Server stopped by user (Ctrl+C).")
             break
         except Exception as e:
-            print(f"\n[!] Server process encountered an error: {e}")
-            print("[*] Automatically restarting server in 2 seconds...")
-            time.sleep(2)
+            if "10048" in str(e):
+                print("[*] Port 8000 occupied. Automatically releasing port...")
+                free_port(8000)
+                time.sleep(1)
+            else:
+                print(f"\n[!] Server error: {e}")
+                print("[*] Restarting in 2 seconds...")
+                time.sleep(2)
 
 def main():
     print("=" * 75)
