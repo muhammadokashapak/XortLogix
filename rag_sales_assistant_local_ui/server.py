@@ -371,8 +371,10 @@ if __name__ == "__main__":
             pass
     print("==================================================================")
     print(" [READY] REAL-TIME LOCAL AI SALES ASSISTANT (VOICE RAG CO-PILOT) ")
-    print("==================================================================")
-    print(" Server running on: http://127.0.0.1:8000")
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0"
+    print(f" Server running on: http://{host}:{port}")
     print(" Knowledge Base loaded: 70 Q&A Battlecards from zoom.pdf")
     print("==================================================================")
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run("server:app", host=host, port=port, log_level="info")
+
