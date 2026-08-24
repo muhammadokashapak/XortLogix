@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const backendStatus = document.getElementById('backendStatus');
+  const meetingUrlInput = document.getElementById('meetingUrlInput');
+  const btnPasteUrl = document.getElementById('btnPasteUrl');
+  const btnConnectMeeting = document.getElementById('btnConnectMeeting');
+  const connectBtnText = document.getElementById('connectBtnText');
   const btnToggleCapture = document.getElementById('btnToggleCapture');
   const btnText = document.getElementById('btnText');
   const captureStatus = document.getElementById('captureStatus');
@@ -16,19 +20,51 @@ document.addEventListener('DOMContentLoaded', () => {
   let queryCount = 0;
   let matchCount = 0;
 
-  // Load state from storage
-  chrome.storage.local.get(['isCapturing', 'sessionSeconds', 'queryCount', 'matchCount'], (result) => {
+  // Load state & saved meeting URL from storage
+  chrome.storage.local.get(['isCapturing', 'sessionSeconds', 'queryCount', 'matchCount', 'savedMeetingUrl'], (result) => {
     isCapturing = result.isCapturing || false;
     sessionSeconds = result.sessionSeconds || 0;
     queryCount = result.queryCount || 0;
     matchCount = result.matchCount || 0;
     
+    if (result.savedMeetingUrl && meetingUrlInput) {
+      meetingUrlInput.value = result.savedMeetingUrl;
+    } else {
+      // Check if current tab is a meeting URL and pre-fill
+      chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+        if (tab && tab.url && (tab.url.includes('meet.google.com') || tab.url.includes('zoom.us') || tab.url.includes('teams.microsoft.com'))) {
+          meetingUrlInput.value = tab.url;
+        }
+      });
+    }
+
     updateCaptureUI();
     updateStatsUI();
     
     if (isCapturing) {
       startTimer();
     }
+  });
+
+  // Paste from clipboard button
+  if (btnPasteUrl) {
+    btnPasteUrl.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          meetingUrlInput.value = text.trim();
+          chrome.storage.local.set({ savedMeetingUrl: text.trim() });
+          captureStatus.textContent = 'Meeting link pasted! Ready to connect.';
+        }
+      } catch (e) {
+        captureStatus.textContent = 'Please paste URL directly into input box.';
+      }
+    });
+  }
+
+  // Save URL on change
+  meetingUrlInput.addEventListener('input', () => {
+    chrome.storage.local.set({ savedMeetingUrl: meetingUrlInput.value.trim() });
   });
 
   // Check Backend Health
@@ -48,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   checkBackendHealth();
-  setInterval(checkBackendHealth, 10000);
+  setInterval(checkBackendHealth, 8000);
 
   // Ask background for current status
   chrome.runtime.sendMessage({ type: 'get_status' });
@@ -78,14 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateCaptureUI() {
     if (isCapturing) {
+      btnConnectMeeting.classList.add('active');
       btnToggleCapture.classList.add('active');
+      connectBtnText.textContent = 'Disconnect Meeting';
       btnText.textContent = 'Stop Listening';
-      captureStatus.textContent = 'Recording meeting audio...';
+      captureStatus.textContent = '🟢 Active: Capturing audio & matching strategies...';
       startTimer();
     } else {
+      btnConnectMeeting.classList.remove('active');
       btnToggleCapture.classList.remove('active');
-      btnText.textContent = 'Start Listening';
-      captureStatus.textContent = 'Ready to capture meeting audio';
+      connectBtnText.textContent = 'Connect to Meeting';
+      btnText.textContent = 'Listen Active Tab';
+      captureStatus.textContent = 'Ready to connect to meeting audio';
       stopTimer();
     }
     chrome.storage.local.set({ isCapturing });
@@ -98,10 +138,40 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.set({ queryCount, matchCount });
   }
 
+  // Connect to Meeting Link button
+  btnConnectMeeting.addEventListener('click', () => {
+    if (!isCapturing) {
+      const url = meetingUrlInput.value.trim();
+      captureStatus.textContent = url ? 'Connecting to meeting link...' : 'Connecting to active meeting...';
+      
+      chrome.runtime.sendMessage({ 
+        type: 'start_capture', 
+        meetingUrl: url || null 
+      }, (response) => {
+        if (chrome.runtime.lastError || (response && !response.success)) {
+          isCapturing = false;
+          const err = chrome.runtime.lastError?.message || response?.error || 'Failed to connect';
+          captureStatus.textContent = `❌ ${err}`;
+          updateCaptureUI();
+        } else {
+          isCapturing = true;
+          sessionSeconds = 0;
+          updateCaptureUI();
+        }
+      });
+    } else {
+      chrome.runtime.sendMessage({ type: 'stop_capture' }, () => {
+        isCapturing = false;
+        updateCaptureUI();
+      });
+    }
+  });
+
+  // Listen to current active tab button
   btnToggleCapture.addEventListener('click', () => {
     if (!isCapturing) {
-      captureStatus.textContent = 'Starting audio capture...';
-      chrome.runtime.sendMessage({ type: 'start_capture' }, (response) => {
+      captureStatus.textContent = 'Starting audio capture on active tab...';
+      chrome.runtime.sendMessage({ type: 'start_capture', meetingUrl: null }, (response) => {
         if (chrome.runtime.lastError || (response && !response.success)) {
           isCapturing = false;
           const err = chrome.runtime.lastError?.message || response?.error || 'Failed to start';
@@ -149,3 +219,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+

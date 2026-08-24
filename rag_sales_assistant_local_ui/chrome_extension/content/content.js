@@ -507,7 +507,7 @@ function showStrategy(data) {
       ${qNumber ? `<span class="card-q-num">Card #Q${qNumber}</span>` : ''}
     </div>
     <div class="card-question">🎯 ${escapeHtml(question)}</div>
-    <div class="card-pitch">${escapeHtml(pitch)}</div>
+    <div class="card-pitch">${formatFlowArrows(pitch)}</div>
     <div class="card-actions">
       <button class="btn-copy">📋 Copy Pitch</button>
     </div>
@@ -549,9 +549,23 @@ function showStrategy(data) {
 
 // --- Helper: HTML Escape ---
 function escapeHtml(text) {
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// --- Helper: Format Flow Arrows & Steps ---
+function formatFlowArrows(text) {
+  if (!text) return '';
+  let html = escapeHtml(text);
+  // Replace arrows with styled visual flow icon
+  html = html.replace(/(?:\s*(?:\[arrow\]|\(arrow\)|\barrow\b|\barrows\b|-->|->|==>|=>|→|➔|➜)\s*)/gi, 
+    ' <span style="display:inline-flex;align-items:center;justify-content:center;background:rgba(6,182,212,0.2);color:#38bdf8;padding:1px 6px;margin:0 3px;border-radius:4px;font-weight:700;font-size:11px;">→</span> ');
+  // Highlight numbered steps (e.g. "1. ", "Step 1:")
+  html = html.replace(/(?:^|\n|\.\s+)([0-9]{1,2}\.|\b(?:Step|Phase)\s+[0-9]{1,2}:?)/gi, 
+    (match, p1) => ` <span style="display:inline-block;background:rgba(16,185,129,0.2);color:#10b981;padding:1px 5px;border-radius:4px;font-weight:700;font-size:10px;">${p1}</span> `);
+  return html;
 }
 
 // --- Message Router from Background ---

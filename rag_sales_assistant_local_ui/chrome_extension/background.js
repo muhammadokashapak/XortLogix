@@ -19,7 +19,7 @@ let lastTranscriptTime = 0;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'start_capture':
-      startCapture().then(sendResponse);
+      startCapture(message.meetingUrl).then(sendResponse);
       return true; // Keep channel open for async response
 
     case 'stop_capture':
@@ -74,17 +74,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // --- Tab Audio Capture Flow ---
-async function startCapture() {
+async function startCapture(meetingUrl = null) {
   if (isCapturing) return { success: true, message: 'Already capturing' };
 
   try {
-    // 1. Get the current active tab ID
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab) throw new Error('No active tab found');
-    if (tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:'))) {
-      throw new Error('Cannot run on browser internal pages. Please open a website (e.g. YouTube, Google Meet, Zoom, etc.)');
+    let targetTab = null;
+
+    // 1. If meeting URL provided, find existing tab or open new tab
+    if (meetingUrl && meetingUrl.trim().length > 0) {
+      let rawUrl = meetingUrl.trim();
+      if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+        rawUrl = 'https://' + rawUrl;
+      }
+
+      // Check if tab with matching URL is already open
+      const allTabs = await chrome.tabs.query({});
+      targetTab = allTabs.find(t => t.url && t.url.toLowerCase().includes(rawUrl.toLowerCase().replace(/https?:\/\//, '')));
+
+      if (targetTab) {
+        // Activate existing meeting tab
+        await chrome.tabs.update(targetTab.id, { active: true });
+        await new Promise(r => setTimeout(r, 400));
+      } else {
+        // Create new tab for meeting URL
+        targetTab = await chrome.tabs.create({ url: rawUrl, active: true });
+        // Wait for tab to load
+        await new Promise((resolve) => {
+          const listener = (tabId, info) => {
+            if (tabId === targetTab.id && info.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }
+          };
+          chrome.tabs.onUpdated.addListener(listener);
+          // Safety timeout after 5 seconds
+          setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }, 5000);
+        });
+      }
+    } else {
+      // 1b. Use the current active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) throw new Error('No active tab found');
+      targetTab = tab;
     }
-    activeTabId = tab.id;
+
+    if (targetTab.url && (targetTab.url.startsWith('chrome://') || targetTab.url.startsWith('edge://') || targetTab.url.startsWith('chrome-extension://') || targetTab.url.startsWith('about:'))) {
+      throw new Error('Cannot capture internal browser page. Please provide a meeting link (Google Meet / Zoom / Teams) or switch to a website tab.');
+    }
+
+    activeTabId = targetTab.id;
 
     // 2. Ensure content script is injected into the active tab
     try {
@@ -98,7 +139,7 @@ async function startCapture() {
 
     // 3. Get stream ID using tabCapture API
     const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: activeTabId });
-    if (!streamId) throw new Error('Failed to get media stream ID');
+    if (!streamId) throw new Error('Failed to get media stream ID from meeting tab');
 
     // 4. Create offscreen document for audio processing
     await ensureOffscreenDocument();
@@ -123,7 +164,7 @@ async function startCapture() {
       type: 'capture_started'
     }).catch(() => {});
 
-    return { success: true };
+    return { success: true, tabId: activeTabId };
   } catch (error) {
     console.error('[Sales Co-Pilot] Error starting capture:', error);
     await stopCapture(); // Cleanup on failure

@@ -15,24 +15,37 @@
     <span id="backendStatus" class="status-badge offline">🔴 Offline</span>
   </div>
 
-  <!-- Main Controls -->
-  <div class="main-section">
-    <button id="btnToggleCapture" class="capture-btn">
-      <span class="btn-icon">🎤</span>
-      <span id="btnText">Start Listening</span>
-    </button>
-    <p id="captureStatus" class="capture-status">Ready to capture meeting audio</p>
+  <!-- Meeting Connection Section -->
+  <div class="meeting-connect-section">
+    <div class="section-label">Meeting Connection</div>
+    <div class="input-group">
+      <span class="input-icon">🔗</span>
+      <input type="text" id="meetingUrlInput" placeholder="Paste Google Meet / Zoom URL..." autocomplete="off" />
+      <button id="btnPasteUrl" class="icon-btn" title="Paste from clipboard">📋</button>
+    </div>
+    
+    <div class="button-group">
+      <button id="btnConnectMeeting" class="connect-btn primary">
+        <span class="btn-icon">🚀</span>
+        <span id="connectBtnText">Connect to Meeting</span>
+      </button>
+      <button id="btnToggleCapture" class="capture-btn secondary">
+        <span class="btn-icon">🎤</span>
+        <span id="btnText">Listen Active Tab</span>
+      </button>
+    </div>
+    <p id="captureStatus" class="capture-status">Enter meeting URL or listen to active tab</p>
   </div>
 
   <!-- Live Transcript Preview -->
   <div class="transcript-section">
-    <div class="section-label">Live Transcript</div>
-    <div id="liveTranscript" class="transcript-box">Waiting for speech...</div>
+    <div class="section-label">Live Speech Transcript</div>
+    <div id="liveTranscript" class="transcript-box">Waiting for meeting audio...</div>
   </div>
 
   <!-- Last Strategy Found -->
   <div class="strategy-section" id="strategySection" style="display:none">
-    <div class="section-label">🎯 Latest Strategy</div>
+    <div class="section-label">🎯 Detected Objection & Strategy</div>
     <div id="lastStrategy" class="strategy-preview"></div>
   </div>
 
@@ -45,9 +58,10 @@
 
   <!-- Footer -->
   <div class="popup-footer">
-    <small>Backend: <span id="backendUrl">127.0.0.1:8000</span></small>
+    <small>Local AI Backend: <span id="backendUrl">127.0.0.1:8000</span></small>
   </div>
 
   <script src="popup.js"></script>
 </body>
 </html>
+
