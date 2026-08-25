@@ -223,137 +223,113 @@
     </main>
 
     <!-- ========================================================================= -->
-    <!-- 👑 VIEW 3: ADMIN DASHBOARD (MULTI-TENANT & GOOGLE DRIVE AUDIT) -->
+    <!-- 👑 VIEW 3: SIMPLIFIED EXECUTIVE ADMIN DASHBOARD -->
     <!-- ========================================================================= -->
-    <main class="main-content" id="viewAdminDashboard" style="display: none;">
+    <main class="main-content" id="viewAdminDashboard" style="display: none; max-width: 1300px; margin: 0 auto; padding: 24px 20px;">
       
-      <!-- Metrics Overview -->
-      <div class="admin-metrics-grid">
-        <div class="metric-card" style="border-color: rgba(16, 185, 129, 0.4); background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%);">
-          <div class="metric-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;"><i class="fa-solid fa-signal fa-fade"></i></div>
-          <div class="metric-info">
-            <div class="metric-value" id="adminLiveUsers" style="color: #10b981;">0</div>
-            <div class="metric-label">Online Active Now</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon bg-cyan"><i class="fa-solid fa-users"></i></div>
-          <div class="metric-info">
-            <div class="metric-value" id="adminTotalUsers">0</div>
-            <div class="metric-label">Registered Accounts</div>
-          </div>
-        </div>
+      <!-- Top Minimalist KPI & Control Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px; padding:16px 20px; background:rgba(15,23,42,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:14px; backdrop-filter:blur(10px);">
         
-        <div class="metric-card">
-          <div class="metric-icon bg-emerald"><i class="fa-solid fa-file-shield"></i></div>
-          <div class="metric-info">
-            <div class="metric-value" id="adminTotalDocs">0</div>
-            <div class="metric-label">Uploaded Strategy Docs</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon bg-yellow"><i class="fa-brands fa-google-drive"></i></div>
-          <div class="metric-info">
-            <div class="metric-value" id="adminGdriveStatus" style="font-size: 15px;">Active</div>
-            <div class="metric-label">Google Drive Integration</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 🟢 REAL-TIME LIVE CONNECTED USERS & ACTIVE SESSIONS MONITOR -->
-      <div class="admin-table-card" style="border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 0 25px rgba(16, 185, 129, 0.08); margin-bottom: 20px;">
-        <div class="table-header" style="border-bottom: 1px solid rgba(16, 185, 129, 0.2);">
-          <div class="table-title">
-            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981; animation:pulse 1.5s infinite; margin-right:8px;"></span>
-            <span style="color:#10b981; font-weight:700;">Live Connected Users & Active Sessions</span>
-          </div>
+        <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+          <!-- Live Reps Pill -->
           <div style="display:flex; align-items:center; gap:10px;">
-            <span class="active-badge" id="lblLiveSessionsCount" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">0 Live Online</span>
-            <button class="btn-clean" onclick="loadAdminDashboardData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <div style="width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981; animation:pulse 1.5s infinite;"></div>
+            <div>
+              <span id="adminLiveUsers" style="font-size:18px; font-weight:800; color:#10b981;">0</span>
+              <span style="font-size:12px; color:#94a3b8; margin-left:4px;">Online Reps</span>
+            </div>
+          </div>
+
+          <div style="width:1px; height:24px; background:rgba(255,255,255,0.1);"></div>
+
+          <!-- Total Accounts Pill -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-users" style="color:#38bdf8; font-size:14px;"></i>
+            <div>
+              <span id="adminTotalUsers" style="font-size:18px; font-weight:800; color:#f8fafc;">0</span>
+              <span style="font-size:12px; color:#94a3b8; margin-left:4px;">Team Members</span>
+            </div>
+          </div>
+
+          <div style="width:1px; height:24px; background:rgba(255,255,255,0.1);"></div>
+
+          <!-- Total Playbooks Pill -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-file-shield" style="color:#f59e0b; font-size:14px;"></i>
+            <div>
+              <span id="adminTotalDocs" style="font-size:18px; font-weight:800; color:#f8fafc;">0</span>
+              <span style="font-size:12px; color:#94a3b8; margin-left:4px;">Playbooks Ingested</span>
+            </div>
           </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Active User</th>
-                <th>Email Address</th>
-                <th>Role</th>
-                <th>Real-Time Activity</th>
-                <th>Client IP</th>
-                <th>Connected At</th>
-              </tr>
-            </thead>
-            <tbody id="adminLiveSessionsTableBody">
-              <tr>
-                <td colspan="6" style="text-align:center; color:#94a3b8;">Scanning active sessions...</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Right Quick Actions -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <a href="https://drive.google.com/drive/folders/16xWOfqpu-T4rFoLUMpOqzrsvB3ij01Ls" target="_blank" class="btn-clean" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.35); text-decoration:none; padding:8px 14px; border-radius:8px; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+            <i class="fa-brands fa-google-drive"></i> Open Google Drive Folder ↗
+          </a>
+          <button class="btn-clean" onclick="loadAdminDashboardData()" style="padding:8px 14px; border-radius:8px; font-weight:600; font-size:12px;">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
         </div>
       </div>
 
-      <!-- Admin Documents Table with Direct Google Drive Links -->
-      <div class="admin-table-card">
-        <div class="table-header">
-          <div class="table-title">
-            <i class="fa-brands fa-google-drive text-yellow"></i>
-            <span>Google Drive Client Backups & Strategy Documents</span>
+      <!-- CARD 1: 👥 SALES TEAM & LIVE PRESENCE (UNIFIED SINGLE TABLE) -->
+      <div class="admin-table-card" style="margin-bottom: 24px; border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.85);">
+        <div class="table-header" style="padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center;">
+          <div class="table-title" style="display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:700; color:#f8fafc;">
+            <i class="fa-solid fa-user-group text-cyan"></i>
+            <span>Sales Team Members & Live Meeting Status</span>
           </div>
-          <button class="btn-clean" onclick="loadAdminDashboardData()"><i class="fa-solid fa-rotate"></i> Sync Drive</button>
+          <span class="active-badge" id="lblLiveSessionsCount" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:11px; padding:3px 10px; border-radius:20px; font-weight:700;">
+            0 Live Online
+          </span>
         </div>
 
         <div class="table-responsive">
-          <table class="admin-table">
+          <table class="admin-table" style="width:100%; border-collapse:collapse;">
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Rep Name</th>
-                <th>Rep Email</th>
-                <th>Filename</th>
-                <th>Size</th>
-                <th>Chunks</th>
-                <th>Uploaded At</th>
-                <th>Google Drive Link</th>
-              </tr>
-            </thead>
-            <tbody id="adminDocumentsTableBody">
-              <tr>
-                <td colspan="8" style="text-align:center; color:#94a3b8;">Loading documents...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Admin Registered Users Table -->
-      <div class="admin-table-card" style="margin-top: 20px;">
-        <div class="table-header">
-          <div class="table-title">
-            <i class="fa-solid fa-user-gear text-cyan"></i>
-            <span>User Accounts & Permissions</span>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Full Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Joined At</th>
-                <th style="text-align: right;">Actions</th>
+              <tr style="background:rgba(0,0,0,0.3); color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">
+                <th style="padding:12px 18px; text-align:left;">Sales Rep</th>
+                <th style="padding:12px 18px; text-align:left;">Role</th>
+                <th style="padding:12px 18px; text-align:left;">Live Presence</th>
+                <th style="padding:12px 18px; text-align:left;">Joined Date</th>
+                <th style="padding:12px 18px; text-align:right;">Actions</th>
               </tr>
             </thead>
             <tbody id="adminUsersTableBody">
               <tr>
-                <td colspan="7" style="text-align:center; color:#94a3b8;">Loading users...</td>
+                <td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Loading team members...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CARD 2: 📁 PLAYBOOKS & GOOGLE DRIVE BACKUPS -->
+      <div class="admin-table-card" style="border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.85);">
+        <div class="table-header" style="padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center;">
+          <div class="table-title" style="display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:700; color:#f8fafc;">
+            <i class="fa-brands fa-google-drive text-yellow"></i>
+            <span>Team Playbooks & Cloud Drive Backups</span>
+          </div>
+          <span style="font-size:11.5px; color:#94a3b8;">Automatic sync to Admin Drive</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="background:rgba(0,0,0,0.3); color:#94a3b8; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">
+                <th style="padding:12px 18px; text-align:left;">Playbook File</th>
+                <th style="padding:12px 18px; text-align:left;">Uploaded By</th>
+                <th style="padding:12px 18px; text-align:left;">Battlecards</th>
+                <th style="padding:12px 18px; text-align:left;">Uploaded Date</th>
+                <th style="padding:12px 18px; text-align:right;">Google Drive</th>
+              </tr>
+            </thead>
+            <tbody id="adminDocumentsTableBody">
+              <tr>
+                <td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Loading documents...</td>
               </tr>
             </tbody>
           </table>

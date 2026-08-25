@@ -1999,134 +1999,150 @@ async function deleteUserChunk(chunkId) {
   }
 }
 
-// 4. Admin Dashboard Data Loader (Live Sessions + Google Drive Backups + Users Table)
+// 4. Simplified Executive Admin Dashboard Loader
 async function loadAdminDashboardData() {
   if (!currentUser || currentUser.role !== 'admin') return;
 
   try {
-    // 1. Live Active Sessions
+    // 1. Fetch Live Sessions for quick presence mapping
     const resSessions = await authFetch('/api/admin/active-sessions');
+    let liveSessionsMap = {};
+    let totalLiveCount = 0;
+
     if (resSessions.ok) {
       const sessData = await resSessions.json();
       const sessions = sessData.sessions || [];
-      
-      const liveCountEl = document.getElementById('adminLiveUsers');
-      if (liveCountEl) liveCountEl.textContent = sessions.length;
-      
-      const badgeCountEl = document.getElementById('lblLiveSessionsCount');
-      if (badgeCountEl) badgeCountEl.textContent = `${sessions.length} Live Online`;
+      totalLiveCount = sessions.length;
 
-      const tbodySessions = document.getElementById('adminLiveSessionsTableBody');
-      if (tbodySessions) {
-        if (sessions.length === 0) {
-          tbodySessions.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No active sessions connected.</td></tr>';
-        } else {
-          tbodySessions.innerHTML = sessions.map(s => {
-            const isMeeting = s.is_meeting_active;
-            const liveBadge = isMeeting
-              ? `<span style="color:#38bdf8; font-weight:700;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#38bdf8;margin-right:6px;box-shadow:0 0 8px #38bdf8;animation:pulse 1s infinite;"></span>🎙️ In Live Meeting (Capturing)</span>`
-              : `<span style="color:#10b981; font-weight:700;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:6px;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online (Ready)</span>`;
-
-            return `
-              <tr>
-                <td><strong>${escapeHtml(s.full_name || 'Sales Rep')}</strong></td>
-                <td>${escapeHtml(s.email || 'Guest Rep')}</td>
-                <td>
-                  <span class="user-role-tag ${s.role === 'admin' ? 'admin' : 'user'}">
-                    ${s.role === 'admin' ? '👑 Admin' : (s.role === 'guest' ? '👤 Guest Rep' : '👤 Sales Rep')}
-                  </span>
-                </td>
-                <td>${liveBadge}</td>
-                <td><span style="font-family:monospace; color:#94a3b8;">${escapeHtml(s.ip_address || '127.0.0.1')}</span></td>
-                <td>${(s.connected_at || '').substring(0, 16).replace('T', ' ')}</td>
-              </tr>
-            `;
-          }).join('');
+      sessions.forEach(s => {
+        if (s.user_id) {
+          liveSessionsMap[s.user_id] = s;
+        } else if (s.email) {
+          liveSessionsMap[s.email] = s;
         }
-      }
+      });
     }
 
-    // 2. Overview Metrics
+    // 2. Fetch Overview KPI Counts
     const resOverview = await authFetch('/api/admin/overview');
     if (resOverview.ok) {
       const ov = await resOverview.json();
+      const liveCountEl = document.getElementById('adminLiveUsers');
+      if (liveCountEl) liveCountEl.textContent = totalLiveCount;
+
+      const badgeCountEl = document.getElementById('lblLiveSessionsCount');
+      if (badgeCountEl) badgeCountEl.textContent = `${totalLiveCount} Live Online`;
+
       const usersEl = document.getElementById('adminTotalUsers');
       if (usersEl) usersEl.textContent = ov.total_users || 0;
+
       const docsEl = document.getElementById('adminTotalDocs');
       if (docsEl) docsEl.textContent = ov.total_documents || 0;
-      const gdriveEl = document.getElementById('adminGdriveStatus');
-      if (gdriveEl) {
-        gdriveEl.textContent = ov.gdrive_integration?.status || 'Active';
-        gdriveEl.style.color = '#10b981';
-      }
     }
 
-    // 3. Documents Table (with Google Drive webViewLink)
-    const resDocs = await authFetch('/api/admin/documents');
-    if (resDocs.ok) {
-      const docData = await resDocs.json();
-      const docs = docData.documents || [];
-      const tbody = document.getElementById('adminDocumentsTableBody');
-      if (tbody) {
-        if (docs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">No client strategy documents uploaded yet.</td></tr>';
-        } else {
-          tbody.innerHTML = docs.map(d => `
-            <tr>
-              <td>#${d.id}</td>
-              <td><strong>${escapeHtml(d.user_full_name || 'Sales Rep')}</strong></td>
-              <td>${escapeHtml(d.user_email || '')}</td>
-              <td>📄 ${escapeHtml(d.filename || '')}</td>
-              <td>${(d.file_size / 1024).toFixed(1)} KB</td>
-              <td><span style="color:#38bdf8; font-weight:700;">${d.chunks_count || 0} chunks</span></td>
-              <td>${(d.uploaded_at || '').substring(0, 16).replace('T', ' ')}</td>
-              <td>
-                <a href="${d.drive_web_view_link || '#'}" target="_blank" class="drive-link-btn" title="Open file in Google Drive">
-                  <i class="fa-brands fa-google-drive"></i> View in Drive
-                </a>
-              </td>
-            </tr>
-          `).join('');
-        }
-      }
-    }
-
-    // 4. Users Roster Table (with Live Online/Offline status & Admin Delete User action)
+    // 3. Render Card 1: Sales Team Members & Unified Live Status
     const resUsers = await authFetch('/api/admin/users');
     if (resUsers.ok) {
       const userData = await resUsers.json();
       const users = userData.users || [];
       const tbodyUsers = document.getElementById('adminUsersTableBody');
+
       if (tbodyUsers) {
         if (users.length === 0) {
-          tbodyUsers.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">No users registered yet.</td></tr>';
+          tbodyUsers.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">No registered team members found.</td></tr>';
         } else {
           tbodyUsers.innerHTML = users.map(u => {
             const isProtectedAdmin = u.role === 'admin' || u.email === 'okashaxortlogix@gmail.com';
+            const activeSession = liveSessionsMap[u.id] || liveSessionsMap[u.email];
+            
+            let statusPill = '<span style="color:#64748b; font-size:12px; font-weight:500;">⚪ Offline</span>';
+            if (activeSession) {
+              if (activeSession.is_meeting_active) {
+                statusPill = `<span style="color:#38bdf8; font-size:12px; font-weight:700; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); padding:4px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px;">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px #38bdf8;animation:pulse 1s infinite;"></span>🎙️ In Live Call
+                </span>`;
+              } else {
+                statusPill = `<span style="color:#10b981; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); padding:4px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px;">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online Now
+                </span>`;
+              }
+            } else if (u.is_online) {
+              statusPill = `<span style="color:#10b981; font-size:12px; font-weight:700; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); padding:4px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px;">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online Now
+              </span>`;
+            }
+
             const actionBtn = isProtectedAdmin
               ? '<span style="color:#64748b; font-size:11.5px; font-weight:600;"><i class="fa-solid fa-lock"></i> Protected</span>'
               : `<button type="button" class="btn-clean" onclick="deleteUserByAdmin(${u.id}, '${escapeHtml(u.full_name || u.email)}')" style="padding:4px 10px; font-size:11px; border-radius:6px; color:#f87171; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.12); cursor:pointer; font-weight:600;" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'" title="Permanently Delete Sales Rep"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
 
-            const statusPill = u.is_online
-              ? '<span style="color:#10b981; font-weight:700;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online Now</span>'
-              : '<span style="color:#64748b; font-weight:500;">⚪ Offline</span>';
-
             return `
               <tr>
-                <td>#${u.id}</td>
-                <td><strong>${escapeHtml(u.full_name || '')}</strong></td>
-                <td>${escapeHtml(u.email || '')}</td>
-                <td>
+                <td style="padding:14px 18px;">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:50%; background:rgba(56,189,248,0.15); color:#38bdf8; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; border:1px solid rgba(56,189,248,0.3);">
+                      ${(u.full_name || u.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div style="font-weight:700; color:#f8fafc; font-size:13px;">${escapeHtml(u.full_name || 'Sales Rep')}</div>
+                      <div style="color:#94a3b8; font-size:11px;">${escapeHtml(u.email || '')}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="padding:14px 18px;">
                   <span class="user-role-tag ${u.role === 'admin' ? 'admin' : 'user'}">
                     ${u.role === 'admin' ? '👑 Admin' : '👤 Sales Rep'}
                   </span>
                 </td>
-                <td>${statusPill}</td>
-                <td>${(u.created_at || '').substring(0, 10)}</td>
-                <td style="text-align: right;">${actionBtn}</td>
+                <td style="padding:14px 18px;">${statusPill}</td>
+                <td style="padding:14px 18px; color:#94a3b8; font-size:12px;">${(u.created_at || '').substring(0, 10)}</td>
+                <td style="padding:14px 18px; text-align:right;">${actionBtn}</td>
               </tr>
             `;
           }).join('');
+        }
+      }
+    }
+
+    // 4. Render Card 2: Documents & Google Drive Links
+    const resDocs = await authFetch('/api/admin/documents');
+    if (resDocs.ok) {
+      const docData = await resDocs.json();
+      const docs = docData.documents || [];
+      const tbody = document.getElementById('adminDocumentsTableBody');
+
+      if (tbody) {
+        if (docs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">No client strategy documents uploaded yet.</td></tr>';
+        } else {
+          tbody.innerHTML = docs.map(d => `
+            <tr>
+              <td style="padding:14px 18px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:16px;">📄</span>
+                  <div>
+                    <div style="font-weight:700; color:#f8fafc; font-size:13px;">${escapeHtml(d.filename || '')}</div>
+                    <div style="color:#94a3b8; font-size:11px;">${(d.file_size / 1024).toFixed(1)} KB</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:14px 18px;">
+                <div style="font-weight:600; color:#cbd5e1; font-size:12.5px;">${escapeHtml(d.user_full_name || 'Sales Rep')}</div>
+                <div style="color:#94a3b8; font-size:11px;">${escapeHtml(d.user_email || '')}</div>
+              </td>
+              <td style="padding:14px 18px;">
+                <span style="color:#38bdf8; font-weight:700; font-size:12px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.25); padding:3px 8px; border-radius:10px;">
+                  ${d.chunks_count || 0} chunks
+                </span>
+              </td>
+              <td style="padding:14px 18px; color:#94a3b8; font-size:12px;">${(d.uploaded_at || '').substring(0, 16).replace('T', ' ')}</td>
+              <td style="padding:14px 18px; text-align:right;">
+                <a href="${d.drive_web_view_link || '#'}" target="_blank" class="drive-link-btn" title="Open file in Google Drive" style="display:inline-flex; align-items:center; gap:6px; background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.35); text-decoration:none; padding:5px 12px; border-radius:6px; font-weight:600; font-size:11.5px;">
+                  <i class="fa-brands fa-google-drive"></i> Open in Drive
+                </a>
+              </td>
+            </tr>
+          `).join('');
         }
       }
     }
