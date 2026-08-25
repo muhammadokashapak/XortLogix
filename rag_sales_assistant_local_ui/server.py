@@ -269,20 +269,23 @@ class DesktopAudioListener:
                         rag_res = self.rag.query(full_sentence)
                         intent_res = self.rag.analyze_intent(full_sentence)
 
-                        logger.info(f"🎯 [STRATEGY DISPATCHED] Complete Thought: '{full_sentence}' -> Intent: {intent_res.get('intent_title')} | Q{rag_res.get('q_number')}")
+                        if intent_res.get("is_match") and intent_res.get("recommended_pitch"):
+                            logger.info(f"🎯 [STRATEGY DISPATCHED] Complete Thought: '{full_sentence}' -> Intent: {intent_res.get('intent_title')} | Q{rag_res.get('q_number')}")
 
-                        payload_intent = {
-                            "type": "intent_strategy_response",
-                            "data": intent_res
-                        }
-                        payload_battlecard = {
-                            "type": "battlecard_response",
-                            "data": rag_res
-                        }
+                            payload_intent = {
+                                "type": "intent_strategy_response",
+                                "data": intent_res
+                            }
+                            payload_battlecard = {
+                                "type": "battlecard_response",
+                                "data": rag_res
+                            }
 
-                        if self.loop and self.loop.is_running():
-                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
-                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
+                            if self.loop and self.loop.is_running():
+                                asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
+                                asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
+                        else:
+                            logger.debug(f"No battlecard matched for: '{full_sentence}'. Popup suppressed.")
                 else:
                     logger.debug(f"Chunk #{chunk_id} contained no intelligible speech or silence.")
 
@@ -649,17 +652,19 @@ async def websocket_endpoint(websocket: WebSocket):
                                 "matched_q": rag_res.get("q_number")
                             })
 
-                            # Send Intent & Psychology Strategy Response
-                            await websocket.send_json({
-                                "type": "intent_strategy_response",
-                                "data": intent_res
-                            })
+                            # Only dispatch strategic popup if a real battlecard is matched
+                            if intent_res.get("is_match") and intent_res.get("recommended_pitch"):
+                                # Send Intent & Psychology Strategy Response
+                                await websocket.send_json({
+                                    "type": "intent_strategy_response",
+                                    "data": intent_res
+                                })
 
-                            # Send Battlecard Response
-                            await websocket.send_json({
-                                "type": "battlecard_response",
-                                "data": rag_res
-                            })
+                                # Send Battlecard Response
+                                await websocket.send_json({
+                                    "type": "battlecard_response",
+                                    "data": rag_res
+                                })
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

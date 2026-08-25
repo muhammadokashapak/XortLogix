@@ -213,7 +213,11 @@ class RAGEngine:
             "acha", "accha", "theek hai", "sahi hai", "zabardast", "shuru karein", "awaz aa rahi hai",
             # Incomplete conversational starter fragments
             "i want", "i need", "can you give", "can you give me a", "can you give me",
-            "we want", "we need", "i am good", "i am good this is", "doing this", "doing", "this is"
+            "we want", "we need", "i am good", "i am good this is", "doing this", "doing", "this is",
+            # Wrap-up, praise, and call-ending banter
+            "behtarin", "behtareen", "behtarin ho gaya", "behtarin ho gaya band kar do", "band kar do",
+            "band karo", "ho gaya", "khatam", "khatam ho gaya", "all set", "wrap up", "done", "finished",
+            "bohot acha", "shabash", "theek ho gaya", "good job", "call khatam", "sab theek hai"
         }
         
         normalized = re.sub(r'[^\w\s]', '', clean, flags=re.UNICODE).strip()
@@ -618,6 +622,7 @@ class RAGEngine:
         q_num = None
         confidence = 88
 
+        # Strict Pitch & Battlecard Resolution: Only match if present in ChromaDB / Knowledge Base
         if rag_res.get("success") and rag_res.get("pitch"):
             matched_pitch = rag_res.get("response") or rag_res.get("pitch")
             matched_q = rag_res.get("question_matched") or ""
@@ -631,20 +636,28 @@ class RAGEngine:
                 matched_q = doc["question"]
                 q_num = doc.get("q_number")
                 confidence = min(82 + int(highest_score * 2), 95)
-            elif self.documents:
-                # Use first available strategy chunk as active playbook guide
-                first_doc = self.documents[0]
-                matched_pitch = first_doc.get("pitch", "")
-                matched_q = first_doc.get("question", clean_text)
-                q_num = first_doc.get("q_number", 1)
-                confidence = 85
             else:
-                matched_pitch = (
-                    "Our engineering team operates on fixed-scope, milestone-based sprint contracts. "
-                    "We guarantee complete quality assurance, automated testing, and production stability."
-                )
-                matched_q = clean_text
-                confidence = 80
+                # STRICT: No manufactured pitches. If not in ChromaDB/KB, do NOT trigger popup!
+                latency_ms = int((time.time() - start_time) * 1000)
+                return {
+                    "success": False,
+                    "is_match": False,
+                    "matched": False,
+                    "input_text": clean_text,
+                    "intent_title": "No Matching Strategy",
+                    "message": "No matching strategy found in active knowledge base.",
+                    "confidence_percent": 0,
+                    "client_mindset": "General dialogue or unindexed topic.",
+                    "hidden_concern": "None",
+                    "recommended_pitch": "",
+                    "dos": [],
+                    "donts": [],
+                    "matched_question": "",
+                    "q_number": None,
+                    "context": "",
+                    "latency_ms": latency_ms,
+                    "ollama_enhanced": False
+                }
 
         latency_ms = int((time.time() - start_time) * 1000)
 
