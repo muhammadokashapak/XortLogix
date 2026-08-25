@@ -99,15 +99,16 @@ class GoogleDriveService:
             if not parent_id and env_root:
                 return env_root
 
-            # 2. Query existing folder (checking shared folders and normal folders)
-            query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}' and trashed = false"
+            # 2. Query existing folder strictly by name and parent
             if parent_id:
-                query += f" and '{parent_id}' in parents"
+                query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}' and '{parent_id}' in parents and trashed = false"
+            else:
+                query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}' and trashed = false"
             
             results = self.service.files().list(
                 q=query,
                 spaces='drive',
-                fields='files(id, name)',
+                fields='files(id, name, parents)',
                 pageSize=5,
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True
@@ -115,37 +116,25 @@ class GoogleDriveService:
             files = results.get('files', [])
 
             if files:
+                logger.info(f"📁 Found existing Google Drive folder: '{folder_name}' (ID: {files[0]['id']})")
                 return files[0]['id']
 
-            # 3. If top-level root folder and no existing found, check if any folder is shared with this service account
-            if not parent_id:
-                shared_query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and sharedWithMe = true"
-                shared_res = self.service.files().list(
-                    q=shared_query,
-                    fields='files(id, name)',
-                    pageSize=1,
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True
-                ).execute()
-                shared_files = shared_res.get('files', [])
-                if shared_files:
-                    logger.info(f"📁 Using shared Google Drive folder: '{shared_files[0]['name']}' (ID: {shared_files[0]['id']})")
-                    return shared_files[0]['id']
-
-            # 4. Create new folder
+            # 3. Create new folder in My Drive ('root' if top-level)
             folder_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'
             }
             if parent_id:
                 folder_metadata['parents'] = [parent_id]
+            else:
+                folder_metadata['parents'] = ['root']
 
             folder = self.service.files().create(
                 body=folder_metadata,
                 fields='id',
                 supportsAllDrives=True
             ).execute()
-            logger.info(f"📁 Created Google Drive folder: '{folder_name}' (ID: {folder.get('id')})")
+            logger.info(f"📁 Created Google Drive folder in My Drive: '{folder_name}' (ID: {folder.get('id')})")
             return folder.get('id')
         except Exception as e:
             logger.error(f"Error creating/fetching folder '{folder_name}': {e}")
