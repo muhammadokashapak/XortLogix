@@ -79,8 +79,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# --- Autonomous Desktop Audio Listener (WASAPI Loopback for Zoom Desktop App) ---
+# --- Autonomous Desktop Audio Listener (Decoupled Producer-Consumer WASAPI Loopback) ---
 import threading
+import queue
+import warnings
 
 class DesktopAudioListener:
     def __init__(self, stt, rag, broadcast_fn):
@@ -88,143 +90,187 @@ class DesktopAudioListener:
         self.rag = rag
         self.broadcast_fn = broadcast_fn
         self.is_running = False
-        self.thread: Optional[threading.Thread] = None
+        self.capture_thread: Optional[threading.Thread] = None
+        self.worker_thread: Optional[threading.Thread] = None
+        self.audio_queue: queue.Queue = queue.Queue(maxsize=50)
         self.device_name = "Not Initialized"
         self.sentence_buffer: List[str] = []
         self.last_chunk_time: float = 0.0
         self.last_analyzed_sentence: str = ""
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.chunk_counter = 0
 
     def start(self, loop: asyncio.AbstractEventLoop):
         if self.is_running:
             return
         self.loop = loop
         self.is_running = True
-        self.thread = threading.Thread(target=self._run_loop, daemon=True)
-        self.thread.start()
-        logger.info("🎙️ Autonomous Desktop Audio Listener started (capturing Zoom / System Audio).")
+        
+        # 1. Start dedicated Whisper Consumer Worker Thread
+        self.worker_thread = threading.Thread(target=self._process_queue_worker, daemon=True, name="WhisperWorkerConsumer")
+        self.worker_thread.start()
+        
+        # 2. Start dedicated WASAPI Audio Capture Producer Thread
+        self.capture_thread = threading.Thread(target=self._run_capture_loop, daemon=True, name="WASAPICaptureProducer")
+        self.capture_thread.start()
+        
+        logger.info("🎙️ Autonomous Desktop Audio Listener (WASAPI Producer-Consumer) started.")
 
     def stop(self):
         self.is_running = False
         logger.info("🛑 Autonomous Desktop Audio Listener stopped.")
 
-    def _run_loop(self):
-        import warnings
+    def _run_capture_loop(self):
+        """Dedicated audio capture loop: reads 16kHz frames continuously with zero blocking."""
         warnings.filterwarnings("ignore")
-
         try:
             import soundcard as sc
             import numpy as np
-
-            spk = sc.default_speaker()
-            if not spk:
-                logger.warning("No default speaker found for WASAPI loopback capture.")
-                self.is_running = False
-                return
-
-            loopback_mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
-            self.device_name = loopback_mic.name
-            logger.info(f"⚡ [WASAPI LOOPBACK] Capturing Zoom / Desktop client audio from: {self.device_name}")
-
-            SAMPLE_RATE = 16000
-            FRAME_SIZE = 2048  # Power of 2 WASAPI buffer
-            SILENCE_TRIGGER_FRAMES = 2  # ~250ms pause
-            MIN_SPEECH_FRAMES = 3      # ~380ms min
-            MAX_SPEECH_FRAMES = 12     # ~1.5s max window
-
-            pcm_buffer: List[bytes] = []
-            speech_active = False
-            silence_counter = 0
-
-            with loopback_mic.recorder(samplerate=SAMPLE_RATE, channels=1, blocksize=FRAME_SIZE) as mic:
-                while self.is_running:
-                    try:
-                        data = mic.record(numframes=FRAME_SIZE)
-                    except Exception:
-                        time.sleep(0.05)
-                        continue
-
-                    if data is None or len(data) == 0:
-                        continue
-
-                    # Calculate RMS energy
-                    rms = float(np.sqrt(np.mean(data ** 2)))
-                    is_speech = rms >= 0.004
-
-                    int16_bytes = np.clip(data * 32767, -32768, 32767).astype(np.int16).tobytes()
-
-                    if is_speech:
-                        speech_active = True
-                        silence_counter = 0
-                        pcm_buffer.append(int16_bytes)
-                    else:
-                        if speech_active:
-                            pcm_buffer.append(int16_bytes)
-                            silence_counter += 1
-
-                    # Trigger on natural pause or max phrase buffer
-                    natural_pause = speech_active and (silence_counter >= SILENCE_TRIGGER_FRAMES) and (len(pcm_buffer) >= MIN_SPEECH_FRAMES)
-                    max_reached = len(pcm_buffer) >= MAX_SPEECH_FRAMES
-
-                    if (natural_pause or max_reached) and len(pcm_buffer) >= MIN_SPEECH_FRAMES:
-                        full_pcm_bytes = b"".join(pcm_buffer)
-                        pcm_buffer = []
-                        speech_active = False
-                        silence_counter = 0
-
-                        self._process_phrase(full_pcm_bytes)
-
-        except Exception as e:
-            logger.debug(f"DesktopAudioListener note: {e}")
+        except ImportError:
+            logger.warning("soundcard or numpy not available for WASAPI capture.")
             self.is_running = False
+            return
 
-    def _process_phrase(self, pcm_bytes: bytes):
-        try:
-            stt_res = self.stt.transcribe_audio_bytes(pcm_bytes, suffix=".raw_pcm")
-            if stt_res.get("success") and stt_res.get("text"):
-                raw_text = stt_res["text"].strip()
-                clean_text = self.rag.correct_speech_transcript(raw_text)
-                now = time.time()
+        SAMPLE_RATE = 16000
+        FRAME_SIZE = 2048  # 128ms per frame
+        SILENCE_TRIGGER_FRAMES = 2  # ~250ms pause triggers end of phrase
+        MIN_SPEECH_FRAMES = 3      # ~380ms min speech
+        MAX_SPEECH_FRAMES = 12     # ~1.5s max speech buffer
 
-                if self.sentence_buffer and (now - self.last_chunk_time) < 1.0:
-                    if clean_text.lower() not in " ".join(self.sentence_buffer).lower():
-                        self.sentence_buffer.append(clean_text)
+        while self.is_running:
+            try:
+                spk = sc.default_speaker()
+                if not spk:
+                    time.sleep(1.0)
+                    continue
+
+                loopback_mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
+                self.device_name = loopback_mic.name
+                logger.info(f"⚡ [WASAPI LOOPBACK CAPTURE] Active on: {self.device_name}")
+
+                pcm_buffer: List[bytes] = []
+                speech_active = False
+                silence_counter = 0
+
+                with loopback_mic.recorder(samplerate=SAMPLE_RATE, channels=1, blocksize=FRAME_SIZE) as mic:
+                    while self.is_running:
+                        try:
+                            data = mic.record(numframes=FRAME_SIZE)
+                        except Exception:
+                            time.sleep(0.02)
+                            continue
+
+                        if data is None or len(data) == 0:
+                            continue
+
+                        # Calculate RMS energy
+                        rms = float(np.sqrt(np.mean(data ** 2)))
+                        is_speech = rms >= 0.0035
+
+                        int16_bytes = np.clip(data * 32767, -32768, 32767).astype(np.int16).tobytes()
+
+                        if is_speech:
+                            speech_active = True
+                            silence_counter = 0
+                            pcm_buffer.append(int16_bytes)
+                        else:
+                            if speech_active:
+                                pcm_buffer.append(int16_bytes)
+                                silence_counter += 1
+
+                        # Natural pause or max phrase buffer reached
+                        natural_pause = speech_active and (silence_counter >= SILENCE_TRIGGER_FRAMES) and (len(pcm_buffer) >= MIN_SPEECH_FRAMES)
+                        max_reached = len(pcm_buffer) >= MAX_SPEECH_FRAMES
+
+                        if (natural_pause or max_reached) and len(pcm_buffer) >= MIN_SPEECH_FRAMES:
+                            full_pcm_bytes = b"".join(pcm_buffer)
+                            self.chunk_counter += 1
+                            
+                            # Clean VAD buffer state immediately!
+                            pcm_buffer = []
+                            speech_active = False
+                            silence_counter = 0
+
+                            logger.info(f"🎤 [WASAPI VAD] Audio chunk #{self.chunk_counter} detected ({len(full_pcm_bytes)} bytes) → Enqueueing for Whisper")
+
+                            # Put into queue without blocking the WASAPI recorder loop!
+                            try:
+                                self.audio_queue.put_nowait((self.chunk_counter, full_pcm_bytes))
+                            except queue.Full:
+                                try:
+                                    self.audio_queue.get_nowait()
+                                except queue.Empty:
+                                    pass
+                                self.audio_queue.put_nowait((self.chunk_counter, full_pcm_bytes))
+
+            except Exception as e:
+                logger.warning(f"WASAPI capture loop note: {e}")
+                time.sleep(0.5)
+
+    def _process_queue_worker(self):
+        """Dedicated consumer worker thread: processes audio chunks with Whisper & RAG."""
+        while self.is_running:
+            try:
+                try:
+                    chunk_id, pcm_bytes = self.audio_queue.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+
+                logger.info(f"🎙️ [WHISPER PROCESSING] Transcribing chunk #{chunk_id} ({len(pcm_bytes)} bytes)...")
+                stt_res = self.stt.transcribe_audio_bytes(pcm_bytes, suffix=".raw_pcm")
+                
+                if stt_res.get("success") and stt_res.get("text"):
+                    raw_text = stt_res["text"].strip()
+                    clean_text = self.rag.correct_speech_transcript(raw_text)
+                    lat = stt_res.get("latency_ms", 0)
+
+                    logger.info(f"✅ [TRANSCRIPTION RESULT #{chunk_id}] '{clean_text}' (Latency: {lat:.1f}ms)")
+                    
+                    now = time.time()
+                    if self.sentence_buffer and (now - self.last_chunk_time) < 1.2:
+                        if clean_text.lower() not in " ".join(self.sentence_buffer).lower():
+                            self.sentence_buffer.append(clean_text)
+                    else:
+                        self.sentence_buffer = [clean_text]
+
+                    self.last_chunk_time = now
+                    full_sentence = " ".join(self.sentence_buffer).strip()
+                    full_sentence = self.rag.correct_speech_transcript(full_sentence)
+
+                    if full_sentence and full_sentence != self.last_analyzed_sentence:
+                        self.last_analyzed_sentence = full_sentence
+
+                        # RAG & Intent Analysis
+                        rag_res = self.rag.query(full_sentence)
+                        intent_res = self.rag.analyze_intent(full_sentence)
+
+                        logger.info(f"🎯 [STRATEGY DISPATCHED] Intent: {intent_res.get('intent_title')} | Q{rag_res.get('q_number')}")
+
+                        payload_transcription = {
+                            "type": "transcription_complete",
+                            "text": full_sentence,
+                            "chunk_text": clean_text,
+                            "stt_latency_ms": lat
+                        }
+                        payload_intent = {
+                            "type": "intent_strategy_response",
+                            "data": intent_res
+                        }
+                        payload_battlecard = {
+                            "type": "battlecard_response",
+                            "data": rag_res
+                        }
+
+                        if self.loop and self.loop.is_running():
+                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_transcription), self.loop)
+                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
+                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
                 else:
-                    self.sentence_buffer = [clean_text]
+                    logger.debug(f"Chunk #{chunk_id} contained no intelligible speech or silence.")
 
-                self.last_chunk_time = now
-                full_sentence = " ".join(self.sentence_buffer).strip()
-                full_sentence = self.rag.correct_speech_transcript(full_sentence)
-
-                if full_sentence and full_sentence != self.last_analyzed_sentence:
-                    self.last_analyzed_sentence = full_sentence
-
-                    rag_res = self.rag.query(full_sentence)
-                    intent_res = self.rag.analyze_intent(full_sentence)
-
-                    logger.info(f"🎯 [AUTONOMOUS MATCH] Client: '{full_sentence}' -> Intent: {intent_res.get('intent_title')}")
-
-                    payload_transcription = {
-                        "type": "transcription_complete",
-                        "text": full_sentence,
-                        "chunk_text": clean_text,
-                        "stt_latency_ms": stt_res.get("latency_ms", 0)
-                    }
-                    payload_intent = {
-                        "type": "intent_strategy_response",
-                        "data": intent_res
-                    }
-                    payload_battlecard = {
-                        "type": "battlecard_response",
-                        "data": rag_res
-                    }
-
-                    if self.loop and self.loop.is_running():
-                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_transcription), self.loop)
-                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
-                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
-        except Exception as e:
-            logger.error(f"Error processing autonomous phrase: {e}")
+                self.audio_queue.task_done()
+            except Exception as e:
+                logger.error(f"Error in Whisper worker consumer: {e}")
 
 desktop_listener = DesktopAudioListener(stt_engine, rag_engine, manager.broadcast)
 
