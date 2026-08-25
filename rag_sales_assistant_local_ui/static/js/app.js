@@ -1529,30 +1529,15 @@ async function initAuth() {
         syncAuthUI();
         return;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Session verification error:', e);
+    }
   }
 
-  // Auto-login with Seed Admin on first load if no session
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'okashaxortlogix@gmail.com',
-        password: 'adminokasha'
-      })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      authToken = data.token;
-      currentUser = data.user;
-      localStorage.setItem('sales_copilot_token', authToken);
-      localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
-      syncAuthUI();
-    }
-  } catch (e) {
-    syncAuthUI();
-  }
+  // Default clean state: Standard Sales Rep (Guest Mode)
+  currentUser = null;
+  authToken = '';
+  syncAuthUI();
 }
 
 function syncAuthUI() {
@@ -1563,24 +1548,38 @@ function syncAuthUI() {
   const adminTab = document.getElementById('tabAdminDashboard');
 
   if (!currentUser) {
-    if (nameLabel) nameLabel.textContent = 'Sign In / Register';
-    if (roleTag) roleTag.textContent = 'Guest';
+    if (nameLabel) nameLabel.textContent = 'Sales Rep (Guest)';
+    if (roleTag) {
+      roleTag.textContent = 'Sales Rep';
+      roleTag.className = 'user-role-tag user';
+    }
+    if (roleIcon) {
+      roleIcon.className = 'fa-solid fa-user-tie text-cyan';
+    }
     if (adminTab) adminTab.style.display = 'none';
     return;
   }
 
+  const isAdmin = currentUser.role === 'admin';
+
   if (nameLabel) nameLabel.textContent = currentUser.email || currentUser.full_name;
   if (roleTag) {
-    roleTag.textContent = currentUser.role === 'admin' ? 'Admin' : 'Sales Rep';
-    roleTag.className = `user-role-tag ${currentUser.role === 'admin' ? 'admin' : 'user'}`;
+    roleTag.textContent = isAdmin ? 'Admin' : 'Sales Rep';
+    roleTag.className = `user-role-tag ${isAdmin ? 'admin' : 'user'}`;
   }
   if (roleIcon) {
-    roleIcon.className = currentUser.role === 'admin' ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user-tie text-cyan';
+    roleIcon.className = isAdmin ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user-tie text-cyan';
   }
 
-  // Show/Hide Admin Tab
+  // Strictly enforce Admin Tab visibility: ONLY visible if authenticated role === 'admin'
   if (adminTab) {
-    adminTab.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+    adminTab.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+  // If currently on admin view but user is not admin, redirect to live view
+  const viewAdmin = document.getElementById('viewAdminDashboard');
+  if (viewAdmin && viewAdmin.style.display !== 'none' && !isAdmin) {
+    switchMainView('live');
   }
 
   // Load user chunks count badge
@@ -1705,8 +1704,8 @@ function logoutUser(e) {
   authToken = '';
   currentUser = null;
   syncAuthUI();
-  showToast('Logged out.');
-  openAuthModal();
+  switchMainView('live');
+  showToast('Logged out. Switched to standard Sales Rep mode.');
 }
 
 // 2. View Switcher (Live Co-Pilot, Custom Chunks, Admin Dashboard)
