@@ -6,7 +6,7 @@
   <title>Sales Co-Pilot Extension</title>
 </head>
 <body>
-  <!-- Header -->
+  <!-- Top Header -->
   <div class="popup-header">
     <div class="logo-section">
       <span class="logo-icon">🎯</span>
@@ -17,95 +17,130 @@
     </div>
   </div>
 
-  <!-- User Authentication Strip -->
-  <div class="auth-strip" id="authStrip">
-    <div id="authLoggedInView" style="display:none; justify-content:space-between; align-items:center; width:100%;">
+  <!-- ========================================================================= -->
+  <!-- 🔐 VIEW 1: AUTHENTICATION VIEW (SIGN IN / REGISTER ONLY) -->
+  <!-- ========================================================================= -->
+  <div id="authLoggedOutView" class="auth-gate-card" style="display:block;">
+    <div class="auth-card-title">
+      <div class="auth-lock-circle">🔐</div>
+      <div style="font-weight:700; font-size:14px; color:#f8fafc; margin-top:6px;">Sales Rep Access</div>
+      <div style="font-size:11px; color:#94a3b8; margin-top:2px;">Sign in to activate real-time meeting AI co-pilot</div>
+    </div>
+
+    <div class="auth-toggle-row" style="margin-top:12px;">
+      <button type="button" id="btnTabLogin" class="tab-btn active">Sign In</button>
+      <button type="button" id="btnTabRegister" class="tab-btn">Register Rep</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="formMiniLogin" style="display:block; margin-top:10px;">
+      <div class="form-field">
+        <label class="field-label">Work Email</label>
+        <input type="email" id="txtPopupEmail" placeholder="e.g. you@company.com" required autocomplete="email" />
+      </div>
+      <div class="form-field" style="margin-top:8px;">
+        <label class="field-label">Password</label>
+        <input type="password" id="txtPopupPassword" placeholder="••••••••••••" required autocomplete="current-password" />
+      </div>
+      <button type="submit" id="btnPopupLogin" class="btn-auth-action" style="margin-top:12px;">
+        <span>Sign In to Co-Pilot</span> &rarr;
+      </button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="formMiniRegister" style="display:none; margin-top:10px;">
+      <div class="form-field">
+        <label class="field-label">Full Name</label>
+        <input type="text" id="txtPopupRegName" placeholder="e.g. Hamza Tariq" required />
+      </div>
+      <div class="form-field" style="margin-top:8px;">
+        <label class="field-label">Work Email</label>
+        <input type="email" id="txtPopupRegEmail" placeholder="e.g. rep@xortlogix.com" required />
+      </div>
+      <div class="form-field" style="margin-top:8px;">
+        <label class="field-label">Password</label>
+        <input type="password" id="txtPopupRegPassword" placeholder="Create password..." required />
+      </div>
+      <button type="submit" id="btnPopupRegister" class="btn-auth-action" style="margin-top:12px;">
+        <span>Create Sales Rep Account</span> &rarr;
+      </button>
+    </form>
+
+    <div id="authErrorMsg" class="auth-error-pill" style="display:none;"></div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 🚀 VIEW 2: AUTHENTICATED MAIN DASHBOARD VIEW (ONLY VISIBLE WHEN LOGGED IN) -->
+  <!-- ========================================================================= -->
+  <div id="mainDashboardView" style="display:none;">
+    
+    <!-- User Profile Bar -->
+    <div class="auth-strip" id="authLoggedInView" style="display:flex; justify-content:space-between; align-items:center;">
       <div class="user-info-badge">
-        <span id="userRoleEmoji">👤</span>
+        <span id="userRoleEmoji" style="font-size:14px;">👤</span>
         <span id="userDisplayName" style="font-weight:600; color:#38bdf8; font-size:12px;">Sales Rep</span>
         <span id="userRoleBadge" class="role-pill">Rep</span>
       </div>
-      <button id="btnLogout" class="btn-logout" title="Sign Out">✕</button>
+      <button id="btnLogout" class="btn-logout" title="Sign Out of Co-Pilot">✕</button>
     </div>
 
-    <div id="authLoggedOutView" style="display:block; width:100%;">
-      <div class="auth-toggle-row">
-        <button id="btnTabLogin" class="tab-btn active">Sign In</button>
-        <button id="btnTabRegister" class="tab-btn">Register</button>
+    <!-- Active Strategy Knowledge Status -->
+    <div class="kb-strip" id="kbStrip">
+      <div class="kb-label">
+        <span>📚 Playbook:</span>
+        <span id="lblActiveDocName" style="color:#38bdf8; font-weight:600;">zoom.pdf</span>
       </div>
-
-      <!-- Login Mini Form -->
-      <form id="formMiniLogin" style="display:block; margin-top:8px;">
-        <input type="email" id="txtPopupEmail" placeholder="Work email (e.g. you@company.com)" required autocomplete="email" />
-        <input type="password" id="txtPopupPassword" placeholder="Password" required autocomplete="current-password" style="margin-top:6px;" />
-        <button type="submit" id="btnPopupLogin" class="btn-auth-action">Sign In to Co-Pilot &rarr;</button>
-      </form>
-
-      <!-- Register Mini Form -->
-      <form id="formMiniRegister" style="display:none; margin-top:8px;">
-        <input type="text" id="txtPopupRegName" placeholder="Full Name (e.g. Hamza Tariq)" required />
-        <input type="email" id="txtPopupRegEmail" placeholder="Work Email" required style="margin-top:6px;" />
-        <input type="password" id="txtPopupRegPassword" placeholder="Password" required style="margin-top:6px;" />
-        <button type="submit" id="btnPopupRegister" class="btn-auth-action">Create Sales Rep Account &rarr;</button>
-      </form>
+      <span id="lblActiveDocCards" class="cards-count-pill">70 Cards</span>
     </div>
-  </div>
 
-  <!-- Active Strategy Knowledge Status -->
-  <div class="kb-strip" id="kbStrip">
-    <div class="kb-label">
-      <span>📚 Active Playbook:</span>
-      <span id="lblActiveDocName" style="color:#38bdf8; font-weight:600;">zoom.pdf</span>
+    <!-- Meeting Connection Section -->
+    <div class="meeting-connect-section">
+      <div class="section-label-prominent">🔗 LIVE MEETING HOOK (Google Meet / Zoom / Teams)</div>
+      <div class="input-group prominent">
+        <span class="input-icon">🌐</span>
+        <input type="text" id="meetingUrlInput" placeholder="https://meet.google.com/xyz-abc-def" autofocus autocomplete="off" />
+        <button id="btnPasteUrl" class="icon-btn" title="Paste from clipboard">📋 Paste</button>
+      </div>
+      
+      <div class="button-group">
+        <button id="btnConnectMeeting" class="connect-btn primary glowing">
+          <span class="btn-icon">🚀</span>
+          <span id="connectBtnText">Connect Meeting & Start Co-Pilot</span>
+        </button>
+        <button id="btnToggleCapture" class="capture-btn secondary">
+          <span class="btn-icon">🎤</span>
+          <span id="btnText">Listen Active Tab Instead</span>
+        </button>
+      </div>
+      <p id="captureStatus" class="capture-status">Paste meeting link or attach to current tab</p>
     </div>
-    <span id="lblActiveDocCards" class="cards-count-pill">70 Cards</span>
-  </div>
 
-  <!-- Meeting Connection Section -->
-  <div class="meeting-connect-section">
-    <div class="section-label-prominent">🔗 LIVE MEETING HOOK (Google Meet / Zoom / Teams)</div>
-    <div class="input-group prominent">
-      <span class="input-icon">🌐</span>
-      <input type="text" id="meetingUrlInput" placeholder="https://meet.google.com/xyz-abc-def" autofocus autocomplete="off" />
-      <button id="btnPasteUrl" class="icon-btn" title="Paste from clipboard">📋 Paste</button>
+    <!-- Live Transcript Preview -->
+    <div class="transcript-section">
+      <div class="section-label">Live Speech Stream</div>
+      <div id="liveTranscript" class="transcript-box">Waiting for meeting audio...</div>
     </div>
-    
-    <div class="button-group">
-      <button id="btnConnectMeeting" class="connect-btn primary glowing">
-        <span class="btn-icon">🚀</span>
-        <span id="connectBtnText">Connect Meeting & Start Co-Pilot</span>
-      </button>
-      <button id="btnToggleCapture" class="capture-btn secondary">
-        <span class="btn-icon">🎤</span>
-        <span id="btnText">Listen Active Tab Instead</span>
-      </button>
+
+    <!-- Last Strategy Found -->
+    <div class="strategy-section" id="strategySection" style="display:none">
+      <div class="section-label">🎯 Detected Objection & Strategy</div>
+      <div id="lastStrategy" class="strategy-preview"></div>
     </div>
-    <p id="captureStatus" class="capture-status">Paste meeting link or attach to current tab</p>
-  </div>
 
-  <!-- Live Transcript Preview -->
-  <div class="transcript-section">
-    <div class="section-label">Live Speech Stream</div>
-    <div id="liveTranscript" class="transcript-box">Waiting for meeting audio...</div>
-  </div>
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat"><span id="queryCount">0</span><small>Queries</small></div>
+      <div class="stat"><span id="matchCount">0</span><small>Matches</small></div>
+      <div class="stat"><span id="sessionTime">00:00</span><small>Session</small></div>
+    </div>
 
-  <!-- Last Strategy Found -->
-  <div class="strategy-section" id="strategySection" style="display:none">
-    <div class="section-label">🎯 Detected Objection & Strategy</div>
-    <div id="lastStrategy" class="strategy-preview"></div>
-  </div>
+    <!-- Footer with link to Full Cockpit -->
+    <div class="popup-footer">
+      <a href="http://127.0.0.1:8000" target="_blank" id="lnkOpenCockpit" style="color:#38bdf8; text-decoration:none; font-weight:600; font-size:11px;">
+        🖥️ Open Full Web Cockpit & Upload Docs &rarr;
+      </a>
+    </div>
 
-  <!-- Stats Row -->
-  <div class="stats-row">
-    <div class="stat"><span id="queryCount">0</span><small>Queries</small></div>
-    <div class="stat"><span id="matchCount">0</span><small>Matches</small></div>
-    <div class="stat"><span id="sessionTime">00:00</span><small>Session</small></div>
-  </div>
-
-  <!-- Footer with link to Full Cockpit -->
-  <div class="popup-footer">
-    <a href="http://127.0.0.1:8000" target="_blank" id="lnkOpenCockpit" style="color:#38bdf8; text-decoration:none; font-weight:600; font-size:11px;">
-      🖥️ Open Full Web Cockpit & Upload Docs &rarr;
-    </a>
   </div>
 
   <script src="popup.js"></script>

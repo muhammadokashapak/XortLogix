@@ -269,7 +269,75 @@ body {
   background: rgba(15, 23, 42, 0.6);
 }
 
-/* --- Auth Strip --- */
+/* --- Auth Gate Card (Logged Out View) --- */
+.auth-gate-card {
+  padding: 18px 20px;
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98) 0%, rgba(10, 15, 30, 0.98) 100%);
+  min-height: 310px;
+}
+
+.auth-card-title {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.auth-lock-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.auth-gate-card input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.auth-gate-card input:focus {
+  border-color: #38bdf8;
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.auth-error-pill {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  text-align: center;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* --- Auth Strip (Logged In View) --- */
 .auth-strip {
   padding: 10px 16px;
   background: rgba(15, 23, 42, 0.9);
@@ -289,8 +357,8 @@ body {
   background: none;
   border: none;
   color: #94a3b8;
-  padding: 5px;
-  font-size: 11px;
+  padding: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
@@ -302,34 +370,18 @@ body {
   color: #0f172a;
 }
 
-.auth-strip input {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  outline: none;
-}
-
-.auth-strip input:focus {
-  border-color: #38bdf8;
-}
-
 .btn-auth-action {
   width: 100%;
-  margin-top: 8px;
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   border: 1px solid rgba(56, 189, 248, 0.4);
   color: white;
-  padding: 6px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
   transition: opacity 0.2s;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
 }
 
 .btn-auth-action:hover {

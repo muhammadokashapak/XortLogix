@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auth Elements
   const authLoggedInView = document.getElementById('authLoggedInView');
   const authLoggedOutView = document.getElementById('authLoggedOutView');
+  const mainDashboardView = document.getElementById('mainDashboardView');
+  const authErrorMsg = document.getElementById('authErrorMsg');
   const userDisplayName = document.getElementById('userDisplayName');
   const userRoleEmoji = document.getElementById('userRoleEmoji');
   const userRoleBadge = document.getElementById('userRoleBadge');
@@ -80,8 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Auth UI Sync ---
   function syncAuthUI() {
     if (currentUser) {
-      if (authLoggedInView) authLoggedInView.style.display = 'flex';
       if (authLoggedOutView) authLoggedOutView.style.display = 'none';
+      if (mainDashboardView) mainDashboardView.style.display = 'block';
+      if (authLoggedInView) authLoggedInView.style.display = 'flex';
+      
       const isAdmin = currentUser.role === 'admin';
       if (userDisplayName) userDisplayName.textContent = currentUser.full_name || currentUser.email;
       if (userRoleEmoji) userRoleEmoji.textContent = isAdmin ? '👑' : '👤';
@@ -90,8 +94,19 @@ document.addEventListener('DOMContentLoaded', () => {
         userRoleBadge.style.color = isAdmin ? '#f59e0b' : '#38bdf8';
       }
     } else {
-      if (authLoggedInView) authLoggedInView.style.display = 'none';
       if (authLoggedOutView) authLoggedOutView.style.display = 'block';
+      if (mainDashboardView) mainDashboardView.style.display = 'none';
+      if (authLoggedInView) authLoggedInView.style.display = 'none';
+    }
+  }
+
+  function showAuthError(msg) {
+    if (authErrorMsg) {
+      authErrorMsg.textContent = msg;
+      authErrorMsg.style.display = 'block';
+      setTimeout(() => {
+        authErrorMsg.style.display = 'none';
+      }, 5000);
     }
   }
 
@@ -102,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnTabRegister.classList.remove('active');
       formMiniLogin.style.display = 'block';
       formMiniRegister.style.display = 'none';
+      if (authErrorMsg) authErrorMsg.style.display = 'none';
     });
 
     btnTabRegister.addEventListener('click', () => {
@@ -109,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnTabLogin.classList.remove('active');
       formMiniRegister.style.display = 'block';
       formMiniLogin.style.display = 'none';
+      if (authErrorMsg) authErrorMsg.style.display = 'none';
     });
   }
 
@@ -121,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('btnPopupLogin');
 
       btn.disabled = true;
-      btn.textContent = 'Authenticating...';
+      btn.innerHTML = '<span>Authenticating...</span>';
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
@@ -140,15 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           syncAuthUI();
           chrome.runtime.sendMessage({ type: 'user_authenticated', user: currentUser });
-          captureStatus.textContent = `👋 Logged in as ${currentUser.full_name}`;
         } else {
-          captureStatus.textContent = `❌ ${data.detail || 'Login failed.'}`;
+          showAuthError(`❌ ${data.detail || 'Invalid email or password.'}`);
         }
       } catch (err) {
-        captureStatus.textContent = '❌ Backend connection error.';
+        showAuthError('❌ Cannot connect to backend server. Make sure it is running.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Sign In to Co-Pilot →';
+        btn.innerHTML = '<span>Sign In to Co-Pilot</span> &rarr;';
       }
     });
   }
@@ -163,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('btnPopupRegister');
 
       btn.disabled = true;
-      btn.textContent = 'Registering Rep...';
+      btn.innerHTML = '<span>Creating Account...</span>';
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
@@ -182,15 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           syncAuthUI();
           chrome.runtime.sendMessage({ type: 'user_authenticated', user: currentUser });
-          captureStatus.textContent = `🎉 Registered & Active: ${fullName}`;
         } else {
-          captureStatus.textContent = `❌ ${data.detail || 'Registration failed.'}`;
+          showAuthError(`❌ ${data.detail || 'Registration failed.'}`);
         }
       } catch (err) {
-        captureStatus.textContent = '❌ Network error during registration.';
+        showAuthError('❌ Network error during registration.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Create Sales Rep Account →';
+        btn.innerHTML = '<span>Create Sales Rep Account</span> &rarr;';
       }
     });
   }
@@ -203,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.storage.local.remove(['sales_copilot_user', 'sales_copilot_token']);
       syncAuthUI();
       chrome.runtime.sendMessage({ type: 'user_logged_out' });
-      captureStatus.textContent = 'Logged out. Switched to Guest Rep mode.';
     });
   }
 
