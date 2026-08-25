@@ -488,6 +488,7 @@ async def upload_user_strategy_document(
             "success": True,
             "document": doc_record,
             "chunks_count": len(chunks),
+            "extracted_cards": len(chunks),
             "drive_backup": drive_res
         }
     except HTTPException:
@@ -497,6 +498,62 @@ async def upload_user_strategy_document(
     except Exception as e:
         logger.error(f"Error processing user document: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process strategy document: {str(e)}")
+
+@app.post("/api/admin/documents/upload")
+async def upload_admin_document_alias(
+    file: UploadFile = File(...),
+    user_email: Optional[str] = Form(None),
+    user_name: Optional[str] = Form(None)
+):
+    """Fallback / Universal alias for document upload from Chrome Extension and Admin."""
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        
+        filename = file.filename or "uploaded_playbook"
+        email = user_email or "okashaxortlogix@gmail.com"
+        name = user_name or "Sales Rep"
+        
+        # Stream A: Google Drive backup
+        drive_res = await asyncio.to_thread(
+            gdrive_service.upload_document,
+            content,
+            filename,
+            email,
+            file.content_type or "application/octet-stream",
+            name
+        )
+        
+        # Stream B: RAG Ingestion
+        result = await asyncio.to_thread(rag_engine.load_custom_document, content, filename)
+        cards_count = result.get("extracted_cards") or result.get("chunks_count") or 0
+        
+        # User record if exists
+        user = models_db.get_user_by_email(email)
+        user_id = user["id"] if user else 1
+        
+        doc_record = models_db.create_document_record(
+            user_id=user_id,
+            user_email=email,
+            filename=filename,
+            file_size=len(content),
+            chunks_count=cards_count,
+            drive_file_id=drive_res.get("file_id"),
+            drive_web_view_link=drive_res.get("web_view_link")
+        )
+        
+        return {
+            "success": True,
+            "filename": filename,
+            "chunks_count": cards_count,
+            "extracted_cards": cards_count,
+            "document": doc_record,
+            "drive_backup": drive_res
+        }
+    except Exception as e:
+        logger.error(f"Upload error in /api/admin/documents/upload: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/user/documents")
 async def get_user_documents(current_user: Dict[str, Any] = Depends(require_user)):

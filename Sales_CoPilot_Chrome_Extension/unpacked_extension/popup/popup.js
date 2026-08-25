@@ -264,14 +264,30 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       try {
-        const uploadRes = await fetch(`${BACKEND_URL}/api/admin/documents/upload`, {
+        let uploadRes;
+        const headers = {};
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        uploadRes = await fetch(`${BACKEND_URL}/api/admin/documents/upload`, {
           method: 'POST',
+          headers,
           body: formData
         });
+
+        // Fallback to /api/upload-document if 404
+        if (!uploadRes.ok && uploadRes.status === 404) {
+          uploadRes = await fetch(`${BACKEND_URL}/api/upload-document`, {
+            method: 'POST',
+            body: formData
+          });
+        }
+
         const uploadData = await uploadRes.json();
 
-        if (uploadRes.ok && uploadData.success) {
-          const cardsCount = uploadData.extracted_cards || 0;
+        if (uploadRes.ok && (uploadData.success || uploadData.status === 'ok')) {
+          const cardsCount = uploadData.extracted_cards || uploadData.chunks_count || (uploadData.document && uploadData.document.chunks_count) || 0;
           if (uploadSuccessBanner) {
             uploadSuccessBanner.textContent = `🎉 Ingested ${cardsCount} Strategy Battlecards!`;
             uploadSuccessBanner.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -292,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           if (lblProcessingTitle) lblProcessingTitle.textContent = '❌ Conversion Failed';
           if (uploadSuccessBanner) {
-            uploadSuccessBanner.textContent = `Error: ${uploadData.detail || 'Failed to process document'}`;
+            uploadSuccessBanner.textContent = `Error: ${uploadData.detail || uploadData.error || 'Failed to process document'}`;
             uploadSuccessBanner.style.background = 'rgba(239, 68, 68, 0.2)';
             uploadSuccessBanner.style.color = '#f87171';
             uploadSuccessBanner.style.borderColor = 'rgba(239, 68, 68, 0.4)';
