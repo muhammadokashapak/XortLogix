@@ -27,6 +27,7 @@ const el = {
   chkContinuousVad: document.getElementById('chkContinuousVad'),
   chkAutoPopup: document.getElementById('chkAutoPopup'),
   chkAutoTts: document.getElementById('chkAutoTts'),
+  chkDesktopAudio: document.getElementById('chkDesktopAudio'),
   voiceBar: document.querySelector('.voice-hero-bar'),
 
   // Meeting Audio Modal
@@ -1058,10 +1059,25 @@ function setupEvents() {
   });
 
   // Auto-TTS Toggle
-  el.chkAutoTts.addEventListener('change', (e) => {
-    state.autoTts = e.target.checked;
-    showToast(state.autoTts ? 'Auto Voice Cue in Ear Enabled 🎧' : 'Auto Voice Cue Disabled');
-  });
+  if (el.chkAutoTts) {
+    el.chkAutoTts.addEventListener('change', (e) => {
+      state.autoTts = e.target.checked;
+      showToast(state.autoTts ? 'Auto Voice Cue in Ear Enabled 🎧' : 'Auto Voice Cue Disabled');
+    });
+  }
+
+  // Autonomous Zoom / System Audio Toggle (WASAPI)
+  if (el.chkDesktopAudio) {
+    el.chkDesktopAudio.addEventListener('change', async (e) => {
+      try {
+        const res = await fetch('/api/desktop-listener/toggle', { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message || 'Desktop Audio Listener updated');
+      } catch (err) {
+        showToast('Error toggling Desktop Audio Listener');
+      }
+    });
+  }
 
   // Copy Buttons using Universal Safe Helper
   if (el.btnCopyPitch) {

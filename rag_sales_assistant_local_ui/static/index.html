@@ -30,11 +30,16 @@
       </div>
 
       <!-- Quick Mode Switches & Popup Toggles -->
-      <div class="header-options">
+        <label class="toggle-control" title="Automatically captures Zoom Desktop App and system audio via Windows WASAPI loopback">
+          <input type="checkbox" id="chkDesktopAudio" checked />
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">⚡ Zoom Desktop Audio</span>
+        </label>
+
         <label class="toggle-control" title="Automatically displays strategy popup when objection is detected">
           <input type="checkbox" id="chkAutoPopup" checked />
           <span class="toggle-slider"></span>
-          <span class="toggle-label">🔔 Auto Popup Alert</span>
+          <span class="toggle-label">🔔 Auto Popup</span>
         </label>
 
         <label class="toggle-control" title="Speaks suggested strategy cue into earphones via Text-to-Speech">

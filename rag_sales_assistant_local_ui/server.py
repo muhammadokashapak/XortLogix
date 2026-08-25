@@ -79,6 +79,147 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# --- Autonomous Desktop Audio Listener (WASAPI Loopback for Zoom Desktop App) ---
+import threading
+
+class DesktopAudioListener:
+    def __init__(self, stt, rag, broadcast_fn):
+        self.stt = stt
+        self.rag = rag
+        self.broadcast_fn = broadcast_fn
+        self.is_running = False
+        self.thread: Optional[threading.Thread] = None
+        self.device_name = "Not Initialized"
+        self.sentence_buffer: List[str] = []
+        self.last_chunk_time: float = 0.0
+        self.last_analyzed_sentence: str = ""
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def start(self, loop: asyncio.AbstractEventLoop):
+        if self.is_running:
+            return
+        self.loop = loop
+        self.is_running = True
+        self.thread = threading.Thread(target=self._run_loop, daemon=True)
+        self.thread.start()
+        logger.info("🎙️ Autonomous Desktop Audio Listener started (capturing Zoom / System Audio).")
+
+    def stop(self):
+        self.is_running = False
+        logger.info("🛑 Autonomous Desktop Audio Listener stopped.")
+
+    def _run_loop(self):
+        try:
+            import soundcard as sc
+            import numpy as np
+
+            spk = sc.default_speaker()
+            if not spk:
+                logger.warning("No default speaker found for WASAPI loopback capture.")
+                self.is_running = False
+                return
+
+            loopback_mic = sc.get_microphone(id=str(spk.name), include_loopback=True)
+            self.device_name = loopback_mic.name
+            logger.info(f"⚡ [WASAPI LOOPBACK] Capturing Zoom / Desktop client audio from: {self.device_name}")
+
+            SAMPLE_RATE = 16000
+            FRAME_SIZE = 1600  # 100ms
+            SILENCE_TRIGGER_FRAMES = 2  # 200ms pause
+            MIN_SPEECH_FRAMES = 4      # 400ms min
+            MAX_SPEECH_FRAMES = 14     # 1.4s max window
+
+            pcm_buffer: List[bytes] = []
+            speech_active = False
+            silence_counter = 0
+
+            with loopback_mic.recorder(samplerate=SAMPLE_RATE, channels=1) as mic:
+                while self.is_running:
+                    data = mic.record(numframes=FRAME_SIZE)
+                    if data is None or len(data) == 0:
+                        continue
+
+                    # Calculate RMS energy
+                    rms = float(np.sqrt(np.mean(data ** 2)))
+                    is_speech = rms >= 0.0035
+
+                    int16_bytes = np.clip(data * 32767, -32768, 32767).astype(np.int16).tobytes()
+
+                    if is_speech:
+                        speech_active = True
+                        silence_counter = 0
+                        pcm_buffer.append(int16_bytes)
+                    else:
+                        if speech_active:
+                            pcm_buffer.append(int16_bytes)
+                            silence_counter += 1
+
+                    # Trigger on natural 200ms pause or max phrase buffer
+                    natural_pause = speech_active and (silence_counter >= SILENCE_TRIGGER_FRAMES) and (len(pcm_buffer) >= MIN_SPEECH_FRAMES)
+                    max_reached = len(pcm_buffer) >= MAX_SPEECH_FRAMES
+
+                    if (natural_pause or max_reached) and len(pcm_buffer) >= MIN_SPEECH_FRAMES:
+                        full_pcm_bytes = b"".join(pcm_buffer)
+                        pcm_buffer = []
+                        speech_active = False
+                        silence_counter = 0
+
+                        self._process_phrase(full_pcm_bytes)
+
+        except Exception as e:
+            logger.debug(f"DesktopAudioListener note: {e}")
+            self.is_running = False
+
+    def _process_phrase(self, pcm_bytes: bytes):
+        try:
+            stt_res = self.stt.transcribe_audio_bytes(pcm_bytes, suffix=".raw_pcm")
+            if stt_res.get("success") and stt_res.get("text"):
+                raw_text = stt_res["text"].strip()
+                clean_text = self.rag.correct_speech_transcript(raw_text)
+                now = time.time()
+
+                if self.sentence_buffer and (now - self.last_chunk_time) < 1.0:
+                    if clean_text.lower() not in " ".join(self.sentence_buffer).lower():
+                        self.sentence_buffer.append(clean_text)
+                else:
+                    self.sentence_buffer = [clean_text]
+
+                self.last_chunk_time = now
+                full_sentence = " ".join(self.sentence_buffer).strip()
+                full_sentence = self.rag.correct_speech_transcript(full_sentence)
+
+                if full_sentence and full_sentence != self.last_analyzed_sentence:
+                    self.last_analyzed_sentence = full_sentence
+
+                    rag_res = self.rag.query(full_sentence)
+                    intent_res = self.rag.analyze_intent(full_sentence)
+
+                    logger.info(f"🎯 [AUTONOMOUS MATCH] Client: '{full_sentence}' -> Intent: {intent_res.get('intent_title')}")
+
+                    payload_transcription = {
+                        "type": "transcription_complete",
+                        "text": full_sentence,
+                        "chunk_text": clean_text,
+                        "stt_latency_ms": stt_res.get("latency_ms", 0)
+                    }
+                    payload_intent = {
+                        "type": "intent_strategy_response",
+                        "data": intent_res
+                    }
+                    payload_battlecard = {
+                        "type": "battlecard_response",
+                        "data": rag_res
+                    }
+
+                    if self.loop and self.loop.is_running():
+                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_transcription), self.loop)
+                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
+                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
+        except Exception as e:
+            logger.error(f"Error processing autonomous phrase: {e}")
+
+desktop_listener = DesktopAudioListener(stt_engine, rag_engine, manager.broadcast)
+
 # --- Request Models ---
 class QueryRequest(BaseModel):
     query: str
@@ -245,6 +386,39 @@ async def update_config(config: ConfigUpdateRequest):
         "llm_model": rag_engine.llm_model,
         "ollama_base_url": rag_engine.ollama_base_url
     }
+
+# --- Autonomous Desktop Listener Lifecycle & Endpoints ---
+
+@app.on_event("startup")
+async def startup_event():
+    """Auto-activates autonomous desktop WASAPI loopback audio listener."""
+    loop = asyncio.get_running_loop()
+    try:
+        desktop_listener.start(loop)
+    except Exception as e:
+        logger.warning(f"Could not auto-start DesktopAudioListener: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanly stops background audio listener."""
+    desktop_listener.stop()
+
+@app.get("/api/desktop-listener/status")
+async def get_desktop_listener_status():
+    return {
+        "running": desktop_listener.is_running,
+        "device": desktop_listener.device_name
+    }
+
+@app.post("/api/desktop-listener/toggle")
+async def toggle_desktop_listener():
+    loop = asyncio.get_running_loop()
+    if desktop_listener.is_running:
+        desktop_listener.stop()
+        return {"running": False, "message": "Desktop Audio Listener stopped"}
+    else:
+        desktop_listener.start(loop)
+        return {"running": True, "message": f"Desktop Audio Listener active on {desktop_listener.device_name}"}
 
 # --- WebSocket Gateway for Real-Time Streaming ---
 
