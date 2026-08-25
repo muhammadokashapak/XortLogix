@@ -2034,31 +2034,61 @@ async function loadAdminDashboardData() {
       }
     }
 
-    // 3. Users Roster Table
+    // 3. Users Roster Table (with Admin Delete User action)
     const resUsers = await authFetch('/api/admin/users');
     if (resUsers.ok) {
       const userData = await resUsers.json();
       const users = userData.users || [];
       const tbodyUsers = document.getElementById('adminUsersTableBody');
       if (tbodyUsers) {
-        tbodyUsers.innerHTML = users.map(u => `
-          <tr>
-            <td>#${u.id}</td>
-            <td><strong>${escapeHtml(u.full_name || '')}</strong></td>
-            <td>${escapeHtml(u.email || '')}</td>
-            <td>
-              <span class="user-role-tag ${u.role === 'admin' ? 'admin' : 'user'}">
-                ${u.role === 'admin' ? '👑 Admin' : '👤 Sales Rep'}
-              </span>
-            </td>
-            <td><span style="color:#10b981;">● Active</span></td>
-            <td>${(u.created_at || '').substring(0, 10)}</td>
-          </tr>
-        `).join('');
+        if (users.length === 0) {
+          tbodyUsers.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">No users registered yet.</td></tr>';
+        } else {
+          tbodyUsers.innerHTML = users.map(u => {
+            const isProtectedAdmin = u.role === 'admin' || u.email === 'okashaxortlogix@gmail.com';
+            const actionBtn = isProtectedAdmin
+              ? '<span style="color:#64748b; font-size:11.5px; font-weight:600;"><i class="fa-solid fa-lock"></i> Protected</span>'
+              : `<button type="button" class="btn-clean" onclick="deleteUserByAdmin(${u.id}, '${escapeHtml(u.full_name || u.email)}')" style="padding:4px 10px; font-size:11px; border-radius:6px; color:#f87171; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.12); cursor:pointer; font-weight:600;" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'" title="Permanently Delete Sales Rep"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
+
+            return `
+              <tr>
+                <td>#${u.id}</td>
+                <td><strong>${escapeHtml(u.full_name || '')}</strong></td>
+                <td>${escapeHtml(u.email || '')}</td>
+                <td>
+                  <span class="user-role-tag ${u.role === 'admin' ? 'admin' : 'user'}">
+                    ${u.role === 'admin' ? '👑 Admin' : '👤 Sales Rep'}
+                  </span>
+                </td>
+                <td><span style="color:#10b981;">● Active</span></td>
+                <td>${(u.created_at || '').substring(0, 10)}</td>
+                <td style="text-align: right;">${actionBtn}</td>
+              </tr>
+            `;
+          }).join('');
+        }
       }
     }
   } catch (err) {
     console.error('Admin dashboard fetch error:', err);
+  }
+}
+
+async function deleteUserByAdmin(userId, userName) {
+  if (!confirm(`⚠️ Are you sure you want to permanently delete user "${userName}"?\n\nThis will also remove their custom documents and strategies.`)) {
+    return;
+  }
+  try {
+    const res = await authFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`🗑️ User "${userName}" deleted successfully.`);
+      loadAdminDashboardData();
+    } else {
+      showToast(data.detail || 'Failed to delete user.');
+    }
+  } catch (err) {
+    showToast('Network error while deleting user: ' + err.message);
   }
 }
 

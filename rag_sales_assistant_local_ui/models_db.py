@@ -148,6 +148,27 @@ def list_all_users() -> List[Dict[str, Any]]:
     finally:
         conn.close()
 
+def delete_user_by_id(user_id: int) -> bool:
+    """Deletes a user and their associated documents & chunks. Protects primary admin."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT email, role FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            return False
+        if user["email"] == "okashaxortlogix@gmail.com":
+            raise ValueError("Primary Master Admin account cannot be deleted.")
+        
+        cursor.execute("DELETE FROM document_chunks WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        logger.info(f"🗑️ Deleted user #{user_id} ({user['email']}) and all associated strategy chunks.")
+        return True
+    finally:
+        conn.close()
+
 # --- Document Operations ---
 def create_document_record(
     user_id: int,

@@ -545,6 +545,26 @@ async def get_admin_users(current_user: Dict[str, Any] = Depends(require_admin))
     users = models_db.list_all_users()
     return {"total": len(users), "users": users}
 
+@app.delete("/api/admin/users/{user_id}")
+async def delete_admin_user(
+    user_id: int,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """Deletes a sales rep user account and their uploaded data from the platform."""
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="You cannot delete your own active Admin account.")
+    
+    try:
+        success = models_db.delete_user_by_id(user_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="User not found.")
+        return {"success": True, "message": f"User #{user_id} deleted successfully."}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error deleting user #{user_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+
 @app.get("/api/admin/documents")
 async def get_admin_documents(current_user: Dict[str, Any] = Depends(require_admin)):
     """Lists all uploaded documents across all users with Google Drive webViewLinks."""
