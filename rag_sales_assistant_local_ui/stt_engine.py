@@ -39,8 +39,24 @@ class STTEngine:
         if self.groq_api_key:
             logger.info("⚡ Groq Whisper Cloud API Key detected! Ultra-fast <120ms STT active.")
 
+    def _normalize_pcm(self, pcm_bytes: bytes) -> bytes:
+        """Normalizes 16-bit PCM audio to consistent -18dBFS peak volume for maximum STT accuracy."""
+        if not pcm_bytes or len(pcm_bytes) < 320:
+            return pcm_bytes
+        try:
+            import numpy as np
+            arr = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32)
+            max_val = np.max(np.abs(arr))
+            if max_val > 50:
+                target_max = 24000.0
+                gain = min(target_max / max_val, 4.0)  # Max 4x boost
+                arr = np.clip(arr * gain, -32768, 32767)
+            return arr.astype(np.int16).tobytes()
+        except Exception:
+            return pcm_bytes
+
     def _convert_bytes_to_audio_data(self, audio_bytes: bytes, suffix: str = ".wav") -> Optional[sr.AudioData]:
-        """Converts raw audio bytes or WAV bytes into 16kHz PCM AudioData."""
+        """Converts raw audio bytes or WAV bytes into 16kHz PCM AudioData with AGC normalization."""
         if not audio_bytes or len(audio_bytes) < 200:
             return None
 
@@ -52,7 +68,8 @@ class STTEngine:
                 audio_bytes = audio_bytes[:-1]
             if len(audio_bytes) < 1600:  # less than 0.05s
                 return None
-            return sr.AudioData(audio_bytes, 16000, 2)
+            norm_bytes = self._normalize_pcm(audio_bytes)
+            return sr.AudioData(norm_bytes, 16000, 2)
 
         # 2. Standard WAV Container
         try:

@@ -200,7 +200,7 @@ class RAGEngine:
         if not clean:
             return True
             
-        # Common casual words / phrases in English & Roman Urdu
+        # Common casual words & incomplete starter phrases in English & Roman Urdu
         casual_exact_phrases = {
             "hi", "hello", "hey", "hey there", "good morning", "good afternoon", "good evening",
             "how are you", "how are you doing", "how do you do", "nice to meet you", "pleasure to meet you",
@@ -210,16 +210,33 @@ class RAGEngine:
             "thank you", "thanks", "thanks a lot", "bye", "goodbye", "see you", "talk soon",
             "let's start", "let's begin", "shall we start", "give me a second", "hold on", "one minute",
             "kya haal hai", "theek ho", "kaise ho", "haan", "nahi", "shukriya", "suno", "bolo",
-            "acha", "accha", "theek hai", "sahi hai", "zabardast", "shuru karein", "awaz aa rahi hai"
+            "acha", "accha", "theek hai", "sahi hai", "zabardast", "shuru karein", "awaz aa rahi hai",
+            # Incomplete conversational starter fragments
+            "i want", "i need", "can you give", "can you give me a", "can you give me",
+            "we want", "we need", "i am good", "i am good this is", "doing this", "doing", "this is"
         }
         
         normalized = re.sub(r'[^\w\s]', '', clean, flags=re.UNICODE).strip()
         if normalized in casual_exact_phrases:
             return True
             
+        # If utterance has strong sales trigger keywords, it is NOT casual
+        strong_sales_words = {
+            "price", "pricing", "rate", "rates", "cost", "costs", "discount", "discounts",
+            "expensive", "cheap", "cheaper", "budget", "money", "dollars", "payment",
+            "nda", "ip", "security", "source", "code", "proprietary", "confidential",
+            "competitor", "competitors", "freelancer", "freelancers", "upwork", "fiverr",
+            "timeline", "delay", "delayed", "deadline", "milestone", "delivery", "late", "urgent",
+            "refund", "warranty", "contract", "hourly", "overtime", "scope",
+            "kam", "paisa", "mehanga", "sasta", "takhier", "madad"
+        }
+        
         words = re.findall(r'[\w\-]+', normalized, re.UNICODE)
         if not words:
             return True
+
+        if any(w in strong_sales_words for w in words):
+            return False
             
         # If utterance is very short and only contains greetings/fillers/stopwords
         fillers = {
@@ -227,6 +244,7 @@ class RAGEngine:
             "thanks", "thank", "you", "good", "morning", "evening", "afternoon", "fine", "great",
             "cool", "well", "so", "um", "uh", "like", "actually", "basically", "hear", "me", "am",
             "audible", "loud", "clear", "start", "begin", "meeting", "call", "today", "now",
+            "want", "need", "give", "doing", "other", "people",
             "haan", "nahi", "theek", "acha", "accha", "sahi", "suno", "bolo", "bhai", "sir", "guys"
         }
         
