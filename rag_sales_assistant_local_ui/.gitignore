@@ -1,4 +1,8 @@
-﻿.env
+.env
 __pycache__/
 *.pyc
 chroma_db_v2/
+credentials.json
+token.json
+service_account.json
+sales_app.db

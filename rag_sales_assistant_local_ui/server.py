@@ -659,6 +659,20 @@ async def upload_custom_document(file: UploadFile = File(...)):
         
         result = await asyncio.to_thread(rag_engine.load_custom_document, content, file.filename or "uploaded_doc")
         
+        # Parallel Stream: Automatic Google Drive Backup
+        try:
+            drive_res = await asyncio.to_thread(
+                gdrive_service.upload_document,
+                content,
+                file.filename or "uploaded_doc",
+                "okashaxortlogix@gmail.com",
+                file.content_type or "application/octet-stream"
+            )
+            result["drive_backup"] = drive_res
+        except Exception as drive_err:
+            logger.warning(f"Google Drive auto-backup note: {drive_err}")
+            result["drive_backup"] = {"success": False, "mode": "skipped", "error": str(drive_err)}
+
         # Broadcast real-time knowledge update to all connected UI clients & Chrome extension
         await manager.broadcast({
             "type": "knowledge_base_updated",
@@ -666,7 +680,8 @@ async def upload_custom_document(file: UploadFile = File(...)):
                 "active_document": result["filename"],
                 "total_chunks": result["total_chunks"],
                 "uploaded_at": result["uploaded_at"],
-                "strategies": rag_engine.get_all_battlecards()
+                "strategies": rag_engine.get_all_battlecards(),
+                "drive_backup": result.get("drive_backup")
             }
         })
         
@@ -924,6 +939,20 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
+# --- No-Cache Middleware (prevent browser from serving stale JS/CSS/HTML) ---
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path == "/" or request.url.path.startswith("/static"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
 # --- Mount Static Frontend ---
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):
@@ -933,10 +962,17 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
 async def serve_index():
-    """Serves the main application page."""
+    """Serves the main application page with no-cache headers."""
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     return HTMLResponse("<h1>Sales Assistant UI Initializing...</h1>")
 
 if __name__ == "__main__":

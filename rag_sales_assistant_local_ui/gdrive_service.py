@@ -34,15 +34,38 @@ class GoogleDriveService:
             from googleapiclient.discovery import build
             from google.oauth2 import service_account
 
-            # 1. Try Service Account JSON
+            # 1. Try OAuth User Token (Personal Google Account with full 15GB storage quota)
+            token_path = os.path.join(base_dir, "token.json")
+            if os.path.exists(token_path):
+                from google.oauth2.credentials import Credentials
+                creds = Credentials.from_authorized_user_file(token_path, scopes=SCOPES)
+                self.service = build('drive', 'v3', credentials=creds)
+                self.is_connected = True
+                self.auth_type = "OAuth User Account"
+                logger.info("⚡ Google Drive connected via OAuth User Account (Personal Storage Active)")
+                return
+
+            # 2. Try Service Account JSON (service_account.json or credentials.json)
+            target_sa = None
             if os.path.exists(sa_path):
+                target_sa = sa_path
+            elif os.path.exists(oauth_path):
+                target_sa = oauth_path
+
+            if target_sa:
                 creds = service_account.Credentials.from_service_account_file(
-                    sa_path, scopes=SCOPES
+                    target_sa, scopes=SCOPES
                 )
                 self.service = build('drive', 'v3', credentials=creds)
                 self.is_connected = True
                 self.auth_type = "Service Account"
-                logger.info(f"⚡ Google Drive connected via Service Account ({sa_path})")
+                try:
+                    with open(target_sa, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        self.client_email = data.get("client_email", "")
+                except Exception:
+                    self.client_email = ""
+                logger.info(f"⚡ Google Drive connected via Service Account ({os.path.basename(target_sa)} - {self.client_email})")
                 return
 
             # 2. Try Environment Variable JSON string
@@ -55,10 +78,11 @@ class GoogleDriveService:
                 self.service = build('drive', 'v3', credentials=creds)
                 self.is_connected = True
                 self.auth_type = "Service Account (Env)"
-                logger.info("⚡ Google Drive connected via Service Account Environment Variable")
+                self.client_email = sa_info.get("client_email", "")
+                logger.info(f"⚡ Google Drive connected via Service Account Env ({self.client_email})")
                 return
 
-            logger.info("ℹ️ Google Drive running in Standby/Simulated Mode (Place 'service_account.json' to link Live Drive).")
+            logger.info("ℹ️ Google Drive running in Standby/Simulated Mode (Place 'credentials.json' or 'service_account.json' to link Live Drive).")
             self.auth_type = "Standby Simulation Mode"
         except Exception as e:
             logger.warning(f"Google Drive initialization note: {e}")
@@ -70,20 +94,45 @@ class GoogleDriveService:
             return f"mock_folder_{folder_name}"
 
         try:
-            # Query existing folder
+            # 1. Check custom parent folder ID from environment
+            env_root = os.environ.get("GDRIVE_ROOT_FOLDER_ID", "").strip()
+            if not parent_id and env_root:
+                return env_root
+
+            # 2. Query existing folder (checking shared folders and normal folders)
             query = f"mimeType = 'application/vnd.google-apps.folder' and name = '{folder_name}' and trashed = false"
             if parent_id:
                 query += f" and '{parent_id}' in parents"
             
             results = self.service.files().list(
-                q=query, spaces='drive', fields='files(id, name)', pageSize=1
+                q=query,
+                spaces='drive',
+                fields='files(id, name)',
+                pageSize=5,
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True
             ).execute()
             files = results.get('files', [])
 
             if files:
                 return files[0]['id']
 
-            # Create new folder
+            # 3. If top-level root folder and no existing found, check if any folder is shared with this service account
+            if not parent_id:
+                shared_query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and sharedWithMe = true"
+                shared_res = self.service.files().list(
+                    q=shared_query,
+                    fields='files(id, name)',
+                    pageSize=1,
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True
+                ).execute()
+                shared_files = shared_res.get('files', [])
+                if shared_files:
+                    logger.info(f"📁 Using shared Google Drive folder: '{shared_files[0]['name']}' (ID: {shared_files[0]['id']})")
+                    return shared_files[0]['id']
+
+            # 4. Create new folder
             folder_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder'
@@ -91,7 +140,11 @@ class GoogleDriveService:
             if parent_id:
                 folder_metadata['parents'] = [parent_id]
 
-            folder = self.service.files().create(body=folder_metadata, fields='id').execute()
+            folder = self.service.files().create(
+                body=folder_metadata,
+                fields='id',
+                supportsAllDrives=True
+            ).execute()
             logger.info(f"📁 Created Google Drive folder: '{folder_name}' (ID: {folder.get('id')})")
             return folder.get('id')
         except Exception as e:
@@ -155,6 +208,16 @@ class GoogleDriveService:
 
             file_id = uploaded_file.get('id')
             web_link = uploaded_file.get('webViewLink') or f"https://drive.google.com/file/d/{file_id}/view"
+
+            # Set public/reader permissions so user & admin can open the link directly
+            try:
+                self.service.permissions().create(
+                    fileId=file_id,
+                    body={'type': 'anyone', 'role': 'reader'},
+                    fields='id'
+                ).execute()
+            except Exception as perm_err:
+                logger.debug(f"Permission note for file {file_id}: {perm_err}")
 
             logger.info(f"☁️ [GDRIVE SUCCESS] Uploaded '{filename}' to Google Drive: {web_link}")
 

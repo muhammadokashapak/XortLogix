@@ -1,9 +1,9 @@
 [
   {
     "q_number": 1,
-    "question": "Strategy #1: Q1. Why is your pricing higher than...",
-    "context": "Playbook semantic excerpt #1 from sales_test_playbook.txt",
-    "pitch": "Q1. Why is your pricing higher than offshore freelancers? Context / Rationale: Client is comparing low-cost hourly freelancers with enterprise AI agency engineering. Exact Strategy / Pitch: We build enterprise AI agents with 99.9% reliability, self-healing vector memories, and complete IP security guarantee.",
-    "source": "sales_test_playbook.txt"
+    "question": "Playbook Summary: Live_Production_Battlecard_2026.txt",
+    "context": "Uploaded document Live_Production_Battlecard_2026.txt",
+    "pitch": "Q1. How fast can your team build custom AI solutions?\nContext: Client asks for turnaround times.\nStrategy / Pitch: We operate on rapid 7-day delivery sprints with continuous CI/CD pipelines.",
+    "source": "Live_Production_Battlecard_2026.txt"
   }
 ]
