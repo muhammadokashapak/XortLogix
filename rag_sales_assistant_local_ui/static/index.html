@@ -58,6 +58,14 @@
           <span class="toggle-label">🎧 Earphone TTS</span>
         </label>
 
+        <button class="btn-clean" id="btnOpenUploadModal" onclick="openPlaybookModal()" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload Playbook
+        </button>
+
+        <button class="btn-clean" id="btnOpenKB" onclick="if(el.kbModal){el.kbModal.style.display='flex';loadKnowledgeBase();}" title="View all strategy battlecards">
+          <i class="fa-solid fa-book"></i> Strategy Cards
+        </button>
+
         <button class="btn-clean" id="btnToggleHud" title="Floating mini HUD for Zoom/Meet">
           <i class="fa-solid fa-window-restore"></i> Zoom HUD
         </button>
@@ -156,8 +164,8 @@
           </div>
         </div>
         <div class="banner-actions">
-          <button class="btn-clean primary-glow" id="btnMainUploadDoc" onclick="switchMainView('chunks')">
-            <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Customize Chunks
+          <button class="btn-clean primary-glow" id="btnMainUploadDoc" onclick="openPlaybookModal()">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Custom Strategy Doc
           </button>
         </div>
       </div>
