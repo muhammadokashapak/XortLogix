@@ -14,29 +14,30 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/static/css/style.css?v=20260825_0225" />
+  <link rel="stylesheet" href="/static/css/style.css?v=20260825_1845" />
 </head>
 <body class="simple-theme">
 
   <!-- Minimal App Wrapper -->
   <div class="app-layout">
     
-    <!-- Top Simple Header -->
+    <!-- Top Executive Header Bar -->
     <header class="app-header">
       <div class="brand">
         <div class="brand-dot"></div>
-        <span class="brand-title">SALES CO-PILOT</span>
-        <span class="badge-status" id="statusPill">🟢 Ready</span>
+        <span class="brand-title">SALES CO-PILOT AI</span>
+        <span class="badge-status" id="statusPill">🟢 Online</span>
       </div>
 
-      <!-- Quick Mode Switches & Popup Toggles -->
-        <label class="toggle-control" title="Automatically captures Zoom Desktop App and system audio via Windows WASAPI loopback">
+      <!-- Header Options & Controls -->
+      <div class="header-options">
+        <label class="toggle-control" title="Auto-capture Zoom Desktop App and system audio via Windows WASAPI">
           <input type="checkbox" id="chkDesktopAudio" checked />
           <span class="toggle-slider"></span>
-          <span class="toggle-label">⚡ Zoom Desktop Audio</span>
+          <span class="toggle-label">⚡ Zoom Audio</span>
         </label>
 
-        <label class="toggle-control" title="Automatically displays strategy popup when objection is detected">
+        <label class="toggle-control" title="Auto-display strategy popup when client objection is detected">
           <input type="checkbox" id="chkAutoPopup" checked />
           <span class="toggle-slider"></span>
           <span class="toggle-label">🔔 Auto Popup</span>
@@ -45,7 +46,7 @@
         <label class="toggle-control" title="Speaks suggested strategy cue into earphones via Text-to-Speech">
           <input type="checkbox" id="chkAutoTts" />
           <span class="toggle-slider"></span>
-          <span class="toggle-label">🎧 Voice Cue in Ear (TTS)</span>
+          <span class="toggle-label">🎧 Earphone TTS</span>
         </label>
 
         <button class="btn-clean" id="btnToggleHud" title="Floating mini HUD for Zoom/Meet">
@@ -68,32 +69,30 @@
       </div>
     </header>
 
-    <!-- Main Simple Content -->
+    <!-- Main Content Cockpit -->
     <main class="main-content">
       
-      <!-- Mic & Live Listening Bar -->
+      <!-- Mic & Live Voice Transducer Bar -->
       <div class="voice-hero-bar">
-        <button class="main-mic-btn" id="btnMasterMic" title="Click to Connect Google Meet (Client Voice)">
-          <i class="fa-solid fa-satellite-dish"></i>
+        <button class="main-mic-btn" id="btnMasterMic" title="Click or Hold Spacebar to Listen">
+          <i class="fa-solid fa-microphone-lines"></i>
         </button>
         
         <div class="voice-hero-info">
-          <div class="voice-status-title" id="stageBadgeText">Click to Connect Google Meet (Listens to Client Only)</div>
+          <div class="voice-status-title" id="stageBadgeText">🟢 Hands-Free Voice Listener Active (Listening to Client in Zoom / Meet)</div>
           <div class="voice-transcript-snippet" id="liveTranscriptDisplay">
-            "Listening for client objections in meeting to provide instant closing strategies..."
+            "Speak or let the client talk in Zoom — instant closing pitches will appear automatically..."
           </div>
         </div>
 
         <div class="voice-controls-right">
-          <label class="toggle-control auto-listen-toggle">
-            <input type="checkbox" id="chkAutoPopup" checked />
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">Auto-Popup on Objection</span>
-          </label>
+          <span class="confidence-pill" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);">
+            <i class="fa-solid fa-bolt"></i> 0ms Real-Time
+          </span>
         </div>
       </div>
 
-      <!-- Intent Decider & Text Strategy Input Box -->
+      <!-- Intent Decider & Strategy Input Box -->
       <div class="intent-analyzer-card">
         <div class="intent-card-header">
           <div class="intent-title-badge">
@@ -121,7 +120,7 @@
 
         <!-- Quick Intent Presets -->
         <div class="intent-presets">
-          <span class="preset-label"><i class="fa-solid fa-bolt"></i> Sample Prompts:</span>
+          <span class="preset-label"><i class="fa-solid fa-bolt"></i> Quick Scenarios:</span>
           <button class="preset-chip" data-intent="Your price is too high, freelancers are offering $500">💰 Price Resistance</button>
           <button class="preset-chip" data-intent="Can we get a 20% discount if we sign this week?">🏷️ Discount Negotiation</button>
           <button class="preset-chip" data-intent="We need this completed and launched within 10 days ASAP">⏱️ Timeline Urgency</button>
@@ -131,19 +130,19 @@
         </div>
       </div>
 
-      <!-- Quick Playbook Status & Upload Card on Main Page -->
-      <div style="margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; color: #38bdf8; font-size: 18px;">
+      <!-- Active Playbook Status & Upload Banner -->
+      <div class="playbook-status-banner">
+        <div class="banner-left">
+          <div class="banner-icon">
             <i class="fa-solid fa-book-bookmark"></i>
           </div>
-          <div>
-            <div style="font-size: 13px; font-weight: 700; color: #f8fafc;" id="mainActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
-            <div style="font-size: 11px; color: #94a3b8;" id="mainActiveDocMeta">70 Strategy Chunks Loaded — Real-Time Voice Matching Active</div>
+          <div class="banner-text">
+            <div class="banner-title" id="mainActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
+            <div class="banner-sub" id="mainActiveDocMeta">70 Strategy Chunks Loaded — Real-Time Voice Matching Active</div>
           </div>
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn-clean" id="btnMainUploadDoc" onclick="openPlaybookModal()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+        <div class="banner-actions">
+          <button class="btn-clean primary-glow" id="btnMainUploadDoc" onclick="openPlaybookModal()">
             <i class="fa-solid fa-cloud-arrow-up"></i> Upload Custom Strategy Doc
           </button>
         </div>
@@ -781,6 +780,6 @@
   </script>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_0238"></script>
+  <script src="/static/js/app.js?v=20260825_1845"></script>
 </body>
 </html>

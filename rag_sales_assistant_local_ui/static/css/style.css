@@ -56,7 +56,7 @@ body.simple-theme {
 
 .app-layout {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -75,8 +75,10 @@ body.simple-theme {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--panel-border);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 16px 26px;
+  padding: 14px 24px;
   border-radius: var(--radius-md);
+  flex-wrap: wrap;
+  gap: 14px;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -84,6 +86,7 @@ body.simple-theme {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .brand-dot {
@@ -102,11 +105,12 @@ body.simple-theme {
 
 .brand-title {
   font-weight: 800;
-  font-size: 17px;
+  font-size: 16.5px;
   letter-spacing: 0.8px;
   background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  white-space: nowrap;
 }
 
 .badge-status {
@@ -121,12 +125,13 @@ body.simple-theme {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .header-options {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -1959,6 +1964,86 @@ body.light-theme .kb-q-title {
 
 body.light-theme .kb-p-body {
   color: #334155;
+}
+
+/* Playbook Status Banner */
+.playbook-status-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 14px 22px;
+  box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.4);
+  flex-wrap: wrap;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.playbook-status-banner:hover {
+  border-color: var(--panel-border-hover);
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-cyan);
+  font-size: 18px;
+}
+
+.banner-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.banner-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-glow {
+  background: rgba(6, 182, 212, 0.15) !important;
+  border-color: rgba(6, 182, 212, 0.35) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.primary-glow:hover {
+  background: rgba(6, 182, 212, 0.25) !important;
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35) !important;
+}
+
+body.light-theme .playbook-status-banner {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .banner-title {
+  color: #0f172a;
 }
 
 
