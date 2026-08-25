@@ -634,11 +634,14 @@
         </div>
 
         <!-- Action Buttons -->
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-          <button id="btnSubmitPlaybook" onclick="uploadPlaybookNow()" class="btn-popup-action primary" style="flex: 2; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;" disabled>
+        <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+          <button id="btnSubmitPlaybook" onclick="uploadPlaybookNow()" class="btn-popup-action primary" style="flex: 2; min-width: 200px; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;">
             <i class="fa-solid fa-bolt"></i> Chunk & Generate Embeddings
           </button>
-          <button id="btnResetPlaybook" onclick="resetPlaybookNow()" class="btn-popup-action" style="flex: 1; padding: 13px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600; cursor: pointer;">
+          <button id="btnTestPipelineLive" onclick="runInteractiveUploadTest()" class="btn-popup-action" style="flex: 1.5; min-width: 170px; padding: 13px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 13px; font-weight: 700; cursor: pointer;">
+            <i class="fa-solid fa-vial-circle-check"></i> 🧪 Run Live Test
+          </button>
+          <button id="btnResetPlaybook" onclick="resetPlaybookNow()" class="btn-popup-action" style="flex: 1; min-width: 140px; padding: 13px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600; cursor: pointer;">
             <i class="fa-solid fa-rotate-left"></i> Restore 70 Default
           </button>
         </div>
@@ -718,6 +721,7 @@
     window.onPlaybookFileSelected = onPlaybookFileSelected;
     window.uploadPlaybookNow = uploadPlaybookNow;
     window.resetPlaybookNow = resetPlaybookNow;
+    window.runInteractiveUploadTest = runInteractiveUploadTest;
 
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
@@ -734,7 +738,7 @@
         var nameDisplay = document.getElementById('selectedFileName');
         if (nameDisplay) {
           nameDisplay.style.display = 'block';
-          nameDisplay.innerHTML = '📄 <strong>Selected:</strong> ' + escapeHtml(file.name) + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+          nameDisplay.innerHTML = '📄 <strong>Selected:</strong> ' + escapeHtml(file.name) + ' (' + (file.size / 1024).toFixed(1) + ' KB) — <em>Auto-processing...</em>';
         }
         var btn = document.getElementById('btnSubmitPlaybook');
         if (btn) {
@@ -742,6 +746,58 @@
           btn.removeAttribute('disabled');
           btn.style.opacity = '1';
           btn.style.boxShadow = '0 0 20px rgba(56, 189, 248, 0.5)';
+        }
+        // Auto-run upload and chunking immediately on selection!
+        uploadPlaybookNow();
+      }
+    }
+
+    async function runInteractiveUploadTest() {
+      var resultBox = document.getElementById('playbookUploadResult');
+      var resultMsg = document.getElementById('playbookUploadMsg');
+      if (resultBox && resultMsg) {
+        resultBox.style.display = 'block';
+        resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
+        resultBox.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+        resultBox.style.color = '#38bdf8';
+        resultMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <strong>Running Live Upload & Vector Chunking Test...</strong><br>1. Generating sample strategy payload...<br>2. Uploading to /api/upload-document...';
+      }
+
+      try {
+        var testContent = "Q1. How fast can your team build custom AI solutions?\nContext: Client asks for project turnaround and sprint timelines.\nStrategy / Pitch: We operate on rapid 7-day delivery sprints with continuous CI/CD pipelines and senior dedicated AI engineers.";
+        var blob = new Blob([testContent], { type: 'text/plain' });
+        var testFile = new File([blob], "live_diagnostic_test_playbook.txt", { type: "text/plain" });
+
+        var formData = new FormData();
+        formData.append('file', testFile);
+
+        var res = await fetch('/api/upload-document', {
+          method: 'POST',
+          body: formData
+        });
+        var data = await res.json();
+
+        if (res.ok && data.success) {
+          if (resultBox && resultMsg) {
+            resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+            resultBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+            resultBox.style.color = '#10b981';
+            resultMsg.innerHTML = `✅ <strong>LIVE TEST PASSED!</strong><br>• Document: <code>${data.filename}</code><br>• Strategy Chunks: <strong>${data.total_chunks} chunk(s) created</strong><br>• ChromaDB Embeddings: <strong>Live & Active</strong><br>• Status: 🟢 100% Operational!`;
+          }
+          fetchPlaybookStatus();
+          if (typeof loadAndRenderChunks === 'function') loadAndRenderChunks();
+          if (typeof loadUserChunks === 'function') loadUserChunks();
+          if (typeof refreshPlaybookStatus === 'function') refreshPlaybookStatus();
+          if (typeof loadKnowledgeBase === 'function') loadKnowledgeBase();
+        } else {
+          throw new Error(data.detail || 'Upload test failed');
+        }
+      } catch (err) {
+        if (resultBox && resultMsg) {
+          resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          resultBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          resultBox.style.color = '#ef4444';
+          resultMsg.textContent = '❌ Test Error: ' + err.message;
         }
       }
     }
