@@ -156,17 +156,24 @@ class GoogleDriveService:
         file_bytes: bytes,
         filename: str,
         user_email: str,
-        mime_type: str = "application/octet-stream"
+        mime_type: str = "application/octet-stream",
+        user_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Uploads a strategy document into Admin Drive under:
-        Sales_Bot_Client_Documents / User_{user_email} / filename
+        Sales_Bot_Client_Documents / {User_Full_Name} ({user_email}) / filename
         """
         clean_email = user_email.strip().lower()
-        subfolder_name = f"User_{clean_email.replace('@', '_at_')}"
+        import re
+        if user_name and user_name.strip():
+            clean_name = re.sub(r'[^\w\s\-\.]', '', user_name.strip())
+            subfolder_name = f"{clean_name} ({clean_email})"
+        else:
+            name_part = clean_email.split('@')[0].replace('.', ' ').title()
+            subfolder_name = f"{name_part} ({clean_email})"
 
         if not self.service:
-            # Simulated Drive Backup when service_account.json not yet supplied
+            # Simulated Drive Backup when credentials not yet supplied
             import uuid
             mock_id = f"gdrive_{uuid.uuid4().hex[:12]}"
             mock_link = f"https://drive.google.com/file/d/{mock_id}/view?usp=sharing"

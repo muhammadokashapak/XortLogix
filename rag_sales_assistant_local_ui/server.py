@@ -415,13 +415,14 @@ async def upload_user_strategy_document(
         
         filename = file.filename or "strategy_document"
         
-        # 1. Stream A: Parallel Upload to Admin Google Drive
+        # 1. Stream A: Parallel Upload to Admin Google Drive (Organized by User Name)
         drive_res = await asyncio.to_thread(
             gdrive_service.upload_document,
             content,
             filename,
             current_user["email"],
-            file.content_type or "application/octet-stream"
+            file.content_type or "application/octet-stream",
+            current_user.get("full_name") or current_user.get("email", "")
         )
         
         # 2. Stream B: Extract text and generate strategy chunks
@@ -659,14 +660,15 @@ async def upload_custom_document(file: UploadFile = File(...)):
         
         result = await asyncio.to_thread(rag_engine.load_custom_document, content, file.filename or "uploaded_doc")
         
-        # Parallel Stream: Automatic Google Drive Backup
+        # Parallel Stream: Automatic Google Drive Backup (Organized by User Name)
         try:
             drive_res = await asyncio.to_thread(
                 gdrive_service.upload_document,
                 content,
                 file.filename or "uploaded_doc",
                 "okashaxortlogix@gmail.com",
-                file.content_type or "application/octet-stream"
+                file.content_type or "application/octet-stream",
+                "Muhammad Okasha (Admin)"
             )
             result["drive_backup"] = drive_res
         except Exception as drive_err:
