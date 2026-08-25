@@ -109,6 +109,9 @@ class DesktopAudioListener:
         logger.info("🛑 Autonomous Desktop Audio Listener stopped.")
 
     def _run_loop(self):
+        import warnings
+        warnings.filterwarnings("ignore")
+
         try:
             import soundcard as sc
             import numpy as np
@@ -124,24 +127,29 @@ class DesktopAudioListener:
             logger.info(f"⚡ [WASAPI LOOPBACK] Capturing Zoom / Desktop client audio from: {self.device_name}")
 
             SAMPLE_RATE = 16000
-            FRAME_SIZE = 1600  # 100ms
-            SILENCE_TRIGGER_FRAMES = 2  # 200ms pause
-            MIN_SPEECH_FRAMES = 4      # 400ms min
-            MAX_SPEECH_FRAMES = 14     # 1.4s max window
+            FRAME_SIZE = 2048  # Power of 2 WASAPI buffer
+            SILENCE_TRIGGER_FRAMES = 2  # ~250ms pause
+            MIN_SPEECH_FRAMES = 3      # ~380ms min
+            MAX_SPEECH_FRAMES = 12     # ~1.5s max window
 
             pcm_buffer: List[bytes] = []
             speech_active = False
             silence_counter = 0
 
-            with loopback_mic.recorder(samplerate=SAMPLE_RATE, channels=1) as mic:
+            with loopback_mic.recorder(samplerate=SAMPLE_RATE, channels=1, blocksize=FRAME_SIZE) as mic:
                 while self.is_running:
-                    data = mic.record(numframes=FRAME_SIZE)
+                    try:
+                        data = mic.record(numframes=FRAME_SIZE)
+                    except Exception:
+                        time.sleep(0.05)
+                        continue
+
                     if data is None or len(data) == 0:
                         continue
 
                     # Calculate RMS energy
                     rms = float(np.sqrt(np.mean(data ** 2)))
-                    is_speech = rms >= 0.0035
+                    is_speech = rms >= 0.004
 
                     int16_bytes = np.clip(data * 32767, -32768, 32767).astype(np.int16).tobytes()
 
@@ -154,7 +162,7 @@ class DesktopAudioListener:
                             pcm_buffer.append(int16_bytes)
                             silence_counter += 1
 
-                    # Trigger on natural 200ms pause or max phrase buffer
+                    # Trigger on natural pause or max phrase buffer
                     natural_pause = speech_active and (silence_counter >= SILENCE_TRIGGER_FRAMES) and (len(pcm_buffer) >= MIN_SPEECH_FRAMES)
                     max_reached = len(pcm_buffer) >= MAX_SPEECH_FRAMES
 
