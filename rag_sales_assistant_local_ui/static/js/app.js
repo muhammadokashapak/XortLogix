@@ -1549,10 +1549,15 @@ async function initAuth() {
     }
   }
 
-  // Default clean state: Standard Sales Rep (Guest Mode)
+  // Default clean state: Standard Sales Rep (Prompt Login/Register on open)
   currentUser = null;
   authToken = '';
   syncAuthUI();
+
+  // Auto-prompt Account Login & Registration on page open
+  setTimeout(() => {
+    openAuthModal();
+  }, 400);
 }
 
 function syncAuthUI() {
