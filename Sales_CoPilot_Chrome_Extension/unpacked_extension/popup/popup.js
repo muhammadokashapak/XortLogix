@@ -33,7 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnHeaderUploadDoc = document.getElementById('btnHeaderUploadDoc');
   const btnUploadDocMini = document.getElementById('btnUploadDocMini');
   const popupFileInput = document.getElementById('popupFileInput');
-  const uploadStatusAlert = document.getElementById('uploadStatusAlert');
+  const uploadProcessingView = document.getElementById('uploadProcessingView');
+  const lblProcessingTitle = document.getElementById('lblProcessingTitle');
+  const lblProcessingFileName = document.getElementById('lblProcessingFileName');
+  const lblProcessingDesc = document.getElementById('lblProcessingDesc');
+  const uploadSuccessBanner = document.getElementById('uploadSuccessBanner');
   const lblActiveDocName = document.getElementById('lblActiveDocName');
   const lblActiveDocCards = document.getElementById('lblActiveDocCards');
 
@@ -226,10 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Document Upload Handlers
-  if (btnHeaderUploadDoc) {
+  // Document Upload Handlers (Both Header & Mini button trigger native file dialog)
+  if (btnHeaderUploadDoc && popupFileInput) {
     btnHeaderUploadDoc.addEventListener('click', () => {
-      chrome.tabs.create({ url: `${BACKEND_URL}` });
+      popupFileInput.click();
     });
   }
 
@@ -237,15 +241,20 @@ document.addEventListener('DOMContentLoaded', () => {
     btnUploadDocMini.addEventListener('click', () => {
       popupFileInput.click();
     });
+  }
 
+  if (popupFileInput) {
     popupFileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (uploadStatusAlert) {
-        uploadStatusAlert.style.display = 'block';
-        uploadStatusAlert.textContent = `⏳ Uploading & chunking "${file.name}"...`;
-      }
+      // 1. Switch to dedicated processing view
+      if (mainDashboardView) mainDashboardView.style.display = 'none';
+      if (uploadProcessingView) uploadProcessingView.style.display = 'flex';
+      if (lblProcessingFileName) lblProcessingFileName.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      if (lblProcessingTitle) lblProcessingTitle.textContent = 'Converting to Embeddings...';
+      if (lblProcessingDesc) lblProcessingDesc.textContent = 'Your document is being parsed, chunked, and converted into neural vector embeddings. Kindly wait a moment...';
+      if (uploadSuccessBanner) uploadSuccessBanner.style.display = 'none';
 
       const formData = new FormData();
       formData.append('file', file);
@@ -262,22 +271,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const uploadData = await uploadRes.json();
 
         if (uploadRes.ok && uploadData.success) {
-          if (uploadStatusAlert) {
-            uploadStatusAlert.textContent = `✅ Loaded "${file.name}" (${uploadData.extracted_cards || 0} Battlecards Extracted)!`;
-            setTimeout(() => {
-              uploadStatusAlert.style.display = 'none';
-            }, 6000);
+          const cardsCount = uploadData.extracted_cards || 0;
+          if (uploadSuccessBanner) {
+            uploadSuccessBanner.textContent = `🎉 Ingested ${cardsCount} Strategy Battlecards!`;
+            uploadSuccessBanner.style.background = 'rgba(16, 185, 129, 0.15)';
+            uploadSuccessBanner.style.color = '#34d399';
+            uploadSuccessBanner.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+            uploadSuccessBanner.style.display = 'block';
           }
-          checkBackendHealth();
+          if (lblProcessingTitle) lblProcessingTitle.textContent = '✅ Embeddings Ready!';
+          
+          await checkBackendHealth();
+
+          // Smoothly return to main dashboard after showing success
+          setTimeout(() => {
+            if (uploadProcessingView) uploadProcessingView.style.display = 'none';
+            if (mainDashboardView) mainDashboardView.style.display = 'block';
+            if (captureStatus) captureStatus.textContent = `✅ Active Playbook: ${file.name} (${cardsCount} Cards)`;
+          }, 1800);
         } else {
-          if (uploadStatusAlert) {
-            uploadStatusAlert.textContent = `❌ ${uploadData.detail || 'Upload failed'}`;
+          if (lblProcessingTitle) lblProcessingTitle.textContent = '❌ Conversion Failed';
+          if (uploadSuccessBanner) {
+            uploadSuccessBanner.textContent = `Error: ${uploadData.detail || 'Failed to process document'}`;
+            uploadSuccessBanner.style.background = 'rgba(239, 68, 68, 0.2)';
+            uploadSuccessBanner.style.color = '#f87171';
+            uploadSuccessBanner.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            uploadSuccessBanner.style.display = 'block';
           }
+          setTimeout(() => {
+            if (uploadProcessingView) uploadProcessingView.style.display = 'none';
+            if (mainDashboardView) mainDashboardView.style.display = 'block';
+          }, 3000);
         }
       } catch (err) {
-        if (uploadStatusAlert) {
-          uploadStatusAlert.textContent = '❌ Failed to upload playbook document.';
+        if (lblProcessingTitle) lblProcessingTitle.textContent = '❌ Server Connection Error';
+        if (uploadSuccessBanner) {
+          uploadSuccessBanner.textContent = 'Make sure Sales Assistant server is running on 127.0.0.1:8000';
+          uploadSuccessBanner.style.background = 'rgba(239, 68, 68, 0.2)';
+          uploadSuccessBanner.style.color = '#f87171';
+          uploadSuccessBanner.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+          uploadSuccessBanner.style.display = 'block';
         }
+        setTimeout(() => {
+          if (uploadProcessingView) uploadProcessingView.style.display = 'none';
+          if (mainDashboardView) mainDashboardView.style.display = 'block';
+        }, 3000);
       } finally {
         popupFileInput.value = '';
       }

@@ -157,6 +157,42 @@
 
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- ⚡ VIEW 3: DEDICATED EMBEDDINGS & CHUNKING CONVERSION SCREEN -->
+  <!-- ========================================================================= -->
+  <div id="uploadProcessingView" class="processing-card" style="display:none;">
+    <div class="processing-spinner-wrap">
+      <div class="processing-spinner"></div>
+      <div class="processing-spinner-inner">⚡</div>
+    </div>
+    
+    <h3 class="processing-title" id="lblProcessingTitle">Converting to Embeddings...</h3>
+    
+    <div class="processing-file-badge" id="lblProcessingFileName">
+      📄 playbook.pdf (43.0 KB)
+    </div>
+
+    <p class="processing-desc" id="lblProcessingDesc">
+      Your document is being parsed, chunked, and converted into neural vector embeddings. Kindly wait a moment...
+    </p>
+
+    <div class="processing-steps">
+      <div class="proc-step active" id="step1">
+        <span class="step-dot">●</span> <span>1. Extracting text & Q&A battlecards</span>
+      </div>
+      <div class="proc-step active" id="step2">
+        <span class="step-dot spin">◐</span> <span>2. Generating vector embeddings in ChromaDB</span>
+      </div>
+      <div class="proc-step" id="step3">
+        <span class="step-dot">☁️</span> <span>3. Syncing backup to Admin Google Drive</span>
+      </div>
+    </div>
+
+    <div id="uploadSuccessBanner" class="proc-success-pill" style="display:none;">
+      🎉 Strategy Battlecards Generated & Ingested!
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
