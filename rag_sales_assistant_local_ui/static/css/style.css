@@ -64,22 +64,30 @@ body.simple-theme {
 }
 
 /* ==========================================================================
-   App Header Bar
+   App Header Bar (Two-Tier Executive Layout)
    ========================================================================== */
 .app-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   background: var(--panel-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--panel-border);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 14px 24px;
+  padding: 16px 24px;
   border-radius: var(--radius-md);
-  flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Row 1: Brand on Left, User Profile on Upper Right */
+.header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 12px;
 }
 
 .brand {
@@ -128,10 +136,27 @@ body.simple-theme {
   white-space: nowrap;
 }
 
-.header-options {
+/* Row 2: Controls, Toggles & Action Buttons */
+.header-controls-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
   gap: 14px;
+}
+
+.header-toggles-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.header-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 

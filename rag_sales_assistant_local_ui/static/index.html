@@ -23,58 +23,64 @@
     
     <!-- Top Executive Header Bar -->
     <header class="app-header">
-      <div class="brand">
-        <div class="brand-dot"></div>
-        <span class="brand-title">SALES CO-PILOT AI</span>
-        <span class="badge-status" id="statusPill">🟢 Online</span>
-      </div>
+      <!-- Row 1: Brand on Left, User Profile on Upper Right Corner -->
+      <div class="header-top-row">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <span class="brand-title">SALES CO-PILOT AI</span>
+          <span class="badge-status" id="statusPill">🟢 Online</span>
+        </div>
 
-      <!-- Header Options & Controls -->
-      <div class="header-options">
-        
-        <!-- User Profile / Auth Chip -->
+        <!-- User Profile / Auth Chip in Upper Right Corner -->
         <div class="user-auth-badge" id="userAuthBadge" onclick="openAuthModal()" title="Click to Sign In / Switch Account">
           <i class="fa-solid fa-user-tie text-cyan" id="userRoleIcon"></i>
           <span id="userDisplayName">Sales Rep Mode</span>
           <span class="user-role-tag user" id="userRoleTag" style="display: none;">Sales Rep</span>
           <button class="btn-logout" id="btnLogout" onclick="logoutUser(event)" title="Log Out" style="display: none;"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
         </div>
+      </div>
 
-        <label class="toggle-control" title="Auto-capture Zoom Desktop App and system audio via Windows WASAPI">
-          <input type="checkbox" id="chkDesktopAudio" checked />
-          <span class="toggle-slider"></span>
-          <span class="toggle-label">⚡ Zoom Audio</span>
-        </label>
+      <!-- Row 2: All Controls, Toggles & Action Buttons -->
+      <div class="header-controls-row">
+        <div class="header-toggles-group">
+          <label class="toggle-control" title="Auto-capture Zoom Desktop App and system audio via Windows WASAPI">
+            <input type="checkbox" id="chkDesktopAudio" checked />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">⚡ Zoom Audio</span>
+          </label>
 
-        <label class="toggle-control" title="Auto-display strategy popup when client objection is detected">
-          <input type="checkbox" id="chkAutoPopup" checked />
-          <span class="toggle-slider"></span>
-          <span class="toggle-label">🔔 Auto Popup</span>
-        </label>
+          <label class="toggle-control" title="Auto-display strategy popup when client objection is detected">
+            <input type="checkbox" id="chkAutoPopup" checked />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">🔔 Auto Popup</span>
+          </label>
 
-        <label class="toggle-control" title="Speaks suggested strategy cue into earphones via Text-to-Speech">
-          <input type="checkbox" id="chkAutoTts" />
-          <span class="toggle-slider"></span>
-          <span class="toggle-label">🎧 Earphone TTS</span>
-        </label>
+          <label class="toggle-control" title="Speaks suggested strategy cue into earphones via Text-to-Speech">
+            <input type="checkbox" id="chkAutoTts" />
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">🎧 Earphone TTS</span>
+          </label>
+        </div>
 
-        <button class="btn-clean" id="btnOpenUploadModal" onclick="openPlaybookModal()" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Upload Playbook
-        </button>
+        <div class="header-action-buttons">
+          <button class="btn-clean" id="btnOpenUploadModal" onclick="openPlaybookModal()" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Playbook
+          </button>
 
-        <button class="btn-clean" id="btnOpenKB" onclick="if(el.kbModal){el.kbModal.style.display='flex';loadKnowledgeBase();}" title="View all strategy battlecards">
-          <i class="fa-solid fa-book"></i> Strategy Cards
-        </button>
+          <button class="btn-clean" id="btnOpenKB" onclick="if(el.kbModal){el.kbModal.style.display='flex';loadKnowledgeBase();}" title="View all strategy battlecards">
+            <i class="fa-solid fa-book"></i> Strategy Cards
+          </button>
 
-        <button class="btn-clean" id="btnToggleHud" title="Floating mini HUD for Zoom/Meet">
-          <i class="fa-solid fa-window-restore"></i> Zoom HUD
-        </button>
+          <button class="btn-clean" id="btnToggleHud" title="Floating mini HUD for Zoom/Meet">
+            <i class="fa-solid fa-window-restore"></i> Zoom HUD
+          </button>
 
-        <!-- Theme Toggle Button -->
-        <button class="btn-clean btn-theme-toggle" id="btnThemeToggle" title="Switch Dark / Light Mode">
-          <i class="fa-solid fa-moon" id="themeIcon"></i>
-          <span id="themeText">Dark</span>
-        </button>
+          <!-- Theme Toggle Button -->
+          <button class="btn-clean btn-theme-toggle" id="btnThemeToggle" title="Switch Dark / Light Mode">
+            <i class="fa-solid fa-moon" id="themeIcon"></i>
+            <span id="themeText">Dark</span>
+          </button>
+        </div>
       </div>
     </header>
 
