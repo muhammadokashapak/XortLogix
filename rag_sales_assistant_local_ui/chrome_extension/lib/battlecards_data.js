@@ -1,9 +1,9 @@
 window.SALES_BATTLECARDS = [
   {
     "q_number": 1,
-    "question": "Playbook Summary: Live_Production_Battlecard_2026.txt",
-    "context": "Uploaded document Live_Production_Battlecard_2026.txt",
-    "pitch": "Q1. How fast can your team build custom AI solutions?\nContext: Client asks for turnaround times.\nStrategy / Pitch: We operate on rapid 7-day delivery sprints with continuous CI/CD pipelines.",
-    "source": "Live_Production_Battlecard_2026.txt"
+    "question": "Playbook Summary: test_sample.txt",
+    "context": "Uploaded document test_sample.txt",
+    "pitch": "Q: How much does it cost?\nA: It costs /mo.",
+    "source": "test_sample.txt"
   }
 ];

@@ -56,7 +56,7 @@ def run_server_loop():
     free_port(8000)
     while True:
         try:
-            uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False, log_level="info")
+            uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
             break
         except KeyboardInterrupt:
             print("\n[!] Server stopped by user (Ctrl+C).")
