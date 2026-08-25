@@ -12,6 +12,7 @@ import json
 import base64
 import logging
 import asyncio
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 import uvicorn
@@ -57,23 +58,55 @@ rag_engine = RAGEngine(
 
 stt_engine = STTEngine(model_name="base", device="cpu")
 
-# Connected WebSocket clients
+# Connected WebSocket clients & Real-Time Presence Monitor
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        self.sessions: Dict[WebSocket, Dict[str, Any]] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, client_ip: str = "127.0.0.1"):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"Client connected. Total active: {len(self.active_connections)}")
+        now_ts = time.time()
+        self.sessions[websocket] = {
+            "session_id": f"sess_{int(now_ts * 1000)}",
+            "user_id": None,
+            "email": "Guest Rep",
+            "full_name": "Sales Rep (Guest)",
+            "role": "guest",
+            "ip_address": client_ip,
+            "connected_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "last_active": now_ts,
+            "state": "idle",
+            "is_meeting_active": False
+        }
+        logger.info(f"Client connected ({client_ip}). Total active: {len(self.active_connections)}")
+
+    def update_session(self, websocket: WebSocket, user_data: Dict[str, Any]):
+        if websocket in self.sessions:
+            self.sessions[websocket].update(user_data)
+            self.sessions[websocket]["last_active"] = time.time()
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-            logger.info(f"Client disconnected. Total active: {len(self.active_connections)}")
+        if websocket in self.sessions:
+            del self.sessions[websocket]
+        logger.info(f"Client disconnected. Total active: {len(self.active_connections)}")
+
+    def get_online_sessions(self) -> List[Dict[str, Any]]:
+        return list(self.sessions.values())
+
+    def is_user_online(self, user_id: Optional[int] = None, email: Optional[str] = None) -> bool:
+        for s in self.sessions.values():
+            if user_id is not None and s.get("user_id") == user_id:
+                return True
+            if email and s.get("email") and s.get("email").lower() == email.lower():
+                return True
+        return False
 
     async def broadcast(self, message: dict):
-        for connection in self.active_connections:
+        for connection in list(self.active_connections):
             try:
                 await connection.send_json(message)
             except Exception:
@@ -539,11 +572,24 @@ async def get_admin_overview(current_user: Dict[str, Any] = Depends(require_admi
         }
     }
 
+@app.get("/api/admin/active-sessions")
+async def get_admin_active_sessions(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Returns real-time list of all currently connected users & active sessions."""
+    sessions = manager.get_online_sessions()
+    return {"total": len(sessions), "sessions": sessions}
+
 @app.get("/api/admin/users")
 async def get_admin_users(current_user: Dict[str, Any] = Depends(require_admin)):
-    """Lists all registered users (Sales Reps and Admins)."""
+    """Lists all registered users (Sales Reps and Admins) with live online presence status."""
     users = models_db.list_all_users()
-    return {"total": len(users), "users": users}
+    annotated_users = []
+    for u in users:
+        is_online = manager.is_user_online(user_id=u["id"], email=u["email"])
+        annotated_users.append({
+            **u,
+            "is_online": is_online
+        })
+    return {"total": len(annotated_users), "users": annotated_users}
 
 @app.delete("/api/admin/users/{user_id}")
 async def delete_admin_user(
@@ -788,7 +834,8 @@ async def toggle_desktop_listener():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    client_ip = websocket.client.host if websocket.client else "127.0.0.1"
+    await manager.connect(websocket, client_ip=client_ip)
     # Conversational Rolling Sentence Memory & Utterance Accumulator
     sentence_buffer: List[str] = []
     last_chunk_time: float = 0.0
@@ -818,13 +865,29 @@ async def websocket_endpoint(websocket: WebSocket):
 
             msg_type = msg.get("type", "query")
 
-            if msg_type == "ping":
+            if msg_type == "auth_identify":
+                user_info = msg.get("user") or {}
+                manager.update_session(websocket, {
+                    "user_id": user_info.get("id"),
+                    "email": user_info.get("email") or "Guest Rep",
+                    "full_name": user_info.get("full_name") or "Sales Rep",
+                    "role": user_info.get("role") or "guest"
+                })
+                await websocket.send_json({"type": "auth_identified", "status": "ok"})
+
+            elif msg_type == "ping":
+                manager.update_session(websocket, {})
                 await websocket.send_json({"type": "pong", "time": time.time()})
 
             elif msg_type == "state_change":
-                # UI notifying stage e.g. listening / speaking
+                # UI notifying stage e.g. listening / speaking / meeting
                 state = msg.get("state", "idle")
-                logger.info(f"Client state changed to: {state}")
+                is_meeting = msg.get("is_meeting_active", False)
+                manager.update_session(websocket, {
+                    "state": state,
+                    "is_meeting_active": is_meeting
+                })
+                logger.info(f"Client state changed to: {state} (Meeting active: {is_meeting})")
 
             elif msg_type == "query":
                 query_text = msg.get("text", "").strip()

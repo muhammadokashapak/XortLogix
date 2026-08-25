@@ -173,6 +173,17 @@ function fallbackCopyText(text, successMsg) {
 let wsReconnectDelay = 2000;
 let wsReconnectTimer = null;
 
+function sendWebSocketAuth() {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    if (currentUser) {
+      state.ws.send(JSON.stringify({
+        type: 'auth_identify',
+        user: currentUser
+      }));
+    }
+  }
+}
+
 function initWebSocket() {
   if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -183,6 +194,7 @@ function initWebSocket() {
   state.ws.onopen = () => {
     wsReconnectDelay = 2000;
     if (el.statusPill) el.statusPill.textContent = '🟢 Online';
+    sendWebSocketAuth();
   };
 
   state.ws.onclose = () => {
@@ -1671,6 +1683,7 @@ async function handleLoginSubmit(e) {
       localStorage.setItem('sales_copilot_token', authToken);
       localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
       syncAuthUI();
+      sendWebSocketAuth();
       closeAuthModal();
       showToast(`👋 Welcome back, ${currentUser.full_name} (${currentUser.role})!`);
       if (currentUser.role === 'admin') {
@@ -1711,6 +1724,7 @@ async function handleRegisterSubmit(e) {
       localStorage.setItem('sales_copilot_token', authToken);
       localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
       syncAuthUI();
+      sendWebSocketAuth();
       closeAuthModal();
       showToast(`🎉 Sales rep account registered! Welcome, ${fullName}.`);
       switchMainView('chunks');
@@ -1985,18 +1999,61 @@ async function deleteUserChunk(chunkId) {
   }
 }
 
-// 4. Admin Dashboard Data Loader (Google Drive Backups + Users Table)
+// 4. Admin Dashboard Data Loader (Live Sessions + Google Drive Backups + Users Table)
 async function loadAdminDashboardData() {
   if (!currentUser || currentUser.role !== 'admin') return;
 
   try {
-    // 1. Overview Metrics
+    // 1. Live Active Sessions
+    const resSessions = await authFetch('/api/admin/active-sessions');
+    if (resSessions.ok) {
+      const sessData = await resSessions.json();
+      const sessions = sessData.sessions || [];
+      
+      const liveCountEl = document.getElementById('adminLiveUsers');
+      if (liveCountEl) liveCountEl.textContent = sessions.length;
+      
+      const badgeCountEl = document.getElementById('lblLiveSessionsCount');
+      if (badgeCountEl) badgeCountEl.textContent = `${sessions.length} Live Online`;
+
+      const tbodySessions = document.getElementById('adminLiveSessionsTableBody');
+      if (tbodySessions) {
+        if (sessions.length === 0) {
+          tbodySessions.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">No active sessions connected.</td></tr>';
+        } else {
+          tbodySessions.innerHTML = sessions.map(s => {
+            const isMeeting = s.is_meeting_active;
+            const liveBadge = isMeeting
+              ? `<span style="color:#38bdf8; font-weight:700;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#38bdf8;margin-right:6px;box-shadow:0 0 8px #38bdf8;animation:pulse 1s infinite;"></span>🎙️ In Live Meeting (Capturing)</span>`
+              : `<span style="color:#10b981; font-weight:700;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:6px;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online (Ready)</span>`;
+
+            return `
+              <tr>
+                <td><strong>${escapeHtml(s.full_name || 'Sales Rep')}</strong></td>
+                <td>${escapeHtml(s.email || 'Guest Rep')}</td>
+                <td>
+                  <span class="user-role-tag ${s.role === 'admin' ? 'admin' : 'user'}">
+                    ${s.role === 'admin' ? '👑 Admin' : (s.role === 'guest' ? '👤 Guest Rep' : '👤 Sales Rep')}
+                  </span>
+                </td>
+                <td>${liveBadge}</td>
+                <td><span style="font-family:monospace; color:#94a3b8;">${escapeHtml(s.ip_address || '127.0.0.1')}</span></td>
+                <td>${(s.connected_at || '').substring(0, 16).replace('T', ' ')}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // 2. Overview Metrics
     const resOverview = await authFetch('/api/admin/overview');
     if (resOverview.ok) {
       const ov = await resOverview.json();
-      document.getElementById('adminTotalUsers').textContent = ov.total_users || 0;
-      document.getElementById('adminTotalDocs').textContent = ov.total_documents || 0;
-      document.getElementById('adminTotalChunks').textContent = ov.total_custom_chunks || 0;
+      const usersEl = document.getElementById('adminTotalUsers');
+      if (usersEl) usersEl.textContent = ov.total_users || 0;
+      const docsEl = document.getElementById('adminTotalDocs');
+      if (docsEl) docsEl.textContent = ov.total_documents || 0;
       const gdriveEl = document.getElementById('adminGdriveStatus');
       if (gdriveEl) {
         gdriveEl.textContent = ov.gdrive_integration?.status || 'Active';
@@ -2004,7 +2061,7 @@ async function loadAdminDashboardData() {
       }
     }
 
-    // 2. Documents Table (with Google Drive webViewLink)
+    // 3. Documents Table (with Google Drive webViewLink)
     const resDocs = await authFetch('/api/admin/documents');
     if (resDocs.ok) {
       const docData = await resDocs.json();
@@ -2034,7 +2091,7 @@ async function loadAdminDashboardData() {
       }
     }
 
-    // 3. Users Roster Table (with Admin Delete User action)
+    // 4. Users Roster Table (with Live Online/Offline status & Admin Delete User action)
     const resUsers = await authFetch('/api/admin/users');
     if (resUsers.ok) {
       const userData = await resUsers.json();
@@ -2050,6 +2107,10 @@ async function loadAdminDashboardData() {
               ? '<span style="color:#64748b; font-size:11.5px; font-weight:600;"><i class="fa-solid fa-lock"></i> Protected</span>'
               : `<button type="button" class="btn-clean" onclick="deleteUserByAdmin(${u.id}, '${escapeHtml(u.full_name || u.email)}')" style="padding:4px 10px; font-size:11px; border-radius:6px; color:#f87171; border:1px solid rgba(239,68,68,0.35); background:rgba(239,68,68,0.12); cursor:pointer; font-weight:600;" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'" title="Permanently Delete Sales Rep"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
 
+            const statusPill = u.is_online
+              ? '<span style="color:#10b981; font-weight:700;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;margin-right:5px;box-shadow:0 0 8px #10b981;animation:pulse 1.5s infinite;"></span>🟢 Online Now</span>'
+              : '<span style="color:#64748b; font-weight:500;">⚪ Offline</span>';
+
             return `
               <tr>
                 <td>#${u.id}</td>
@@ -2060,7 +2121,7 @@ async function loadAdminDashboardData() {
                     ${u.role === 'admin' ? '👑 Admin' : '👤 Sales Rep'}
                   </span>
                 </td>
-                <td><span style="color:#10b981;">● Active</span></td>
+                <td>${statusPill}</td>
                 <td>${(u.created_at || '').substring(0, 10)}</td>
                 <td style="text-align: right;">${actionBtn}</td>
               </tr>

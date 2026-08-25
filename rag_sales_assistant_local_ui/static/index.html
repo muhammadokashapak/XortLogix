@@ -229,11 +229,19 @@
       
       <!-- Metrics Overview -->
       <div class="admin-metrics-grid">
+        <div class="metric-card" style="border-color: rgba(16, 185, 129, 0.4); background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%);">
+          <div class="metric-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;"><i class="fa-solid fa-signal fa-fade"></i></div>
+          <div class="metric-info">
+            <div class="metric-value" id="adminLiveUsers" style="color: #10b981;">0</div>
+            <div class="metric-label">Online Active Now</div>
+          </div>
+        </div>
+
         <div class="metric-card">
           <div class="metric-icon bg-cyan"><i class="fa-solid fa-users"></i></div>
           <div class="metric-info">
             <div class="metric-value" id="adminTotalUsers">0</div>
-            <div class="metric-label">Registered Sales Reps</div>
+            <div class="metric-label">Registered Accounts</div>
           </div>
         </div>
         
@@ -246,19 +254,45 @@
         </div>
 
         <div class="metric-card">
-          <div class="metric-icon bg-purple"><i class="fa-solid fa-cubes-stacked"></i></div>
-          <div class="metric-info">
-            <div class="metric-value" id="adminTotalChunks">0</div>
-            <div class="metric-label">Custom Vector Chunks</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
           <div class="metric-icon bg-yellow"><i class="fa-brands fa-google-drive"></i></div>
           <div class="metric-info">
             <div class="metric-value" id="adminGdriveStatus" style="font-size: 15px;">Active</div>
             <div class="metric-label">Google Drive Integration</div>
           </div>
+        </div>
+      </div>
+
+      <!-- 🟢 REAL-TIME LIVE CONNECTED USERS & ACTIVE SESSIONS MONITOR -->
+      <div class="admin-table-card" style="border: 1px solid rgba(16, 185, 129, 0.35); box-shadow: 0 0 25px rgba(16, 185, 129, 0.08); margin-bottom: 20px;">
+        <div class="table-header" style="border-bottom: 1px solid rgba(16, 185, 129, 0.2);">
+          <div class="table-title">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981; animation:pulse 1.5s infinite; margin-right:8px;"></span>
+            <span style="color:#10b981; font-weight:700;">Live Connected Users & Active Sessions</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="active-badge" id="lblLiveSessionsCount" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">0 Live Online</span>
+            <button class="btn-clean" onclick="loadAdminDashboardData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Active User</th>
+                <th>Email Address</th>
+                <th>Role</th>
+                <th>Real-Time Activity</th>
+                <th>Client IP</th>
+                <th>Connected At</th>
+              </tr>
+            </thead>
+            <tbody id="adminLiveSessionsTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center; color:#94a3b8;">Scanning active sessions...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1195,6 +1229,6 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_2158"></script>
+  <script src="/static/js/app.js?v=20260825_2210"></script>
 </body>
 </html>
