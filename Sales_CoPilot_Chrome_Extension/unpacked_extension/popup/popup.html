@@ -13,9 +13,15 @@
       <span class="logo-text">Sales Co-Pilot</span>
     </div>
     <div style="display:flex; align-items:center; gap:8px;">
+      <button id="btnHeaderUploadDoc" class="header-action-btn" style="display:none;" title="Upload custom playbook & generate strategies">
+        <span>📤 Upload Playbook</span>
+      </button>
       <span id="backendStatus" class="status-badge offline">🔴 Offline</span>
     </div>
   </div>
+
+  <!-- Hidden File Input for Direct Playbook Upload -->
+  <input type="file" id="popupFileInput" accept=".pdf,.docx,.txt,.csv" style="display:none;" />
 
   <!-- ========================================================================= -->
   <!-- 🔐 VIEW 1: AUTHENTICATION VIEW (SIGN IN / REGISTER ONLY) -->
@@ -26,6 +32,8 @@
       <div style="font-weight:700; font-size:14px; color:#f8fafc; margin-top:6px;">Sales Rep Access</div>
       <div style="font-size:11px; color:#94a3b8; margin-top:2px;">Sign in to activate real-time meeting AI co-pilot</div>
     </div>
+
+    <div id="authSuccessMsg" class="auth-success-pill" style="display:none;"></div>
 
     <div class="auth-toggle-row" style="margin-top:12px;">
       <button type="button" id="btnTabLogin" class="tab-btn active">Sign In</button>
@@ -86,12 +94,18 @@
 
     <!-- Active Strategy Knowledge Status -->
     <div class="kb-strip" id="kbStrip">
-      <div class="kb-label">
-        <span>📚 Playbook:</span>
-        <span id="lblActiveDocName" style="color:#38bdf8; font-weight:600;">zoom.pdf</span>
+      <div class="kb-label" style="display:flex; align-items:center; gap:6px; overflow:hidden;">
+        <span>📚</span>
+        <span id="lblActiveDocName" style="color:#38bdf8; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px;">zoom.pdf</span>
       </div>
-      <span id="lblActiveDocCards" class="cards-count-pill">70 Cards</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span id="lblActiveDocCards" class="cards-count-pill">70 Cards</span>
+        <button id="btnUploadDocMini" class="btn-mini-upload" title="Upload custom playbook documents">📤 Upload</button>
+      </div>
     </div>
+
+    <!-- Upload Status Alert Box -->
+    <div id="uploadStatusAlert" class="upload-alert" style="display:none;"></div>
 
     <!-- Meeting Connection Section -->
     <div class="meeting-connect-section">

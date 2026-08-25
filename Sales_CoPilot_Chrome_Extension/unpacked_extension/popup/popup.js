@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const authLoggedOutView = document.getElementById('authLoggedOutView');
   const mainDashboardView = document.getElementById('mainDashboardView');
   const authErrorMsg = document.getElementById('authErrorMsg');
+  const authSuccessMsg = document.getElementById('authSuccessMsg');
   const userDisplayName = document.getElementById('userDisplayName');
   const userRoleEmoji = document.getElementById('userRoleEmoji');
   const userRoleBadge = document.getElementById('userRoleBadge');
@@ -28,7 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const formMiniLogin = document.getElementById('formMiniLogin');
   const formMiniRegister = document.getElementById('formMiniRegister');
 
-  // Knowledge Elements
+  // Knowledge & Upload Elements
+  const btnHeaderUploadDoc = document.getElementById('btnHeaderUploadDoc');
+  const btnUploadDocMini = document.getElementById('btnUploadDocMini');
+  const popupFileInput = document.getElementById('popupFileInput');
+  const uploadStatusAlert = document.getElementById('uploadStatusAlert');
   const lblActiveDocName = document.getElementById('lblActiveDocName');
   const lblActiveDocCards = document.getElementById('lblActiveDocCards');
 
@@ -85,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (authLoggedOutView) authLoggedOutView.style.display = 'none';
       if (mainDashboardView) mainDashboardView.style.display = 'block';
       if (authLoggedInView) authLoggedInView.style.display = 'flex';
+      if (btnHeaderUploadDoc) btnHeaderUploadDoc.style.display = 'flex';
       
       const isAdmin = currentUser.role === 'admin';
       if (userDisplayName) userDisplayName.textContent = currentUser.full_name || currentUser.email;
@@ -97,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (authLoggedOutView) authLoggedOutView.style.display = 'block';
       if (mainDashboardView) mainDashboardView.style.display = 'none';
       if (authLoggedInView) authLoggedInView.style.display = 'none';
+      if (btnHeaderUploadDoc) btnHeaderUploadDoc.style.display = 'none';
     }
   }
 
@@ -107,6 +114,16 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         authErrorMsg.style.display = 'none';
       }, 5000);
+    }
+  }
+
+  function showAuthSuccess(msg) {
+    if (authSuccessMsg) {
+      authSuccessMsg.textContent = msg;
+      authSuccessMsg.style.display = 'block';
+      setTimeout(() => {
+        authSuccessMsg.style.display = 'none';
+      }, 7000);
     }
   }
 
@@ -126,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
       formMiniRegister.style.display = 'block';
       formMiniLogin.style.display = 'none';
       if (authErrorMsg) authErrorMsg.style.display = 'none';
+      if (authSuccessMsg) authSuccessMsg.style.display = 'none';
     });
   }
 
@@ -169,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Mini Register Submit
+  // Handle Mini Register Submit (STRICTLY REDIRECT TO LOGIN - NO AUTO LOGIN)
   if (formMiniRegister) {
     formMiniRegister.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -190,14 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
 
         if (res.ok && data.success) {
-          currentUser = data.user;
-          authToken = data.token;
-          chrome.storage.local.set({
-            sales_copilot_user: currentUser,
-            sales_copilot_token: authToken
-          });
-          syncAuthUI();
-          chrome.runtime.sendMessage({ type: 'user_authenticated', user: currentUser });
+          // Switch to Login Tab and let user log in manually
+          btnTabLogin.click();
+          document.getElementById('txtPopupEmail').value = email;
+          document.getElementById('txtPopupPassword').value = '';
+          document.getElementById('txtPopupPassword').focus();
+          showAuthSuccess(`✅ Account created for ${fullName}! Please enter your password to sign in.`);
         } else {
           showAuthError(`❌ ${data.detail || 'Registration failed.'}`);
         }
@@ -206,6 +222,64 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<span>Create Sales Rep Account</span> &rarr;';
+      }
+    });
+  }
+
+  // Document Upload Handlers
+  if (btnHeaderUploadDoc) {
+    btnHeaderUploadDoc.addEventListener('click', () => {
+      chrome.tabs.create({ url: `${BACKEND_URL}` });
+    });
+  }
+
+  if (btnUploadDocMini && popupFileInput) {
+    btnUploadDocMini.addEventListener('click', () => {
+      popupFileInput.click();
+    });
+
+    popupFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (uploadStatusAlert) {
+        uploadStatusAlert.style.display = 'block';
+        uploadStatusAlert.textContent = `⏳ Uploading & chunking "${file.name}"...`;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      if (currentUser) {
+        formData.append('user_email', currentUser.email);
+        formData.append('user_name', currentUser.full_name || currentUser.email);
+      }
+
+      try {
+        const uploadRes = await fetch(`${BACKEND_URL}/api/admin/documents/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+
+        if (uploadRes.ok && uploadData.success) {
+          if (uploadStatusAlert) {
+            uploadStatusAlert.textContent = `✅ Loaded "${file.name}" (${uploadData.extracted_cards || 0} Battlecards Extracted)!`;
+            setTimeout(() => {
+              uploadStatusAlert.style.display = 'none';
+            }, 6000);
+          }
+          checkBackendHealth();
+        } else {
+          if (uploadStatusAlert) {
+            uploadStatusAlert.textContent = `❌ ${uploadData.detail || 'Upload failed'}`;
+          }
+        }
+      } catch (err) {
+        if (uploadStatusAlert) {
+          uploadStatusAlert.textContent = '❌ Failed to upload playbook document.';
+        }
+      } finally {
+        popupFileInput.value = '';
       }
     });
   }
