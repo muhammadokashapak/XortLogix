@@ -44,10 +44,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Initialize engines
 rag_engine = RAGEngine(
-    pdf_path="zoom.pdf",
-    chroma_path="chroma_db_v2",
+    pdf_path=os.path.join(BASE_DIR, "zoom.pdf"),
+    chroma_path=os.path.join(BASE_DIR, "chroma_db_v2"),
     min_relevance=0.35,
     ollama_base_url="http://127.0.0.1:11434",
     llm_model="llama3.2:3b"
@@ -133,9 +135,9 @@ class DesktopAudioListener:
 
         SAMPLE_RATE = 16000
         FRAME_SIZE = 2048  # 128ms per frame
-        SILENCE_TRIGGER_FRAMES = 2  # ~250ms pause triggers end of phrase
+        SILENCE_TRIGGER_FRAMES = 4  # ~500ms natural clause pause
         MIN_SPEECH_FRAMES = 3      # ~380ms min speech
-        MAX_SPEECH_FRAMES = 12     # ~1.5s max speech buffer
+        MAX_SPEECH_FRAMES = 25     # ~3.2s max speech buffer per chunk
 
         while self.is_running:
             try:
@@ -178,7 +180,7 @@ class DesktopAudioListener:
                                 pcm_buffer.append(int16_bytes)
                                 silence_counter += 1
 
-                        # Natural pause or max phrase buffer reached
+                        # Natural pause (500ms) or max phrase buffer (3.2s) reached
                         natural_pause = speech_active and (silence_counter >= SILENCE_TRIGGER_FRAMES) and (len(pcm_buffer) >= MIN_SPEECH_FRAMES)
                         max_reached = len(pcm_buffer) >= MAX_SPEECH_FRAMES
 
@@ -227,8 +229,10 @@ class DesktopAudioListener:
                     logger.info(f"✅ [TRANSCRIPTION RESULT #{chunk_id}] '{clean_text}' (Latency: {lat:.1f}ms)")
                     
                     now = time.time()
-                    if self.sentence_buffer and (now - self.last_chunk_time) < 1.2:
-                        if clean_text.lower() not in " ".join(self.sentence_buffer).lower():
+                    # Smart Thought Accumulator: If client continues thought within 2.5s, combine clauses into one complete sentence
+                    if self.sentence_buffer and (now - self.last_chunk_time) < 2.5:
+                        existing_text = " ".join(self.sentence_buffer).lower()
+                        if clean_text.lower() not in existing_text:
                             self.sentence_buffer.append(clean_text)
                     else:
                         self.sentence_buffer = [clean_text]
@@ -237,21 +241,36 @@ class DesktopAudioListener:
                     full_sentence = " ".join(self.sentence_buffer).strip()
                     full_sentence = self.rag.correct_speech_transcript(full_sentence)
 
-                    if full_sentence and full_sentence != self.last_analyzed_sentence:
+                    # 1. Always stream live transcript to UI
+                    payload_transcription = {
+                        "type": "transcription_complete",
+                        "text": full_sentence,
+                        "chunk_text": clean_text,
+                        "stt_latency_ms": lat
+                    }
+                    if self.loop and self.loop.is_running():
+                        asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_transcription), self.loop)
+
+                    # 2. Check if the thought is mature enough for Strategic Intent Analysis
+                    words = full_sentence.split()
+                    sales_keywords = [
+                        "price", "rate", "cost", "discount", "cheap", "expensive", "nda", "security",
+                        "competitor", "other", "freelancer", "agency", "timeline", "delay", "deadline",
+                        "deliver", "milestone", "refund", "contract", "scope", "kam", "paisa", "mehanga",
+                        "less", "doing", "money", "budget", "offer", "charge"
+                    ]
+                    has_intent_keywords = any(kw in full_sentence.lower() for kw in sales_keywords)
+
+                    # Only run strategy lookup if full thought has intent keywords or length >= 3 words
+                    if (len(words) >= 3 or has_intent_keywords) and full_sentence != self.last_analyzed_sentence:
                         self.last_analyzed_sentence = full_sentence
 
-                        # RAG & Intent Analysis
+                        # RAG & Intent Analysis on complete accumulated sentence
                         rag_res = self.rag.query(full_sentence)
                         intent_res = self.rag.analyze_intent(full_sentence)
 
-                        logger.info(f"🎯 [STRATEGY DISPATCHED] Intent: {intent_res.get('intent_title')} | Q{rag_res.get('q_number')}")
+                        logger.info(f"🎯 [STRATEGY DISPATCHED] Complete Thought: '{full_sentence}' -> Intent: {intent_res.get('intent_title')} | Q{rag_res.get('q_number')}")
 
-                        payload_transcription = {
-                            "type": "transcription_complete",
-                            "text": full_sentence,
-                            "chunk_text": clean_text,
-                            "stt_latency_ms": lat
-                        }
                         payload_intent = {
                             "type": "intent_strategy_response",
                             "data": intent_res
@@ -262,7 +281,6 @@ class DesktopAudioListener:
                         }
 
                         if self.loop and self.loop.is_running():
-                            asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_transcription), self.loop)
                             asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_intent), self.loop)
                             asyncio.run_coroutine_threadsafe(self.broadcast_fn(payload_battlecard), self.loop)
                 else:

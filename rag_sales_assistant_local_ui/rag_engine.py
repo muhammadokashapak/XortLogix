@@ -29,8 +29,9 @@ class RAGEngine:
         llm_model: str = "llama3.2:3b",
         embedding_model: str = "nomic-embed-text"
     ):
-        self.pdf_path = pdf_path
-        self.chroma_path = chroma_path
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.pdf_path = os.path.join(base_dir, pdf_path) if not os.path.isabs(pdf_path) else pdf_path
+        self.chroma_path = os.path.join(base_dir, chroma_path) if not os.path.isabs(chroma_path) else chroma_path
         self.min_relevance = min_relevance
         self.ollama_base_url = ollama_base_url.rstrip("/")
         self.llm_model = llm_model
