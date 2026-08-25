@@ -506,17 +506,43 @@ function showStrategy(data) {
   const pitch = data.pitch || data.response || 'No strategy generated.';
   const confidence = data.confidence || data.confidence_percent || 0;
   const qNumber = data.q_number || '';
+  const mindset = data.mindset || '';
+  const hiddenConcern = data.hidden_concern || '';
+  const dos = Array.isArray(data.dos) ? data.dos : [];
+  const donts = Array.isArray(data.donts) ? data.donts : [];
+
+  let psychologyHtml = '';
+  if (mindset || hiddenConcern) {
+    psychologyHtml = `
+      <div style="background:rgba(15,23,42,0.7); border:1px solid rgba(56,189,248,0.25); border-radius:8px; padding:7px 10px; margin:8px 0; font-size:11px;">
+        ${mindset ? `<div style="margin-bottom:4px;"><strong style="color:#38bdf8;">🧠 Mindset:</strong> <span style="color:#e2e8f0;">${escapeHtml(mindset)}</span></div>` : ''}
+        ${hiddenConcern ? `<div><strong style="color:#f59e0b;">⚠️ Fear:</strong> <span style="color:#e2e8f0;">${escapeHtml(hiddenConcern)}</span></div>` : ''}
+      </div>
+    `;
+  }
+
+  let dosDontsHtml = '';
+  if (dos.length > 0 || donts.length > 0) {
+    dosDontsHtml = `
+      <div style="display:flex; gap:6px; margin:8px 0 4px 0; font-size:10px;">
+        ${dos.length > 0 ? `<div style="flex:1; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:5px 7px; color:#34d399;"><strong>✅ DO:</strong> ${escapeHtml(dos[0])}</div>` : ''}
+        ${donts.length > 0 ? `<div style="flex:1; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:5px 7px; color:#f87171;"><strong>❌ DON'T:</strong> ${escapeHtml(donts[0])}</div>` : ''}
+      </div>
+    `;
+  }
 
   const card = document.createElement('div');
   card.className = `strategy-card ${confidence >= 80 ? 'urgent' : ''}`;
   card.innerHTML = `
     <button class="card-dismiss-btn" title="Dismiss">✕</button>
     <div class="card-top">
-      <span class="card-match-badge">${confidence}% Match</span>
-      ${qNumber ? `<span class="card-q-num">Card #Q${qNumber}</span>` : ''}
+      <span class="card-match-badge">${confidence}% Confidence</span>
+      ${qNumber ? `<span class="card-q-num">Q${qNumber} Card</span>` : ''}
     </div>
     <div class="card-question">🎯 ${escapeHtml(question)}</div>
+    ${psychologyHtml}
     <div class="card-pitch">${formatFlowArrows(pitch)}</div>
+    ${dosDontsHtml}
     <div class="card-actions">
       <button class="btn-copy">📋 Copy Pitch</button>
     </div>

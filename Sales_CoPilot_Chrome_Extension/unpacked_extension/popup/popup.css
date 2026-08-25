@@ -264,12 +264,126 @@ body {
 
 .popup-footer {
   text-align: center;
-  padding: 8px;
+  padding: 10px 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 23, 42, 0.6);
 }
 
-.popup-footer small {
-  color: rgba(255, 255, 255, 0.35);
+/* --- Auth Strip --- */
+.auth-strip {
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-toggle-row {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.auth-strip input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  outline: none;
+}
+
+.auth-strip input:focus {
+  border-color: #38bdf8;
+}
+
+.btn-auth-action {
+  width: 100%;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-auth-action:hover {
+  opacity: 0.9;
+}
+
+.user-info-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-pill {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 9.5px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.btn-logout {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+/* --- Knowledge Base Strip --- */
+.kb-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(6, 182, 212, 0.06);
+  border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+  font-size: 11px;
+}
+
+.cards-count-pill {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 7px;
+  border-radius: 12px;
   font-size: 10px;
+  font-weight: 700;
 }
 

@@ -14,23 +14,54 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchCountEl = document.getElementById('matchCount');
   const sessionTimeEl = document.getElementById('sessionTime');
 
+  // Auth Elements
+  const authLoggedInView = document.getElementById('authLoggedInView');
+  const authLoggedOutView = document.getElementById('authLoggedOutView');
+  const userDisplayName = document.getElementById('userDisplayName');
+  const userRoleEmoji = document.getElementById('userRoleEmoji');
+  const userRoleBadge = document.getElementById('userRoleBadge');
+  const btnLogout = document.getElementById('btnLogout');
+  const btnTabLogin = document.getElementById('btnTabLogin');
+  const btnTabRegister = document.getElementById('btnTabRegister');
+  const formMiniLogin = document.getElementById('formMiniLogin');
+  const formMiniRegister = document.getElementById('formMiniRegister');
+
+  // Knowledge Elements
+  const lblActiveDocName = document.getElementById('lblActiveDocName');
+  const lblActiveDocCards = document.getElementById('lblActiveDocCards');
+
   let isCapturing = false;
   let sessionTimer = null;
   let sessionSeconds = 0;
   let queryCount = 0;
   let matchCount = 0;
+  let currentUser = null;
+  let authToken = '';
 
-  // Load state & saved meeting URL from storage
-  chrome.storage.local.get(['isCapturing', 'sessionSeconds', 'queryCount', 'matchCount', 'savedMeetingUrl'], (result) => {
+  const BACKEND_URL = 'http://127.0.0.1:8000';
+
+  // 1. Load User Session & Storage
+  chrome.storage.local.get([
+    'isCapturing',
+    'sessionSeconds',
+    'queryCount',
+    'matchCount',
+    'savedMeetingUrl',
+    'sales_copilot_user',
+    'sales_copilot_token'
+  ], (result) => {
     isCapturing = result.isCapturing || false;
     sessionSeconds = result.sessionSeconds || 0;
     queryCount = result.queryCount || 0;
     matchCount = result.matchCount || 0;
-    
+    currentUser = result.sales_copilot_user || null;
+    authToken = result.sales_copilot_token || '';
+
+    syncAuthUI();
+
     if (result.savedMeetingUrl && meetingUrlInput) {
       meetingUrlInput.value = result.savedMeetingUrl;
     } else {
-      // Check if current tab is a meeting URL and pre-fill
       chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
         if (tab && tab.url && (tab.url.includes('meet.google.com') || tab.url.includes('zoom.us') || tab.url.includes('teams.microsoft.com'))) {
           meetingUrlInput.value = tab.url;
@@ -45,6 +76,136 @@ document.addEventListener('DOMContentLoaded', () => {
       startTimer();
     }
   });
+
+  // --- Auth UI Sync ---
+  function syncAuthUI() {
+    if (currentUser) {
+      if (authLoggedInView) authLoggedInView.style.display = 'flex';
+      if (authLoggedOutView) authLoggedOutView.style.display = 'none';
+      const isAdmin = currentUser.role === 'admin';
+      if (userDisplayName) userDisplayName.textContent = currentUser.full_name || currentUser.email;
+      if (userRoleEmoji) userRoleEmoji.textContent = isAdmin ? '👑' : '👤';
+      if (userRoleBadge) {
+        userRoleBadge.textContent = isAdmin ? 'Admin' : 'Rep';
+        userRoleBadge.style.color = isAdmin ? '#f59e0b' : '#38bdf8';
+      }
+    } else {
+      if (authLoggedInView) authLoggedInView.style.display = 'none';
+      if (authLoggedOutView) authLoggedOutView.style.display = 'block';
+    }
+  }
+
+  // Auth Tabs Toggle
+  if (btnTabLogin && btnTabRegister) {
+    btnTabLogin.addEventListener('click', () => {
+      btnTabLogin.classList.add('active');
+      btnTabRegister.classList.remove('active');
+      formMiniLogin.style.display = 'block';
+      formMiniRegister.style.display = 'none';
+    });
+
+    btnTabRegister.addEventListener('click', () => {
+      btnTabRegister.classList.add('active');
+      btnTabLogin.classList.remove('active');
+      formMiniRegister.style.display = 'block';
+      formMiniLogin.style.display = 'none';
+    });
+  }
+
+  // Handle Mini Login Submit
+  if (formMiniLogin) {
+    formMiniLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('txtPopupEmail').value.trim();
+      const password = document.getElementById('txtPopupPassword').value;
+      const btn = document.getElementById('btnPopupLogin');
+
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          currentUser = data.user;
+          authToken = data.token;
+          chrome.storage.local.set({
+            sales_copilot_user: currentUser,
+            sales_copilot_token: authToken
+          });
+          syncAuthUI();
+          chrome.runtime.sendMessage({ type: 'user_authenticated', user: currentUser });
+          captureStatus.textContent = `👋 Logged in as ${currentUser.full_name}`;
+        } else {
+          captureStatus.textContent = `❌ ${data.detail || 'Login failed.'}`;
+        }
+      } catch (err) {
+        captureStatus.textContent = '❌ Backend connection error.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In to Co-Pilot →';
+      }
+    });
+  }
+
+  // Handle Mini Register Submit
+  if (formMiniRegister) {
+    formMiniRegister.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById('txtPopupRegName').value.trim();
+      const email = document.getElementById('txtPopupRegEmail').value.trim();
+      const password = document.getElementById('txtPopupRegPassword').value;
+      const btn = document.getElementById('btnPopupRegister');
+
+      btn.disabled = true;
+      btn.textContent = 'Registering Rep...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName, email, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          currentUser = data.user;
+          authToken = data.token;
+          chrome.storage.local.set({
+            sales_copilot_user: currentUser,
+            sales_copilot_token: authToken
+          });
+          syncAuthUI();
+          chrome.runtime.sendMessage({ type: 'user_authenticated', user: currentUser });
+          captureStatus.textContent = `🎉 Registered & Active: ${fullName}`;
+        } else {
+          captureStatus.textContent = `❌ ${data.detail || 'Registration failed.'}`;
+        }
+      } catch (err) {
+        captureStatus.textContent = '❌ Network error during registration.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Sales Rep Account →';
+      }
+    });
+  }
+
+  // Handle Logout
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      currentUser = null;
+      authToken = '';
+      chrome.storage.local.remove(['sales_copilot_user', 'sales_copilot_token']);
+      syncAuthUI();
+      chrome.runtime.sendMessage({ type: 'user_logged_out' });
+      captureStatus.textContent = 'Logged out. Switched to Guest Rep mode.';
+    });
+  }
 
   // Paste from clipboard button
   if (btnPasteUrl) {
@@ -67,15 +228,23 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.set({ savedMeetingUrl: meetingUrlInput.value.trim() });
   });
 
-  // Check Backend Health
+  // Check Backend Health & Active Strategy Status
   async function checkBackendHealth() {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/health');
+      const response = await fetch(`${BACKEND_URL}/api/health`);
       if (response.ok) {
         backendStatus.textContent = '🟢 Online';
         backendStatus.className = 'status-badge online';
       } else {
-        throw new Error('Backend not healthy');
+        throw new Error('Backend offline');
+      }
+
+      // Fetch Knowledge Status
+      const kbRes = await fetch(`${BACKEND_URL}/api/knowledge-status`);
+      if (kbRes.ok) {
+        const kbData = await kbRes.json();
+        if (lblActiveDocName) lblActiveDocName.textContent = kbData.active_document || 'Playbook';
+        if (lblActiveDocCards) lblActiveDocCards.textContent = `${kbData.total_cards || 0} Cards`;
       }
     } catch (error) {
       backendStatus.textContent = '🔴 Offline';
@@ -123,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       btnConnectMeeting.classList.remove('active');
       btnToggleCapture.classList.remove('active');
-      connectBtnText.textContent = 'Connect to Meeting';
+      connectBtnText.textContent = 'Connect Meeting & Start Co-Pilot';
       btnText.textContent = 'Listen Active Tab';
       captureStatus.textContent = 'Ready to connect to meeting audio';
       stopTimer();

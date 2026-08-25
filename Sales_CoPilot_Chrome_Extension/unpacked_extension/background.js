@@ -307,6 +307,16 @@ function connectWebSocket(retryCount = 0) {
       backendOnline = true;
       retryCount = 0;
       broadcastToPopup({ type: 'status_update', data: { backendOnline: true } });
+
+      // Send authenticated user identity to backend
+      chrome.storage.local.get(['sales_copilot_user'], (res) => {
+        if (res.sales_copilot_user && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+          wsConnection.send(JSON.stringify({
+            type: 'auth_identify',
+            user: res.sales_copilot_user
+          }));
+        }
+      });
     };
 
     wsConnection.onmessage = (event) => {
@@ -324,6 +334,32 @@ function connectWebSocket(retryCount = 0) {
               type: 'transcript_update',
               data: { text: msg.text, latency_ms: msg.stt_latency_ms, final: true }
             }).catch(() => {});
+          }
+        }
+
+        // Handle Real-Time Intent & Psychology Strategy Response
+        if (msg.type === 'intent_strategy_response' && activeTabId) {
+          const intentData = msg.data;
+          if (intentData && intentData.is_match) {
+            chrome.tabs.sendMessage(activeTabId, {
+              type: 'show_strategy',
+              data: {
+                question: intentData.client_intent_summary || intentData.intent_title,
+                pitch: intentData.recommended_pitch,
+                mindset: intentData.client_mindset,
+                hidden_concern: intentData.hidden_concern,
+                dos: intentData.dos,
+                donts: intentData.donts,
+                confidence: intentData.confidence_percent || 95,
+                q_number: intentData.matched_card_id,
+                match_source: 'Intent Psychology Engine'
+              }
+            }).catch(() => {});
+
+            broadcastToPopup({
+              type: 'strategy_found',
+              data: { pitch: intentData.recommended_pitch }
+            });
           }
         }
 
