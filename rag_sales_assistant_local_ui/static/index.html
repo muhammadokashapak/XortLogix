@@ -708,7 +708,13 @@
         modal.style.display = 'none';
       }
     }
+
+    window.openPlaybookModal = openPlaybookModal;
+    window.closePlaybookModal = closePlaybookModal;
     window.closeIntentModal = closeIntentModal;
+    window.onPlaybookFileSelected = onPlaybookFileSelected;
+    window.uploadPlaybookNow = uploadPlaybookNow;
+    window.resetPlaybookNow = resetPlaybookNow;
 
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
