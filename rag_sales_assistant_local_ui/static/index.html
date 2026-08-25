@@ -33,11 +33,11 @@
       <div class="header-options">
         
         <!-- User Profile / Auth Chip -->
-        <div class="user-auth-badge" id="userAuthBadge" onclick="openAuthModal()" title="Click to Switch User / Login">
-          <i class="fa-solid fa-crown text-amber" id="userRoleIcon"></i>
-          <span id="userDisplayName">okashaxortlogix@gmail.com</span>
-          <span class="user-role-tag" id="userRoleTag">Admin</span>
-          <button class="btn-logout" id="btnLogout" onclick="logoutUser(event)" title="Log Out"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        <div class="user-auth-badge" id="userAuthBadge" onclick="openAuthModal()" title="Click to Sign In / Switch Account">
+          <i class="fa-solid fa-user-tie text-cyan" id="userRoleIcon"></i>
+          <span id="userDisplayName">Sales Rep Mode</span>
+          <span class="user-role-tag user" id="userRoleTag" style="display: none;">Sales Rep</span>
+          <button class="btn-logout" id="btnLogout" onclick="logoutUser(event)" title="Log Out" style="display: none;"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
         </div>
 
         <label class="toggle-control" title="Auto-capture Zoom Desktop App and system audio via Windows WASAPI">

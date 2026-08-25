@@ -930,32 +930,36 @@ function setupEvents() {
   });
 
   // Mic Click -> Direct Connect Google Meet Tab (Client Voice)
-  el.btnMasterMic.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (state.isMeetingStreaming || state.isListening) {
-      stopMeetingAudioStream();
-      stopListening();
-      showToast('Client Audio Stream Stopped');
-    } else {
-      openMeetingModal();
-    }
-  });
+  if (el.btnMasterMic) {
+    el.btnMasterMic.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (state.isMeetingStreaming || state.isListening) {
+        stopMeetingAudioStream();
+        stopListening();
+        showToast('Client Audio Stream Stopped');
+      } else {
+        openMeetingModal();
+      }
+    });
 
-  // Mobile Push-to-Talk (Touch & Hold Support)
-  el.btnMasterMic.addEventListener('touchstart', (e) => {
-    if (!state.isMeetingStreaming && !state.isListening) {
-      openMeetingModal();
-    }
-  }, { passive: true });
+    // Mobile Push-to-Talk (Touch & Hold Support)
+    el.btnMasterMic.addEventListener('touchstart', (e) => {
+      if (!state.isMeetingStreaming && !state.isListening) {
+        openMeetingModal();
+      }
+    }, { passive: true });
+  }
 
-  el.btnMiniMic.addEventListener('click', () => {
-    if (state.isMeetingStreaming || state.isListening) {
-      stopMeetingAudioStream();
-      stopListening();
-    } else {
-      openMeetingModal();
-    }
-  });
+  if (el.btnMiniMic) {
+    el.btnMiniMic.addEventListener('click', () => {
+      if (state.isMeetingStreaming || state.isListening) {
+        stopMeetingAudioStream();
+        stopListening();
+      } else {
+        openMeetingModal();
+      }
+    });
+  }
 
   // Meeting Modal Event Handlers
   if (el.btnCloseMeetingModal) {
@@ -977,9 +981,11 @@ function setupEvents() {
     el.cardSourceTab.addEventListener('click', () => {
       state.audioSourceType = 'tab';
       el.cardSourceTab.classList.add('active');
-      el.cardSourceMic.classList.remove('active');
-      el.cardSourceTab.querySelector('.source-radio').innerHTML = '<i class="fa-solid fa-circle-dot text-cyan"></i>';
-      el.cardSourceMic.querySelector('.source-radio').innerHTML = '<i class="fa-regular fa-circle"></i>';
+      if (el.cardSourceMic) el.cardSourceMic.classList.remove('active');
+      const radioTab = el.cardSourceTab.querySelector('.source-radio');
+      if (radioTab) radioTab.innerHTML = '<i class="fa-solid fa-circle-dot text-cyan"></i>';
+      const radioMic = el.cardSourceMic ? el.cardSourceMic.querySelector('.source-radio') : null;
+      if (radioMic) radioMic.innerHTML = '<i class="fa-regular fa-circle"></i>';
     });
   }
 
@@ -987,9 +993,11 @@ function setupEvents() {
     el.cardSourceMic.addEventListener('click', () => {
       state.audioSourceType = 'mic';
       el.cardSourceMic.classList.add('active');
-      el.cardSourceTab.classList.remove('active');
-      el.cardSourceMic.querySelector('.source-radio').innerHTML = '<i class="fa-solid fa-circle-dot text-cyan"></i>';
-      el.cardSourceTab.querySelector('.source-radio').innerHTML = '<i class="fa-regular fa-circle"></i>';
+      if (el.cardSourceTab) el.cardSourceTab.classList.remove('active');
+      const radioMic = el.cardSourceMic.querySelector('.source-radio');
+      if (radioMic) radioMic.innerHTML = '<i class="fa-solid fa-circle-dot text-cyan"></i>';
+      const radioTab = el.cardSourceTab ? el.cardSourceTab.querySelector('.source-radio') : null;
+      if (radioTab) radioTab.innerHTML = '<i class="fa-regular fa-circle"></i>';
     });
   }
 
@@ -1025,7 +1033,6 @@ function setupEvents() {
     el.btnStartMeetingAudio.addEventListener('click', () => {
       const url = el.txtMeetingUrl ? el.txtMeetingUrl.value.trim() : '';
       if (url && !state.isMeetingStreaming) {
-        // If URL provided and not yet opened, give helpful notice
         showToast('Connecting audio stream for meeting...');
       }
       startMeetingAudioStream();
@@ -1041,22 +1048,34 @@ function setupEvents() {
   }
 
   // Continuous Hands-Free VAD Toggle
-  el.chkContinuousVad.addEventListener('change', (e) => {
-    state.continuousVad = e.target.checked;
-    if (state.continuousVad) {
-      startListening();
-      showToast('Continuous Hands-Free VAD On');
-    } else {
-      stopListening();
-      showToast('Push-to-Talk (Spacebar) Mode');
-    }
-  });
+  if (el.chkContinuousVad) {
+    el.chkContinuousVad.addEventListener('change', (e) => {
+      state.continuousVad = e.target.checked;
+      if (state.continuousVad) {
+        startListening();
+        showToast('Continuous Hands-Free VAD On');
+      } else {
+        stopListening();
+        showToast('Push-to-Talk (Spacebar) Mode');
+      }
+    });
+  }
 
   // Auto-Popup Toggle
-  el.chkAutoPopup.addEventListener('change', (e) => {
-    state.autoPopup = e.target.checked;
-    showToast(state.autoPopup ? 'Auto Strategy Popup Enabled' : 'Auto Strategy Popup Disabled');
-  });
+  if (el.chkAutoPopup) {
+    el.chkAutoPopup.addEventListener('change', (e) => {
+      state.autoPopup = e.target.checked;
+      showToast(state.autoPopup ? 'Auto Strategy Popup Enabled' : 'Auto Strategy Popup Disabled');
+    });
+  }
+
+  // Top Nav Tabs
+  const tabLive = document.getElementById('tabLiveAssist');
+  if (tabLive) tabLive.addEventListener('click', () => switchMainView('live'));
+  const tabChunks = document.getElementById('tabChunkManager');
+  if (tabChunks) tabChunks.addEventListener('click', () => switchMainView('chunks'));
+  const tabAdmin = document.getElementById('tabAdminDashboard');
+  if (tabAdmin) tabAdmin.addEventListener('click', () => switchMainView('admin'));
 
   // Auto-TTS Toggle
   if (el.chkAutoTts) {
@@ -1546,29 +1565,37 @@ function syncAuthUI() {
   const nameLabel = document.getElementById('userDisplayName');
   const roleTag = document.getElementById('userRoleTag');
   const adminTab = document.getElementById('tabAdminDashboard');
+  const logoutBtn = document.getElementById('btnLogout');
 
   if (!currentUser) {
-    if (nameLabel) nameLabel.textContent = 'Sales Rep (Guest)';
+    if (nameLabel) nameLabel.textContent = 'Sales Rep Mode';
     if (roleTag) {
       roleTag.textContent = 'Sales Rep';
       roleTag.className = 'user-role-tag user';
+      roleTag.style.display = 'none';
     }
     if (roleIcon) {
       roleIcon.className = 'fa-solid fa-user-tie text-cyan';
     }
+    if (logoutBtn) logoutBtn.style.display = 'none';
     if (adminTab) adminTab.style.display = 'none';
+    loadUserChunks();
     return;
   }
 
   const isAdmin = currentUser.role === 'admin';
 
-  if (nameLabel) nameLabel.textContent = currentUser.email || currentUser.full_name;
+  if (nameLabel) nameLabel.textContent = isAdmin ? currentUser.email : (currentUser.full_name || currentUser.email);
   if (roleTag) {
     roleTag.textContent = isAdmin ? 'Admin' : 'Sales Rep';
     roleTag.className = `user-role-tag ${isAdmin ? 'admin' : 'user'}`;
+    roleTag.style.display = 'inline-block';
   }
   if (roleIcon) {
-    roleIcon.className = isAdmin ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user-tie text-cyan';
+    roleIcon.className = isAdmin ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user text-cyan';
+  }
+  if (logoutBtn) {
+    logoutBtn.style.display = 'inline-block';
   }
 
   // Strictly enforce Admin Tab visibility: ONLY visible if authenticated role === 'admin'
@@ -1746,31 +1773,39 @@ async function handleUserFileUpload(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
 
-  if (!authToken) {
-    showToast('Please sign in to upload strategy documents.');
-    openAuthModal();
-    return;
-  }
-
   const progressBox = document.getElementById('userUploadProgressBox');
   const statusText = document.getElementById('userUploadStatusText');
 
   if (progressBox) progressBox.style.display = 'block';
-  if (statusText) statusText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Stream A: Uploading to Admin Google Drive & Stream B: Vector Indexing...';
+  if (statusText) statusText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading & parsing strategy chunks into Vector DB...';
 
   try {
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await authFetch('/api/user/documents/upload', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
+    let res, data;
+    if (authToken) {
+      res = await authFetch('/api/user/documents/upload', {
+        method: 'POST',
+        body: formData
+      });
+      data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`☁️ Backed up to Google Drive & generated ${data.chunks_count} strategy chunks!`);
+      }
+    } else {
+      res = await fetch('/api/upload-document', {
+        method: 'POST',
+        body: formData
+      });
+      data = await res.json();
+      if (res.ok && data.success) {
+        showToast(`✅ Generated & indexed ${data.total_chunks} custom strategy chunks!`);
+      }
+    }
 
     if (res.ok && data.success) {
-      const driveInfo = data.drive_backup || {};
-      showToast(`☁️ Backed up to Google Drive & generated ${data.chunks_count} strategy chunks!`);
+      refreshPlaybookStatus();
       loadUserChunks();
     } else {
       showToast(data.detail || 'Upload failed.');
@@ -1784,19 +1819,38 @@ async function handleUserFileUpload(e) {
 }
 
 async function loadUserChunks() {
-  if (!authToken) return;
   try {
-    const res = await authFetch('/api/user/chunks');
-    const data = await res.json();
-    userChunksData = data.chunks || [];
-
+    let chunks = [];
+    if (authToken) {
+      const res = await authFetch('/api/user/chunks');
+      if (res.ok) {
+        const data = await res.json();
+        chunks = data.chunks || [];
+      }
+    }
+    // If no user custom chunks yet, load from active battlecards (/api/battlecards)
+    if (chunks.length === 0) {
+      const resBc = await fetch('/api/battlecards');
+      if (resBc.ok) {
+        const dataBc = await resBc.json();
+        chunks = (dataBc.battlecards || []).map((b, idx) => ({
+          id: b.id || b.q_number || (idx + 1),
+          title: b.question || `Battlecard #${b.q_number || idx + 1}`,
+          strategy_pitch: b.pitch || b.response || '',
+          context: b.context || '',
+          is_base: true
+        }));
+      }
+    }
+    userChunksData = chunks;
     const countBadge = document.getElementById('userChunksCount');
     const metaLbl = document.getElementById('lblChunksMeta');
     if (countBadge) countBadge.textContent = userChunksData.length;
-    if (metaLbl) metaLbl.textContent = `Showing ${userChunksData.length} custom strategy chunks`;
-
+    if (metaLbl) metaLbl.textContent = `Showing ${userChunksData.length} strategy chunks`;
     renderUserChunksGrid(userChunksData);
-  } catch (e) {}
+  } catch (e) {
+    console.error('Error loading chunks:', e);
+  }
 }
 
 function renderUserChunksGrid(chunks) {
