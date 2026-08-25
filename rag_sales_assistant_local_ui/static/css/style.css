@@ -2564,23 +2564,38 @@ body.light-theme /* ============================================================
 /* ========================================================================= */
 
 .intent-modal-overlay, .simple-modal, .meeting-modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background: rgba(2, 6, 23, 0.88) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.intent-modal-overlay[style*="display: flex"],
+.intent-modal-overlay.active,
+.simple-modal[style*="display: flex"],
+.simple-modal.active,
+.meeting-modal-overlay[style*="display: flex"],
+.meeting-modal-overlay.active {
   display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  z-index: 999999 !important;
-  padding: 20px !important;
-  box-sizing: border-box !important;
   animation: fadeInOverlay 0.2s ease-out;
+}
+
+.intent-modal-overlay[style*="display: none"],
+.simple-modal[style*="display: none"],
+.meeting-modal-overlay[style*="display: none"] {
+  display: none !important;
 }
 
 @keyframes fadeInOverlay {

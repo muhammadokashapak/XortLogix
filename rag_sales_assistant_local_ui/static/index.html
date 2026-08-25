@@ -625,13 +625,13 @@
         </div>
 
         <!-- Native Clickable & Drag & Drop Upload Zone -->
-        <label for="playbookFileInput" id="playbookDropZone" style="display: block; border: 2px dashed #38bdf8; border-radius: 14px; padding: 32px 16px; text-align: center; background: rgba(15, 23, 42, 0.5); cursor: pointer; transition: all 0.2s ease;">
+        <div id="playbookDropZone" onclick="document.getElementById('playbookFileInput').click()" style="display: block; border: 2px dashed #38bdf8; border-radius: 14px; padding: 32px 16px; text-align: center; background: rgba(15, 23, 42, 0.5); cursor: pointer; transition: all 0.2s ease;">
           <input type="file" id="playbookFileInput" onchange="onPlaybookFileSelected(this)" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display: none;" />
           <i class="fa-solid fa-file-arrow-up" style="font-size: 44px; color: #38bdf8; margin-bottom: 12px; display: inline-block;"></i>
           <div style="font-size: 16px; font-weight: 700; color: #f8fafc;">Click to Select or Drag & Drop Strategy Document</div>
           <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">Supports PDF, Word (.docx), Plain Text (.txt), Markdown (.md), and CSV</div>
           <div id="selectedFileName" style="margin-top: 14px; font-size: 14px; font-weight: 700; color: #38bdf8; display: none; background: rgba(56, 189, 248, 0.15); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3);"></div>
-        </label>
+        </div>
 
         <!-- Action Buttons -->
         <div style="display: flex; gap: 12px; margin-top: 20px;">
@@ -690,7 +690,8 @@
     function openPlaybookModal() {
       var modal = document.getElementById('modalUploadPlaybook');
       if (modal) {
-        modal.style.display = 'flex';
+        modal.style.setProperty('display', 'flex', 'important');
+        modal.classList.add('active');
         fetchPlaybookStatus();
       }
     }
@@ -698,14 +699,16 @@
     function closePlaybookModal() {
       var modal = document.getElementById('modalUploadPlaybook');
       if (modal) {
-        modal.style.display = 'none';
+        modal.style.setProperty('display', 'none', 'important');
+        modal.classList.remove('active');
       }
     }
 
     function closeIntentModal() {
       var modal = document.getElementById('intentStrategyModal');
       if (modal) {
-        modal.style.display = 'none';
+        modal.style.setProperty('display', 'none', 'important');
+        modal.classList.remove('active');
       }
     }
 
@@ -724,13 +727,14 @@
     });
 
     function onPlaybookFileSelected(input) {
-      if (input.files && input.files[0]) {
-        var file = input.files[0];
+      var files = input.files || (input.target && input.target.files);
+      if (files && files[0]) {
+        var file = files[0];
         globalSelectedPlaybookFile = file;
         var nameDisplay = document.getElementById('selectedFileName');
         if (nameDisplay) {
           nameDisplay.style.display = 'block';
-          nameDisplay.innerHTML = '📄 <strong>Selected:</strong> ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+          nameDisplay.innerHTML = '📄 <strong>Selected:</strong> ' + escapeHtml(file.name) + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
         }
         var btn = document.getElementById('btnSubmitPlaybook');
         if (btn) {
@@ -785,6 +789,9 @@
             resultMsg.innerHTML = '🎉 <strong>Success!</strong> Activated <strong>' + data.filename + '</strong> with <strong>' + data.total_chunks + ' strategy chunks</strong>. Embeddings are live!';
           }
           fetchPlaybookStatus();
+          if (typeof loadAndRenderChunks === 'function') loadAndRenderChunks();
+          if (typeof loadUserChunks === 'function') loadUserChunks();
+          if (typeof refreshPlaybookStatus === 'function') refreshPlaybookStatus();
           if (typeof loadKnowledgeBase === 'function') loadKnowledgeBase();
         } else {
           throw new Error(data.detail || 'Upload failed');
@@ -824,6 +831,9 @@
             resultMsg.textContent = '🔄 Restored default zoom.pdf with 70 sales battlecards.';
           }
           fetchPlaybookStatus();
+          if (typeof loadAndRenderChunks === 'function') loadAndRenderChunks();
+          if (typeof loadUserChunks === 'function') loadUserChunks();
+          if (typeof refreshPlaybookStatus === 'function') refreshPlaybookStatus();
           if (typeof loadKnowledgeBase === 'function') loadKnowledgeBase();
         }
       } catch (e) {

@@ -1374,31 +1374,27 @@ function setupPlaybookUpload() {
   }
 
   if (dropZone && fileInput) {
-    dropZone.addEventListener('click', () => fileInput.click());
-
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       dropZone.style.borderColor = '#38bdf8';
-      dropZone.style.background = 'rgba(56, 189, 248, 0.1)';
+      dropZone.style.background = 'rgba(56, 189, 248, 0.15)';
     });
 
     dropZone.addEventListener('dragleave', () => {
       dropZone.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-      dropZone.style.background = 'rgba(15, 23, 42, 0.3)';
+      dropZone.style.background = 'rgba(15, 23, 42, 0.5)';
     });
 
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-      dropZone.style.background = 'rgba(15, 23, 42, 0.3)';
+      dropZone.style.background = 'rgba(15, 23, 42, 0.5)';
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleFileSelect(e.dataTransfer.files[0]);
-      }
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        handleFileSelect(e.target.files[0]);
+        if (typeof onPlaybookFileSelected === 'function') {
+          onPlaybookFileSelected({ files: e.dataTransfer.files });
+        } else {
+          handleFileSelect(e.dataTransfer.files[0]);
+        }
       }
     });
   }
