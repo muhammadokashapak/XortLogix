@@ -2612,13 +2612,33 @@ body.light-theme /* ============================================================
   background: #0f172a !important;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(10, 15, 30, 0.98) 100%) !important;
   border: 1px solid rgba(56, 189, 248, 0.35) !important;
-  border-radius: 20px !important;
+  border-radius: 18px !important;
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(56, 189, 248, 0.2) !important;
   max-height: 90vh !important;
-  max-width: 95vw !important;
+  width: 92% !important;
   overflow-y: auto !important;
   position: relative !important;
   animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.intent-modal-card {
+  max-width: 740px !important;
+}
+
+.meeting-modal-card {
+  max-width: 620px !important;
+}
+
+.modal-card {
+  max-width: 680px !important;
+}
+
+.auth-modal-card {
+  max-width: 440px !important;
+}
+
+.edit-chunk-modal-card {
+  max-width: 580px !important;
 }
 
 .intent-modal-header, .modal-card-header {
