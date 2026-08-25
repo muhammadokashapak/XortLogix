@@ -15,7 +15,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -296,6 +296,15 @@ class DesktopAudioListener:
 desktop_listener = DesktopAudioListener(stt_engine, rag_engine, manager.broadcast)
 
 # --- Request Models ---
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class QueryRequest(BaseModel):
     query: str
     top_k: Optional[int] = 3
@@ -307,6 +316,249 @@ class ConfigUpdateRequest(BaseModel):
     min_relevance: Optional[float] = None
     llm_model: Optional[str] = None
     ollama_base_url: Optional[str] = None
+
+class UpdateChunkRequest(BaseModel):
+    title: str
+    strategy_pitch: str
+    context: Optional[str] = None
+    is_active: Optional[int] = 1
+
+# --- Multi-Tenant & RBAC Services ---
+import models_db
+import auth_service
+from auth_service import get_current_user, get_current_user_optional, require_admin, require_user
+from gdrive_service import gdrive_service
+from doc_processor import DocumentProcessor
+
+# =========================================================================
+# 🔐 AUTHENTICATION & MULTI-TENANT RBAC ROUTES
+# =========================================================================
+
+@app.post("/api/auth/register")
+async def register_user(req: RegisterRequest):
+    """Registers a new standard sales rep user."""
+    if not req.email or not req.password or not req.full_name:
+        raise HTTPException(status_code=400, detail="Email, password, and full name are required.")
+    
+    existing = models_db.get_user_by_email(req.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    
+    pwd_hash = auth_service.hash_password(req.password)
+    user = models_db.create_user(req.email, pwd_hash, req.full_name, role="user")
+    token = auth_service.create_access_token(user)
+    
+    logger.info(f"👤 New sales rep registered: {user['email']} (ID: {user['id']})")
+    return {
+        "success": True,
+        "token": token,
+        "user": user
+    }
+
+@app.post("/api/auth/login")
+async def login_user(req: LoginRequest):
+    """Authenticates user or admin and returns JWT access token."""
+    user = models_db.get_user_by_email(req.email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    if not auth_service.verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    if not user.get("is_active"):
+        raise HTTPException(status_code=403, detail="Account is deactivated. Please contact the administrator.")
+    
+    token = auth_service.create_access_token(user)
+    logger.info(f"🔑 User logged in: {user['email']} (Role: {user['role']})")
+    
+    return {
+        "success": True,
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "full_name": user["full_name"],
+            "role": user["role"],
+            "created_at": user["created_at"]
+        }
+    }
+
+@app.get("/api/auth/me")
+async def get_my_profile(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Returns profile and role of authenticated user."""
+    return {
+        "id": current_user["id"],
+        "email": current_user["email"],
+        "full_name": current_user["full_name"],
+        "role": current_user["role"],
+        "created_at": current_user["created_at"]
+    }
+
+# =========================================================================
+# 👤 USER DOCUMENT & CUSTOM CHUNK MANAGEMENT ROUTES
+# =========================================================================
+
+@app.post("/api/user/documents/upload")
+async def upload_user_strategy_document(
+    file: UploadFile = File(...),
+    current_user: Dict[str, Any] = Depends(require_user)
+):
+    """
+    Parallel Execution Flow:
+    Stream A: Upload file directly to Admin Google Drive (Sales_Bot_Client_Documents / User_{email} / file).
+    Stream B: Extract text -> Generate strategy chunks -> Upsert into user isolated Vector DB.
+    """
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        
+        filename = file.filename or "strategy_document"
+        
+        # 1. Stream A: Parallel Upload to Admin Google Drive
+        drive_res = await asyncio.to_thread(
+            gdrive_service.upload_document,
+            content,
+            filename,
+            current_user["email"],
+            file.content_type or "application/octet-stream"
+        )
+        
+        # 2. Stream B: Extract text and generate strategy chunks
+        text = await asyncio.to_thread(DocumentProcessor.extract_text, content, filename)
+        chunks = await asyncio.to_thread(DocumentProcessor.chunk_strategies, text, filename)
+        
+        # 3. Create document record in database
+        doc_record = models_db.create_document_record(
+            user_id=current_user["id"],
+            user_email=current_user["email"],
+            filename=filename,
+            file_size=len(content),
+            drive_file_id=drive_res.get("file_id"),
+            drive_web_view_link=drive_res.get("web_view_link"),
+            drive_folder_id=drive_res.get("folder_id"),
+            chunks_count=len(chunks)
+        )
+        
+        # 4. Ingest custom chunks for this user into ChromaDB and active memory
+        rag_engine.add_user_document_chunks(
+            doc_id=doc_record["id"],
+            user_id=current_user["id"],
+            user_email=current_user["email"],
+            chunks=chunks
+        )
+        
+        logger.info(f"📄 [USER DOC UPLOAD] User #{current_user['id']} ({current_user['email']}) uploaded '{filename}' with {len(chunks)} chunks.")
+        
+        return {
+            "success": True,
+            "document": doc_record,
+            "chunks_count": len(chunks),
+            "drive_backup": drive_res
+        }
+    except HTTPException:
+        raise
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error processing user document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process strategy document: {str(e)}")
+
+@app.get("/api/user/documents")
+async def get_user_documents(current_user: Dict[str, Any] = Depends(require_user)):
+    """Lists all documents uploaded by the authenticated user."""
+    docs = models_db.list_user_documents(current_user["id"])
+    return {"total": len(docs), "documents": docs}
+
+@app.get("/api/user/chunks")
+async def get_user_chunks(
+    doc_id: Optional[int] = None,
+    current_user: Dict[str, Any] = Depends(require_user)
+):
+    """Lists all custom strategy chunks for the authenticated user."""
+    chunks = models_db.list_user_chunks(current_user["id"], doc_id=doc_id)
+    return {"total": len(chunks), "chunks": chunks}
+
+@app.put("/api/user/chunks/{chunk_id}")
+async def edit_user_chunk(
+    chunk_id: int,
+    req: UpdateChunkRequest,
+    current_user: Dict[str, Any] = Depends(require_user)
+):
+    """Edits a custom strategy chunk (title, pitch, context, active state)."""
+    success = models_db.update_chunk(
+        chunk_id=chunk_id,
+        user_id=current_user["id"],
+        title=req.title,
+        strategy_pitch=req.strategy_pitch,
+        context=req.context,
+        is_active=req.is_active if req.is_active is not None else 1
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Chunk not found or unauthorized.")
+    
+    # Reload user in-memory active chunks
+    rag_engine.reload_user_chunks_from_db(current_user["id"])
+    return {"success": True, "message": "Strategy chunk updated successfully."}
+
+@app.delete("/api/user/chunks/{chunk_id}")
+async def delete_user_chunk(
+    chunk_id: int,
+    current_user: Dict[str, Any] = Depends(require_user)
+):
+    """Deletes a custom strategy chunk."""
+    success = models_db.delete_chunk(chunk_id=chunk_id, user_id=current_user["id"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Chunk not found or unauthorized.")
+    
+    rag_engine.reload_user_chunks_from_db(current_user["id"])
+    return {"success": True, "message": "Strategy chunk deleted successfully."}
+
+# =========================================================================
+# 👑 ADMIN MANAGEMENT & GOOGLE DRIVE AUDIT ROUTES
+# =========================================================================
+
+@app.get("/api/admin/overview")
+async def get_admin_overview(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Returns top-level multi-tenant platform metrics for Admin."""
+    users = models_db.list_all_users()
+    docs = models_db.list_all_documents()
+    total_chunks = sum(d.get("chunks_count", 0) for d in docs)
+    
+    return {
+        "success": True,
+        "total_users": len(users),
+        "total_documents": len(docs),
+        "total_custom_chunks": total_chunks,
+        "base_battlecards": len(rag_engine.documents),
+        "gdrive_integration": {
+            "status": gdrive_service.auth_type,
+            "connected": gdrive_service.is_connected,
+            "root_folder": "Sales_Bot_Client_Documents"
+        }
+    }
+
+@app.get("/api/admin/users")
+async def get_admin_users(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Lists all registered users (Sales Reps and Admins)."""
+    users = models_db.list_all_users()
+    return {"total": len(users), "users": users}
+
+@app.get("/api/admin/documents")
+async def get_admin_documents(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Lists all uploaded documents across all users with Google Drive webViewLinks."""
+    docs = models_db.list_all_documents()
+    return {"total": len(docs), "documents": docs}
+
+@app.post("/api/admin/gdrive/test")
+async def test_admin_gdrive_connection(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Tests Google Drive connectivity and returns active folder info."""
+    return {
+        "connected": gdrive_service.is_connected,
+        "auth_type": gdrive_service.auth_type,
+        "root_folder": "Sales_Bot_Client_Documents",
+        "instructions": "Place 'service_account.json' in the backend root directory for 100% automated direct Google Drive API backup."
+    }
 
 # --- REST Endpoints ---
 

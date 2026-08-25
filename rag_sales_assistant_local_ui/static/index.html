@@ -31,6 +31,15 @@
 
       <!-- Header Options & Controls -->
       <div class="header-options">
+        
+        <!-- User Profile / Auth Chip -->
+        <div class="user-auth-badge" id="userAuthBadge" onclick="openAuthModal()" title="Click to Switch User / Login">
+          <i class="fa-solid fa-crown text-amber" id="userRoleIcon"></i>
+          <span id="userDisplayName">okashaxortlogix@gmail.com</span>
+          <span class="user-role-tag" id="userRoleTag">Admin</span>
+          <button class="btn-logout" id="btnLogout" onclick="logoutUser(event)" title="Log Out"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        </div>
+
         <label class="toggle-control" title="Auto-capture Zoom Desktop App and system audio via Windows WASAPI">
           <input type="checkbox" id="chkDesktopAudio" checked />
           <span class="toggle-slider"></span>
@@ -53,14 +62,6 @@
           <i class="fa-solid fa-window-restore"></i> Zoom HUD
         </button>
 
-        <button class="btn-clean" id="btnOpenUploadModal" onclick="openPlaybookModal()" title="Upload Custom Sales Playbook (PDF/DOCX/TXT/CSV)">
-          <i class="fa-solid fa-cloud-arrow-up"></i> Upload Playbook
-        </button>
-
-        <button class="btn-clean" id="btnOpenKB" title="View all battlecards">
-          <i class="fa-solid fa-book"></i> Strategy Cards
-        </button>
-
         <!-- Theme Toggle Button -->
         <button class="btn-clean btn-theme-toggle" id="btnThemeToggle" title="Switch Dark / Light Mode">
           <i class="fa-solid fa-moon" id="themeIcon"></i>
@@ -69,8 +70,21 @@
       </div>
     </header>
 
-    <!-- Main Content Cockpit -->
-    <main class="main-content">
+    <!-- Top View Navigation Tabs -->
+    <div class="view-navigation-tabs">
+      <button class="nav-tab active" id="tabLiveAssist" onclick="switchMainView('live')">
+        <i class="fa-solid fa-headset"></i> <span>Live Co-Pilot</span>
+      </button>
+      <button class="nav-tab" id="tabChunkManager" onclick="switchMainView('chunks')">
+        <i class="fa-solid fa-layer-group"></i> <span>Custom Chunks (<span id="userChunksCount">0</span>)</span>
+      </button>
+      <button class="nav-tab admin-only" id="tabAdminDashboard" onclick="switchMainView('admin')">
+        <i class="fa-solid fa-crown text-amber"></i> <span>Admin Dashboard</span>
+      </button>
+    </div>
+
+    <!-- Main Content Cockpit (View 1: Live Co-Pilot) -->
+    <main class="main-content" id="viewLiveAssist">
       
       <!-- Mic & Live Voice Transducer Bar -->
       <div class="voice-hero-bar">
@@ -117,6 +131,193 @@
             <span>Analyze Intent</span>
           </button>
         </div>
+
+        <!-- Quick Intent Presets -->
+        <div class="intent-presets">
+          <span class="preset-label"><i class="fa-solid fa-bolt"></i> Quick Scenarios:</span>
+          <button class="preset-chip" data-intent="Your price is too high, freelancers are offering $500">💰 Price Resistance</button>
+          <button class="preset-chip" data-intent="Can we get a 20% discount if we sign this week?">🏷️ Discount Negotiation</button>
+          <button class="preset-chip" data-intent="We need this completed and launched within 10 days ASAP">⏱️ Timeline Urgency</button>
+          <button class="preset-chip" data-intent="Another agency has promised 50% cheaper rates and same features">🏆 Competitor Threat</button>
+          <button class="preset-chip" data-intent="How do we ensure our proprietary source code is safe and NDA signed?">🔒 NDA & IP Security</button>
+          <button class="preset-chip" data-intent="Can your team handle heavy traffic and scalable Python/React architecture?">⚙️ Tech Scalability</button>
+        </div>
+      </div>
+
+      <!-- Active Playbook Status & Upload Banner -->
+      <div class="playbook-status-banner">
+        <div class="banner-left">
+          <div class="banner-icon">
+            <i class="fa-solid fa-book-bookmark"></i>
+          </div>
+          <div class="banner-text">
+            <div class="banner-title" id="mainActiveDocName">zoom.pdf (Default 70 Battlecards)</div>
+            <div class="banner-sub" id="mainActiveDocMeta">70 Strategy Chunks Loaded — Real-Time Voice Matching Active</div>
+          </div>
+        </div>
+        <div class="banner-actions">
+          <button class="btn-clean primary-glow" id="btnMainUploadDoc" onclick="switchMainView('chunks')">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Customize Chunks
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- 🧩 VIEW 2: CUSTOM CHUNK MANAGER & STRATEGY UPLOADER -->
+    <!-- ========================================================================= -->
+    <main class="main-content" id="viewChunkManager" style="display: none;">
+      
+      <!-- Upload Strategy Document Card -->
+      <div class="chunk-manager-header-card">
+        <div class="chunk-upload-dropzone" id="userDropzone" onclick="document.getElementById('userFileInput').click()">
+          <input type="file" id="userFileInput" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display:none;" onchange="handleUserFileUpload(event)" />
+          <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+          <div class="dropzone-title">Upload Strategy Document (.PDF, .DOCX, .TXT, .CSV)</div>
+          <div class="dropzone-sub">Files are automatically backed up to <strong>Admin Google Drive</strong> & indexed into your isolated Vector DB</div>
+          <button class="btn-clean primary-glow" style="margin-top: 10px;">Select Document</button>
+        </div>
+
+        <div class="upload-progress-box" id="userUploadProgressBox" style="display: none;">
+          <div class="progress-info">
+            <span id="userUploadStatusText"><i class="fa-solid fa-spinner fa-spin"></i> Uploading & parsing chunks...</span>
+            <span id="userUploadPercent">100%</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="userProgressBarFill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chunks Control Strip -->
+      <div class="chunks-toolbar">
+        <div class="toolbar-left">
+          <div class="search-chunk-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="txtSearchChunks" placeholder="Search strategy pitches & objection questions..." oninput="filterUserChunks()" />
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="active-badge" id="lblChunksMeta">Showing 0 custom chunks</span>
+          <button class="btn-clean" onclick="loadUserChunks()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </div>
+      </div>
+
+      <!-- Chunks Grid -->
+      <div class="chunks-grid" id="userChunksGrid">
+        <div class="chunks-empty-state">
+          <i class="fa-solid fa-layer-group"></i>
+          <p>No custom strategy chunks uploaded yet. Upload a document above or use default battlecards.</p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- 👑 VIEW 3: ADMIN DASHBOARD (MULTI-TENANT & GOOGLE DRIVE AUDIT) -->
+    <!-- ========================================================================= -->
+    <main class="main-content" id="viewAdminDashboard" style="display: none;">
+      
+      <!-- Metrics Overview -->
+      <div class="admin-metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon bg-cyan"><i class="fa-solid fa-users"></i></div>
+          <div class="metric-info">
+            <div class="metric-value" id="adminTotalUsers">0</div>
+            <div class="metric-label">Registered Sales Reps</div>
+          </div>
+        </div>
+        
+        <div class="metric-card">
+          <div class="metric-icon bg-emerald"><i class="fa-solid fa-file-shield"></i></div>
+          <div class="metric-info">
+            <div class="metric-value" id="adminTotalDocs">0</div>
+            <div class="metric-label">Uploaded Strategy Docs</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon bg-purple"><i class="fa-solid fa-cubes-stacked"></i></div>
+          <div class="metric-info">
+            <div class="metric-value" id="adminTotalChunks">0</div>
+            <div class="metric-label">Custom Vector Chunks</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon bg-yellow"><i class="fa-brands fa-google-drive"></i></div>
+          <div class="metric-info">
+            <div class="metric-value" id="adminGdriveStatus" style="font-size: 15px;">Active</div>
+            <div class="metric-label">Google Drive Integration</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Documents Table with Direct Google Drive Links -->
+      <div class="admin-table-card">
+        <div class="table-header">
+          <div class="table-title">
+            <i class="fa-brands fa-google-drive text-yellow"></i>
+            <span>Google Drive Client Backups & Strategy Documents</span>
+          </div>
+          <button class="btn-clean" onclick="loadAdminDashboardData()"><i class="fa-solid fa-rotate"></i> Sync Drive</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Rep Name</th>
+                <th>Rep Email</th>
+                <th>Filename</th>
+                <th>Size</th>
+                <th>Chunks</th>
+                <th>Uploaded At</th>
+                <th>Google Drive Link</th>
+              </tr>
+            </thead>
+            <tbody id="adminDocumentsTableBody">
+              <tr>
+                <td colspan="8" style="text-align:center; color:#94a3b8;">Loading documents...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Admin Registered Users Table -->
+      <div class="admin-table-card" style="margin-top: 20px;">
+        <div class="table-header">
+          <div class="table-title">
+            <i class="fa-solid fa-user-gear text-cyan"></i>
+            <span>User Accounts & Permissions</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined At</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center; color:#94a3b8;">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
 
         <!-- Quick Intent Presets -->
         <div class="intent-presets">
@@ -776,10 +977,122 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', fetchPlaybookStatus);
-  </script>
+  <!-- ========================================================================= -->
+  <!-- 🔐 MULTI-TENANT AUTH & RBAC LOGIN MODAL -->
+  <!-- ========================================================================= -->
+  <div class="intent-modal-overlay" id="authModal" style="display: none;" onclick="if(event.target===this)closeAuthModal()">
+    <div class="auth-modal-card">
+      <div class="auth-modal-header">
+        <div class="auth-brand">
+          <div class="brand-dot"></div>
+          <span class="auth-title">SALES CO-PILOT ACCESS</span>
+        </div>
+        <button class="btn-close-modal" onclick="closeAuthModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Auth Tabs: Login vs Register -->
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="btnTabLogin" onclick="switchAuthTab('login')">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+        <button class="auth-tab-btn" id="btnTabRegister" onclick="switchAuthTab('register')">
+          <i class="fa-solid fa-user-plus"></i> Register Rep
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="formLogin" onsubmit="handleLoginSubmit(event)">
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-envelope"></i> Work Email</label>
+          <input type="email" id="txtLoginEmail" placeholder="e.g. okashaxortlogix@gmail.com" required autocomplete="email" />
+        </div>
+
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="txtLoginPassword" placeholder="••••••••••••" required autocomplete="current-password" />
+        </div>
+
+        <div class="auth-action-row">
+          <button type="button" class="btn-clean" style="font-size: 11px; color: #f59e0b;" onclick="fillAdminCredentials()">
+            👑 Quick Fill Seed Admin
+          </button>
+        </div>
+
+        <button type="submit" class="btn-auth-submit" id="btnLoginSubmit">
+          <span>Sign In to Co-Pilot</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="formRegister" onsubmit="handleRegisterSubmit(event)" style="display: none;">
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-user"></i> Full Name</label>
+          <input type="text" id="txtRegFullName" placeholder="e.g. Hamza Tariq" required autocomplete="name" />
+        </div>
+
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-envelope"></i> Work Email</label>
+          <input type="email" id="txtRegEmail" placeholder="e.g. rep@xortlogix.com" required autocomplete="email" />
+        </div>
+
+        <div class="auth-form-group">
+          <label><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="txtRegPassword" placeholder="Create a secure password..." required autocomplete="new-password" />
+        </div>
+
+        <button type="submit" class="btn-auth-submit" id="btnRegSubmit">
+          <span>Create Sales Rep Account</span>
+          <i class="fa-solid fa-user-check"></i>
+        </button>
+      </form>
+
+      <div class="auth-footer-note">
+        <i class="fa-solid fa-shield-halved text-cyan"></i> Isolated Multi-Tenant Vector DB + Automated Admin Google Drive Backup
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- ✏️ EDIT CUSTOM CHUNK MODAL -->
+  <!-- ========================================================================= -->
+  <div class="intent-modal-overlay" id="editChunkModal" style="display: none;" onclick="if(event.target===this)closeEditChunkModal()">
+    <div class="edit-chunk-modal-card">
+      <div class="auth-modal-header">
+        <div class="auth-brand">
+          <i class="fa-solid fa-pen-to-square text-cyan"></i>
+          <span class="auth-title">EDIT STRATEGY CHUNK</span>
+        </div>
+        <button class="btn-close-modal" onclick="closeEditChunkModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="hidden" id="editChunkId" />
+
+      <div class="auth-form-group">
+        <label><i class="fa-solid fa-heading"></i> Objection / Question Title</label>
+        <input type="text" id="editChunkTitle" placeholder="e.g. Why are your prices higher than freelancers?" required />
+      </div>
+
+      <div class="auth-form-group">
+        <label><i class="fa-solid fa-bullseye text-cyan"></i> Exact Strategy / Closing Pitch</label>
+        <textarea id="editChunkPitch" rows="4" placeholder="Enter the exact script the sales rep should say..." required></textarea>
+      </div>
+
+      <div class="auth-form-group">
+        <label><i class="fa-solid fa-brain"></i> Context / Rationale (Optional)</label>
+        <input type="text" id="editChunkContext" placeholder="e.g. Highlight risk reduction, automated testing, and security warranty." />
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button type="button" class="btn-clean" style="flex: 1;" onclick="closeEditChunkModal()">Cancel</button>
+        <button type="button" class="btn-clean primary-glow" style="flex: 2;" onclick="saveEditedChunk()">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Re-Index Chunk
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Scripts -->
-  <script src="/static/js/app.js?v=20260825_1845"></script>
+  <script src="/static/js/app.js?v=20260825_2000"></script>
 </body>
 </html>

@@ -38,6 +38,7 @@ class RAGEngine:
         self.embedding_model = embedding_model
         
         self.documents: List[Dict[str, Any]] = []
+        self.user_documents: Dict[int, List[Dict[str, Any]]] = {}
         self.vectorstore = None
         self.query_cache: Dict[str, Dict[str, Any]] = {}
         self.active_document_name: str = "zoom.pdf (Default 70 Battlecards)"
@@ -258,9 +259,79 @@ class RAGEngine:
             
         return False
 
-    def _fallback_lexical_match(self, query: str) -> Optional[Dict[str, Any]]:
+    def add_user_document_chunks(self, doc_id: int, user_id: int, user_email: str, chunks: List[Dict[str, Any]]) -> int:
+        """Saves custom strategy chunks to database and indexes them for the user."""
+        import models_db
+        saved_count = models_db.save_document_chunks(doc_id, user_id, user_email, chunks)
+        
+        # Load user active chunks into in-memory store
+        user_chunks = models_db.list_all_active_chunks_for_user(user_id)
+        formatted_chunks = []
+        for c in user_chunks:
+            formatted_chunks.append({
+                "q_number": c["id"],
+                "question": c["title"],
+                "context": c.get("context") or "User Custom Strategy",
+                "pitch": c["strategy_pitch"],
+                "full_text": f"Question:\n{c['title']}\n\nContext / Rationale:\n{c.get('context','')}\n\nExact Strategy / Pitch:\n{c['strategy_pitch']}",
+                "source": f"Custom Document (User: {user_email})",
+                "user_id": user_id
+            })
+        self.user_documents[user_id] = formatted_chunks
+
+        # Ingest into vectorstore if available
+        if self.vectorstore is not None and formatted_chunks:
+            try:
+                from langchain_core.documents import Document
+                docs_to_add = [
+                    Document(
+                        page_content=ch["full_text"],
+                        metadata={
+                            "q_number": ch["q_number"],
+                            "question": ch["question"],
+                            "context": ch["context"],
+                            "pitch": ch["pitch"],
+                            "source": ch["source"],
+                            "user_id": user_id,
+                            "user_email": user_email,
+                            "doc_id": doc_id
+                        }
+                    ) for ch in formatted_chunks
+                ]
+                self.vectorstore.add_documents(docs_to_add)
+                logger.info(f"⚡ Added {len(docs_to_add)} custom chunks to VectorDB for User #{user_id}")
+            except Exception as e:
+                logger.warning(f"Vectorstore add_documents note: {e}")
+
+        logger.info(f"✅ Ingested {saved_count} custom strategy chunks for user {user_email} (ID: {user_id})")
+        return saved_count
+
+    def reload_user_chunks_from_db(self, user_id: int):
+        """Reloads active chunks for user from DB into memory."""
+        import models_db
+        user_chunks = models_db.list_all_active_chunks_for_user(user_id)
+        formatted_chunks = []
+        for c in user_chunks:
+            formatted_chunks.append({
+                "q_number": c["id"],
+                "question": c["title"],
+                "context": c.get("context") or "User Custom Strategy",
+                "pitch": c["strategy_pitch"],
+                "full_text": f"Question:\n{c['title']}\n\nContext / Rationale:\n{c.get('context','')}\n\nExact Strategy / Pitch:\n{c['strategy_pitch']}",
+                "source": f"Custom Document (ID: {c['doc_id']})",
+                "user_id": user_id
+            })
+        self.user_documents[user_id] = formatted_chunks
+
+    def _fallback_lexical_match(self, query: str, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Smart keyword/concept synergy relevance matcher with stopword removal and title priority."""
-        if not self.documents:
+        # Candidate pool: User's custom chunks first + global default battlecards
+        candidate_docs = []
+        if user_id and user_id in self.user_documents:
+            candidate_docs.extend(self.user_documents[user_id])
+        candidate_docs.extend(self.documents)
+
+        if not candidate_docs:
             return None
             
         if self.is_casual_or_random_speech(query):
@@ -283,7 +354,7 @@ class RAGEngine:
         best_doc = None
         best_score = 0.0
 
-        for doc in self.documents:
+        for doc in candidate_docs:
             doc_q = doc["question"].lower()
             doc_c = doc["context"].lower()
             doc_p = doc["pitch"].lower()
@@ -317,8 +388,9 @@ class RAGEngine:
             if shared_concepts:
                 score += 3.0 * len(shared_concepts)
 
-            # Normalize score
-            normalized_score = min(score / max(len(content_words) * 5.0, 5.0), 0.98)
+            # User custom chunk priority boost (+1.5 score)
+            if doc.get("user_id"):
+                score += 1.5
 
             if score > best_score:
                 best_score = score
@@ -328,7 +400,7 @@ class RAGEngine:
             return {"doc": best_doc, "score": min(0.75 + (best_score * 0.05), 0.98)}
         return None
 
-    def query(self, user_question: str, top_k: int = 3) -> Dict[str, Any]:
+    def query(self, user_question: str, top_k: int = 3, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Executes end-to-end RAG retrieval + Ollama LLM answer synthesis.
         Returns comprehensive telemetry and strict sales pitch output.
@@ -356,7 +428,7 @@ class RAGEngine:
             }
 
         # Check in-memory cache for instant <10ms replay with TTL (300s)
-        cache_key = clean_question.lower()
+        cache_key = f"u{user_id}_{clean_question.lower()}"
         now = time.time()
         if cache_key in self.query_cache:
             entry = self.query_cache[cache_key]
@@ -396,7 +468,7 @@ class RAGEngine:
 
         # 2. Fallback to in-memory matcher if ChromaDB didn't match or is uninitialized
         if best_doc is None or relevance_score < self.min_relevance:
-            fallback_res = self._fallback_lexical_match(clean_question)
+            fallback_res = self._fallback_lexical_match(clean_question, user_id=user_id)
             if fallback_res and fallback_res["score"] > relevance_score:
                 best_doc = fallback_res["doc"]
                 relevance_score = fallback_res["score"]
@@ -460,7 +532,7 @@ class RAGEngine:
 
         return result_payload
 
-    def analyze_intent(self, text: str) -> Dict[str, Any]:
+    def analyze_intent(self, text: str, user_id: Optional[int] = None) -> Dict[str, Any]:
         """
         Analyzes client input text to determine core intent, psychological friction points,
         sentiment, and recommended sales strategy & pitch.
@@ -504,7 +576,7 @@ class RAGEngine:
             }
 
         # 2. Retrieve best matching battlecard via RAG
-        rag_res = self.query(clean_text)
+        rag_res = self.query(clean_text, user_id=user_id)
         
         # 3. Heuristic Intent Categorization
         text_lower = clean_text.lower()
@@ -629,7 +701,7 @@ class RAGEngine:
             q_num = rag_res.get("q_number")
             confidence = max(rag_res.get("confidence_percent", 88), 85)
         else:
-            fallback_match = self._fallback_lexical_match(clean_text)
+            fallback_match = self._fallback_lexical_match(clean_text, user_id=user_id)
             if fallback_match and fallback_match.get("doc"):
                 doc = fallback_match["doc"]
                 matched_pitch = doc["pitch"]

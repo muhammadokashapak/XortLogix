@@ -1497,8 +1497,524 @@ async function refreshPlaybookStatus() {
   } catch (e) {}
 }
 
+// =========================================================================
+// 🔐 MULTI-TENANT RBAC, CHUNK MANAGER & ADMIN CONTROLLER
+// =========================================================================
+
+let currentUser = null;
+let authToken = localStorage.getItem('sales_copilot_token') || '';
+let userChunksData = [];
+
+// Helper for authenticated fetch
+async function authFetch(url, options = {}) {
+  options.headers = options.headers || {};
+  if (authToken) {
+    options.headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return fetch(url, options);
+}
+
+// 1. Initialize Authentication & Session
+async function initAuth() {
+  const savedUser = localStorage.getItem('sales_copilot_user');
+  if (savedUser && authToken) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      syncAuthUI();
+      // Verify token with backend
+      const res = await authFetch('/api/auth/me');
+      if (res.ok) {
+        currentUser = await res.json();
+        localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
+        syncAuthUI();
+        return;
+      }
+    } catch (e) {}
+  }
+
+  // Auto-login with Seed Admin on first load if no session
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'okashaxortlogix@gmail.com',
+        password: 'adminokasha'
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem('sales_copilot_token', authToken);
+      localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
+      syncAuthUI();
+    }
+  } catch (e) {
+    syncAuthUI();
+  }
+}
+
+function syncAuthUI() {
+  const badge = document.getElementById('userAuthBadge');
+  const roleIcon = document.getElementById('userRoleIcon');
+  const nameLabel = document.getElementById('userDisplayName');
+  const roleTag = document.getElementById('userRoleTag');
+  const adminTab = document.getElementById('tabAdminDashboard');
+
+  if (!currentUser) {
+    if (nameLabel) nameLabel.textContent = 'Sign In / Register';
+    if (roleTag) roleTag.textContent = 'Guest';
+    if (adminTab) adminTab.style.display = 'none';
+    return;
+  }
+
+  if (nameLabel) nameLabel.textContent = currentUser.email || currentUser.full_name;
+  if (roleTag) {
+    roleTag.textContent = currentUser.role === 'admin' ? 'Admin' : 'Sales Rep';
+    roleTag.className = `user-role-tag ${currentUser.role === 'admin' ? 'admin' : 'user'}`;
+  }
+  if (roleIcon) {
+    roleIcon.className = currentUser.role === 'admin' ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user-tie text-cyan';
+  }
+
+  // Show/Hide Admin Tab
+  if (adminTab) {
+    adminTab.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+  }
+
+  // Load user chunks count badge
+  loadUserChunks();
+}
+
+function openAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function switchAuthTab(tab) {
+  const btnLogin = document.getElementById('btnTabLogin');
+  const btnReg = document.getElementById('btnTabRegister');
+  const formLogin = document.getElementById('formLogin');
+  const formReg = document.getElementById('formRegister');
+
+  if (tab === 'login') {
+    btnLogin.classList.add('active');
+    btnReg.classList.remove('active');
+    formLogin.style.display = 'block';
+    formReg.style.display = 'none';
+  } else {
+    btnReg.classList.add('active');
+    btnLogin.classList.remove('active');
+    formReg.style.display = 'block';
+    formLogin.style.display = 'none';
+  }
+}
+
+function fillAdminCredentials() {
+  document.getElementById('txtLoginEmail').value = 'okashaxortlogix@gmail.com';
+  document.getElementById('txtLoginPassword').value = 'adminokasha';
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('txtLoginEmail').value.trim();
+  const password = document.getElementById('txtLoginPassword').value;
+  const btn = document.getElementById('btnLoginSubmit');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem('sales_copilot_token', authToken);
+      localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
+      syncAuthUI();
+      closeAuthModal();
+      showToast(`👋 Welcome back, ${currentUser.full_name} (${currentUser.role})!`);
+      if (currentUser.role === 'admin') {
+        loadAdminDashboardData();
+      }
+    } else {
+      showToast(data.detail || 'Login failed.');
+    }
+  } catch (err) {
+    showToast('Network error during login: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Sign In to Co-Pilot</span> <i class="fa-solid fa-arrow-right"></i>';
+  }
+}
+
+async function handleRegisterSubmit(e) {
+  e.preventDefault();
+  const fullName = document.getElementById('txtRegFullName').value.trim();
+  const email = document.getElementById('txtRegEmail').value.trim();
+  const password = document.getElementById('txtRegPassword').value;
+  const btn = document.getElementById('btnRegSubmit');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Account...';
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, full_name: fullName })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem('sales_copilot_token', authToken);
+      localStorage.setItem('sales_copilot_user', JSON.stringify(currentUser));
+      syncAuthUI();
+      closeAuthModal();
+      showToast(`🎉 Sales rep account registered! Welcome, ${fullName}.`);
+      switchMainView('chunks');
+    } else {
+      showToast(data.detail || 'Registration failed.');
+    }
+  } catch (err) {
+    showToast('Network error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>Create Sales Rep Account</span> <i class="fa-solid fa-user-check"></i>';
+  }
+}
+
+function logoutUser(e) {
+  if (e) e.stopPropagation();
+  localStorage.removeItem('sales_copilot_token');
+  localStorage.removeItem('sales_copilot_user');
+  authToken = '';
+  currentUser = null;
+  syncAuthUI();
+  showToast('Logged out.');
+  openAuthModal();
+}
+
+// 2. View Switcher (Live Co-Pilot, Custom Chunks, Admin Dashboard)
+function switchMainView(viewName) {
+  const viewLive = document.getElementById('viewLiveAssist');
+  const viewChunks = document.getElementById('viewChunkManager');
+  const viewAdmin = document.getElementById('viewAdminDashboard');
+
+  const tabLive = document.getElementById('tabLiveAssist');
+  const tabChunks = document.getElementById('tabChunkManager');
+  const tabAdmin = document.getElementById('tabAdminDashboard');
+
+  // Hide all
+  if (viewLive) viewLive.style.display = 'none';
+  if (viewChunks) viewChunks.style.display = 'none';
+  if (viewAdmin) viewAdmin.style.display = 'none';
+
+  if (tabLive) tabLive.classList.remove('active');
+  if (tabChunks) tabChunks.classList.remove('active');
+  if (tabAdmin) tabAdmin.classList.remove('active');
+
+  if (viewName === 'chunks') {
+    if (viewChunks) viewChunks.style.display = 'block';
+    if (tabChunks) tabChunks.classList.add('active');
+    loadUserChunks();
+  } else if (viewName === 'admin') {
+    if (viewAdmin) viewAdmin.style.display = 'block';
+    if (tabAdmin) tabAdmin.classList.add('active');
+    loadAdminDashboardData();
+  } else {
+    if (viewLive) viewLive.style.display = 'block';
+    if (tabLive) tabLive.classList.add('active');
+  }
+}
+
+// 3. User Document Upload & Custom Chunk Manager
+async function handleUserFileUpload(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  if (!authToken) {
+    showToast('Please sign in to upload strategy documents.');
+    openAuthModal();
+    return;
+  }
+
+  const progressBox = document.getElementById('userUploadProgressBox');
+  const statusText = document.getElementById('userUploadStatusText');
+
+  if (progressBox) progressBox.style.display = 'block';
+  if (statusText) statusText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Stream A: Uploading to Admin Google Drive & Stream B: Vector Indexing...';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await authFetch('/api/user/documents/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      const driveInfo = data.drive_backup || {};
+      showToast(`☁️ Backed up to Google Drive & generated ${data.chunks_count} strategy chunks!`);
+      loadUserChunks();
+    } else {
+      showToast(data.detail || 'Upload failed.');
+    }
+  } catch (err) {
+    showToast('Upload error: ' + err.message);
+  } finally {
+    if (progressBox) progressBox.style.display = 'none';
+    e.target.value = '';
+  }
+}
+
+async function loadUserChunks() {
+  if (!authToken) return;
+  try {
+    const res = await authFetch('/api/user/chunks');
+    const data = await res.json();
+    userChunksData = data.chunks || [];
+
+    const countBadge = document.getElementById('userChunksCount');
+    const metaLbl = document.getElementById('lblChunksMeta');
+    if (countBadge) countBadge.textContent = userChunksData.length;
+    if (metaLbl) metaLbl.textContent = `Showing ${userChunksData.length} custom strategy chunks`;
+
+    renderUserChunksGrid(userChunksData);
+  } catch (e) {}
+}
+
+function renderUserChunksGrid(chunks) {
+  const grid = document.getElementById('userChunksGrid');
+  if (!grid) return;
+
+  if (!chunks || chunks.length === 0) {
+    grid.innerHTML = `
+      <div class="chunks-empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">
+        <i class="fa-solid fa-layer-group" style="font-size: 32px; color: #38bdf8; margin-bottom: 12px;"></i>
+        <p style="font-size: 13.5px;">No custom strategy chunks found. Upload a document (.PDF, .DOCX, .TXT) above to generate your isolated battlecards!</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = '';
+  chunks.forEach((c, idx) => {
+    const card = document.createElement('div');
+    card.className = 'chunk-card';
+    card.id = `user-chunk-${c.id}`;
+    card.innerHTML = `
+      <div class="chunk-card-header">
+        <div>
+          <span class="chunk-index-badge">CHUNK #${idx + 1}</span>
+          <div class="chunk-title">${escapeHtml(c.title || 'Strategy Objection')}</div>
+        </div>
+        <span style="font-size: 10px; color: #10b981; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px;">Active</span>
+      </div>
+
+      <div class="chunk-pitch-body">
+        <strong>Pitch:</strong> "${escapeHtml(c.strategy_pitch || '')}"
+        ${c.context ? `<div style="color: #94a3b8; font-size: 11px; margin-top: 6px;"><em>Rationale: ${escapeHtml(c.context)}</em></div>` : ''}
+      </div>
+
+      <div class="chunk-card-actions">
+        <button class="btn-clean" style="font-size: 11px; color: #ef4444;" onclick="deleteUserChunk(${c.id})" title="Delete Chunk">
+          <i class="fa-solid fa-trash"></i> Delete
+        </button>
+        <button class="btn-clean primary-glow" style="font-size: 11px;" onclick="openEditChunkModal(${c.id})" title="Edit Strategy Pitch">
+          <i class="fa-solid fa-pen-to-square"></i> Edit Strategy
+        </button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function filterUserChunks() {
+  const query = (document.getElementById('txtSearchChunks').value || '').toLowerCase().trim();
+  if (!query) {
+    renderUserChunksGrid(userChunksData);
+    return;
+  }
+  const filtered = userChunksData.filter(c => 
+    (c.title || '').toLowerCase().includes(query) ||
+    (c.strategy_pitch || '').toLowerCase().includes(query) ||
+    (c.context || '').toLowerCase().includes(query)
+  );
+  renderUserChunksGrid(filtered);
+}
+
+function openEditChunkModal(chunkId) {
+  const chunk = userChunksData.find(c => c.id === chunkId);
+  if (!chunk) return;
+
+  document.getElementById('editChunkId').value = chunk.id;
+  document.getElementById('editChunkTitle').value = chunk.title || '';
+  document.getElementById('editChunkPitch').value = chunk.strategy_pitch || '';
+  document.getElementById('editChunkContext').value = chunk.context || '';
+
+  const modal = document.getElementById('editChunkModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEditChunkModal() {
+  const modal = document.getElementById('editChunkModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function saveEditedChunk() {
+  const chunkId = document.getElementById('editChunkId').value;
+  const title = document.getElementById('editChunkTitle').value.trim();
+  const pitch = document.getElementById('editChunkPitch').value.trim();
+  const context = document.getElementById('editChunkContext').value.trim();
+
+  if (!title || !pitch) {
+    showToast('Question title and Strategy Pitch are required.');
+    return;
+  }
+
+  try {
+    const res = await authFetch(`/api/user/chunks/${chunkId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        strategy_pitch: pitch,
+        context,
+        is_active: 1
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('✅ Strategy pitch updated and re-indexed!');
+      closeEditChunkModal();
+      loadUserChunks();
+    } else {
+      showToast(data.detail || 'Error updating chunk.');
+    }
+  } catch (err) {
+    showToast('Save error: ' + err.message);
+  }
+}
+
+async function deleteUserChunk(chunkId) {
+  if (!confirm('Are you sure you want to delete this custom strategy chunk?')) return;
+  try {
+    const res = await authFetch(`/api/user/chunks/${chunkId}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Chunk deleted.');
+      loadUserChunks();
+    } else {
+      showToast(data.detail || 'Error deleting chunk.');
+    }
+  } catch (err) {
+    showToast('Delete error: ' + err.message);
+  }
+}
+
+// 4. Admin Dashboard Data Loader (Google Drive Backups + Users Table)
+async function loadAdminDashboardData() {
+  if (!currentUser || currentUser.role !== 'admin') return;
+
+  try {
+    // 1. Overview Metrics
+    const resOverview = await authFetch('/api/admin/overview');
+    if (resOverview.ok) {
+      const ov = await resOverview.json();
+      document.getElementById('adminTotalUsers').textContent = ov.total_users || 0;
+      document.getElementById('adminTotalDocs').textContent = ov.total_documents || 0;
+      document.getElementById('adminTotalChunks').textContent = ov.total_custom_chunks || 0;
+      const gdriveEl = document.getElementById('adminGdriveStatus');
+      if (gdriveEl) {
+        gdriveEl.textContent = ov.gdrive_integration?.status || 'Active';
+        gdriveEl.style.color = '#10b981';
+      }
+    }
+
+    // 2. Documents Table (with Google Drive webViewLink)
+    const resDocs = await authFetch('/api/admin/documents');
+    if (resDocs.ok) {
+      const docData = await resDocs.json();
+      const docs = docData.documents || [];
+      const tbody = document.getElementById('adminDocumentsTableBody');
+      if (tbody) {
+        if (docs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">No client strategy documents uploaded yet.</td></tr>';
+        } else {
+          tbody.innerHTML = docs.map(d => `
+            <tr>
+              <td>#${d.id}</td>
+              <td><strong>${escapeHtml(d.user_full_name || 'Sales Rep')}</strong></td>
+              <td>${escapeHtml(d.user_email || '')}</td>
+              <td>📄 ${escapeHtml(d.filename || '')}</td>
+              <td>${(d.file_size / 1024).toFixed(1)} KB</td>
+              <td><span style="color:#38bdf8; font-weight:700;">${d.chunks_count || 0} chunks</span></td>
+              <td>${(d.uploaded_at || '').substring(0, 16).replace('T', ' ')}</td>
+              <td>
+                <a href="${d.drive_web_view_link || '#'}" target="_blank" class="drive-link-btn" title="Open file in Google Drive">
+                  <i class="fa-brands fa-google-drive"></i> View in Drive
+                </a>
+              </td>
+            </tr>
+          `).join('');
+        }
+      }
+    }
+
+    // 3. Users Roster Table
+    const resUsers = await authFetch('/api/admin/users');
+    if (resUsers.ok) {
+      const userData = await resUsers.json();
+      const users = userData.users || [];
+      const tbodyUsers = document.getElementById('adminUsersTableBody');
+      if (tbodyUsers) {
+        tbodyUsers.innerHTML = users.map(u => `
+          <tr>
+            <td>#${u.id}</td>
+            <td><strong>${escapeHtml(u.full_name || '')}</strong></td>
+            <td>${escapeHtml(u.email || '')}</td>
+            <td>
+              <span class="user-role-tag ${u.role === 'admin' ? 'admin' : 'user'}">
+                ${u.role === 'admin' ? '👑 Admin' : '👤 Sales Rep'}
+              </span>
+            </td>
+            <td><span style="color:#10b981;">● Active</span></td>
+            <td>${(u.created_at || '').substring(0, 10)}</td>
+          </tr>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Admin dashboard fetch error:', err);
+  }
+}
+
+function escapeHtml(text) {
+  return (text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+  initAuth();
   initTheme();
   initWebSocket();
   setupSpeechRecognition();
@@ -1506,5 +2022,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPlaybookUpload();
   refreshPlaybookStatus();
 });
+
 
 
