@@ -71,7 +71,7 @@ class RAGSearchResponse(BaseModel):
     sources: List[str]
     query_time_ms: float
     top_k: int
-    model: str = "gemini-3.5-flash"
+    model: str = "gemini-2.5-flash"
 
 @app.get("/health")
 async def health_check():
@@ -80,7 +80,7 @@ async def health_check():
         "service": "python-rag-microservice",
         "chunks": 5379,
         "embedding_model": "nomic-embed-text-v1.5",
-        "llm_model": "gemini-3.5-flash"
+        "llm_model": "gemini-2.5-flash"
     }
 
 @app.post("/api/rag-search", response_model=RAGSearchResponse)

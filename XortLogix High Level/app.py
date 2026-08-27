@@ -312,7 +312,7 @@ async def get_system_status():
         "total_chunks": count,
         "collection": "ghl_knowledge_base",
         "embedding_model": "nomic-embed-text-v1.5",
-        "gemini_model": "gemini-3.6-flash",
+        "gemini_model": "gemini-2.5-flash",
         "has_default_key": bool(get_default_api_key() and get_default_api_key() != "YOUR_GEMINI_API_KEY_HERE")
     }
 
@@ -652,14 +652,14 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
 
             client_gemini = genai.Client(api_key=api_key)
             fallback_models = [
-                "gemini-3.6-flash",
-                "gemini-flash-latest",
-                "gemini-flash-lite-latest",
-                "gemini-3.5-flash"
+                "gemini-2.5-flash",
+                "gemini-2.0-flash",
+                "gemini-1.5-flash",
+                "gemini-flash-latest"
             ]
 
             full_text = ""
-            used_model = "gemini-3.6-flash"
+            used_model = "gemini-2.5-flash"
             stream_success = False
 
             gen_config = types.GenerateContentConfig(
@@ -734,7 +734,7 @@ async def validate_api_key(req: KeyValidateRequest):
         from google import genai
         client = genai.Client(api_key=key)
         client.models.generate_content(
-            model='gemini-3.6-flash',
+            model='gemini-2.5-flash',
             contents='Ping'
         )
         return {"valid": True, "message": "API key validated successfully."}
