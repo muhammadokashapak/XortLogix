@@ -3,20 +3,20 @@
    ========================================================================== */
 
 :root {
-  --bg-dark: #070b14;
-  --panel-bg: rgba(15, 23, 42, 0.72);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --panel-border-hover: rgba(6, 182, 212, 0.35);
+  --bg-dark: #070c18;
+  --panel-bg: rgba(12, 20, 38, 0.78);
+  --panel-border: rgba(38, 150, 255, 0.16);
+  --panel-border-hover: rgba(38, 150, 255, 0.48);
   
-  --accent-cyan: #06b6d4;
-  --accent-cyan-glow: rgba(6, 182, 212, 0.35);
-  --accent-blue: #3b82f6;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-rose: #ef4444;
-  --accent-purple: #8b5cf6;
+  --accent-cyan: #2696FF;
+  --accent-cyan-glow: rgba(38, 150, 255, 0.42);
+  --accent-blue: #1D70D6;
+  --accent-emerald: #5BCD2F;
+  --accent-amber: #FDC104;
+  --accent-rose: #FF4D4D;
+  --accent-purple: #3B82F6;
   
-  --text-main: #f8fafc;
+  --text-main: #ffffff;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
   
@@ -39,8 +39,8 @@ html {
 body.simple-theme {
   background-color: var(--bg-dark);
   background-image: 
-    radial-gradient(circle at 50% -20%, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.06) 40%, transparent 70%),
-    radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 50% -20%, rgba(38, 150, 255, 0.22) 0%, rgba(253, 193, 4, 0.08) 40%, transparent 70%),
+    radial-gradient(circle at 10% 80%, rgba(91, 205, 47, 0.07) 0%, transparent 50%);
   background-attachment: fixed;
   color: var(--text-main);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

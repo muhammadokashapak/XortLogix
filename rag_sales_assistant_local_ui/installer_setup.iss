@@ -41,6 +41,7 @@ Name: "autostart"; Description: "Launch Sales Co-Pilot AI automatically on syste
 [Files]
 ; Main PyInstaller executable bundle
 Source: "dist\SalesCoPilot\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Registry]
 ; Auto-start with Windows if selected
