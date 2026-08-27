@@ -3,22 +3,22 @@
    ========================================================================== */
 
 :root {
-  --bg-dark: #070c18;
-  --panel-bg: rgba(12, 20, 38, 0.78);
-  --panel-border: rgba(38, 150, 255, 0.16);
-  --panel-border-hover: rgba(38, 150, 255, 0.48);
+  --bg-dark: #050811;
+  --panel-bg: rgba(14, 20, 32, 0.95);
+  --panel-border: rgba(34, 144, 241, 0.52);
+  --panel-border-hover: rgba(34, 144, 241, 0.9);
   
-  --accent-cyan: #2696FF;
-  --accent-cyan-glow: rgba(38, 150, 255, 0.42);
-  --accent-blue: #1D70D6;
-  --accent-emerald: #5BCD2F;
-  --accent-amber: #FDC104;
-  --accent-rose: #FF4D4D;
-  --accent-purple: #3B82F6;
+  --accent-cyan: #2290F1;
+  --accent-cyan-glow: rgba(34, 144, 241, 0.7);
+  --accent-blue: #1669C1;
+  --accent-emerald: #10B981;
+  --accent-amber: #FFC107;
+  --accent-rose: #FF3b3b;
+  --accent-purple: #9333EA;
   
   --text-main: #ffffff;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-muted: #e2e8f0;
+  --text-dim: #94a3b8;
   
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -39,8 +39,8 @@ html {
 body.simple-theme {
   background-color: var(--bg-dark);
   background-image: 
-    radial-gradient(circle at 50% -20%, rgba(38, 150, 255, 0.22) 0%, rgba(253, 193, 4, 0.08) 40%, transparent 70%),
-    radial-gradient(circle at 10% 80%, rgba(91, 205, 47, 0.07) 0%, transparent 50%);
+    radial-gradient(circle at 50% -10%, rgba(34, 144, 241, 0.65) 0%, rgba(255, 193, 7, 0.35) 30%, rgba(16, 185, 129, 0.15) 55%, transparent 80%),
+    radial-gradient(circle at 85% 85%, rgba(34, 144, 241, 0.3) 0%, transparent 60%);
   background-attachment: fixed;
   color: var(--text-main);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -68,13 +68,13 @@ body.simple-theme {
   display: flex;
   flex-direction: column;
   background: var(--panel-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--panel-border);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 16px 24px;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1.5px solid var(--panel-border);
+  box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.8), 0 0 30px rgba(34, 144, 241, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  padding: 18px 26px;
   border-radius: var(--radius-md);
-  gap: 12px;
+  gap: 14px;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -84,8 +84,8 @@ body.simple-theme {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 14px;
 }
 
 .brand {
@@ -96,28 +96,29 @@ body.simple-theme {
 }
 
 .brand-dot {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   background: var(--accent-cyan);
   border-radius: 50%;
-  box-shadow: 0 0 14px var(--accent-cyan), 0 0 4px #fff;
+  box-shadow: 0 0 18px var(--accent-cyan), 0 0 8px #fff;
   animation: pulseBrandDot 2s infinite ease-in-out;
 }
 
 @keyframes pulseBrandDot {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.2); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 0.85; }
 }
 
 .brand-title {
   font-weight: 800;
-  font-size: 16.5px;
+  font-size: 19px;
   letter-spacing: 0.8px;
-  background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+  background: linear-gradient(135deg, #ffffff 30%, #38bdf8 70%, #ffd700 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   white-space: nowrap;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .badge-status {

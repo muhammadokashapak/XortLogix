@@ -355,8 +355,8 @@ function handleIntentStrategyResponse(data) {
     }
   }
 
-  // 🎯 2. Open Modal Popup on genuine strategy match!
-  if (el.intentStrategyModal) {
+  // 🎯 2. Open Modal Popup ONLY if Auto Popup toggle is enabled!
+  if (state.autoPopup && el.intentStrategyModal) {
     el.intentStrategyModal.style.display = 'flex';
   }
 
@@ -2241,15 +2241,57 @@ function escapeHtml(text) {
   return (text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function initHeaderToggles() {
+  // 1. Zoom Audio Toggle
+  const savedZoomAudio = localStorage.getItem('sales_copilot_zoom_audio');
+  state.zoomAudio = (savedZoomAudio !== null) ? (savedZoomAudio === 'true') : true;
+  if (el.chkDesktopAudio) {
+    el.chkDesktopAudio.checked = state.zoomAudio;
+    el.chkDesktopAudio.addEventListener('change', (e) => {
+      state.zoomAudio = e.target.checked;
+      localStorage.setItem('sales_copilot_zoom_audio', state.zoomAudio);
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify({ type: 'audio_config', zoom_audio: state.zoomAudio }));
+      }
+    });
+  }
+
+  // 2. Auto Popup Toggle
+  const savedAutoPopup = localStorage.getItem('sales_copilot_auto_popup');
+  state.autoPopup = (savedAutoPopup !== null) ? (savedAutoPopup === 'true') : true;
+  if (el.chkAutoPopup) {
+    el.chkAutoPopup.checked = state.autoPopup;
+    el.chkAutoPopup.addEventListener('change', (e) => {
+      state.autoPopup = e.target.checked;
+      localStorage.setItem('sales_copilot_auto_popup', state.autoPopup);
+    });
+  }
+
+  // 3. Earphone TTS Toggle
+  const savedAutoTts = localStorage.getItem('sales_copilot_auto_tts');
+  state.autoTts = (savedAutoTts !== null) ? (savedAutoTts === 'true') : false;
+  if (el.chkAutoTts) {
+    el.chkAutoTts.checked = state.autoTts;
+    el.chkAutoTts.addEventListener('change', (e) => {
+      state.autoTts = e.target.checked;
+      localStorage.setItem('sales_copilot_auto_tts', state.autoTts);
+      if (state.autoTts && state.activePitch) {
+        speakText(state.activePitch);
+      } else if (!state.autoTts) {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
+    });
+  }
+}
+
 // Init on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  initAuth();
-  initTheme();
-  initWebSocket();
-  setupSpeechRecognition();
-  setupEvents();
-  setupPlaybookUpload();
-  refreshPlaybookStatus();
+  if (typeof initAuth === 'function') initAuth();
+  initHeaderToggles();
+  if (typeof initWebSocket === 'function') initWebSocket();
+  if (typeof setupSpeechRecognition === 'function') setupSpeechRecognition();
+  if (typeof setupPlaybookUpload === 'function') setupPlaybookUpload();
+  if (typeof refreshPlaybookStatus === 'function') refreshPlaybookStatus();
 });
 
 
