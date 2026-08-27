@@ -53,21 +53,29 @@ else:
 DEFAULT_GEMINI_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 def get_default_api_key() -> str:
-    key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not key or key == "YOUR_GEMINI_API_KEY_HERE":
-        if os.path.exists(ENV_PATH):
-            try:
-                with open(ENV_PATH, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith("GEMINI_API_KEY="):
-                            k = line.split("=", 1)[1].strip()
-                            if k:
+    # 1. Check environment variables
+    for env_var in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_KEY"]:
+        key = os.getenv(env_var, "").strip()
+        if key and key != "YOUR_GEMINI_API_KEY_HERE":
+            return key
+
+    # 2. Check .env file
+    if os.path.exists(ENV_PATH):
+        try:
+            with open(ENV_PATH, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("#"):
+                        continue
+                    for prefix in ["GEMINI_API_KEY=", "GOOGLE_API_KEY=", "GEMINI_KEY="]:
+                        if line.startswith(prefix):
+                            k = line.split("=", 1)[1].strip().strip('"').strip("'")
+                            if k and k != "YOUR_GEMINI_API_KEY_HERE":
                                 return k
-            except Exception:
-                pass
-        return DEFAULT_GEMINI_KEY
-    return key
+        except Exception:
+            pass
+
+    return ""
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -482,12 +490,18 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
     user_msg_record = db.add_message(conv_id, user['id'], 'user', user_query, attachments=att_save_data)
     current_conv_title = user_msg_record['conversation_title']
 
-    # 3. Resolve API Key (Always prioritize server .env key)
-    default_key = get_default_api_key()
+    # 3. Resolve API Key (Prioritize request key from user settings if provided, else use valid server key)
     req_key = (request.api_key or "").strip()
-    api_key = default_key if default_key else req_key
+    default_key = get_default_api_key()
+    
+    if req_key and req_key != "YOUR_GEMINI_API_KEY_HERE":
+        api_key = req_key
+    elif default_key and default_key != "YOUR_GEMINI_API_KEY_HERE":
+        api_key = default_key
+    else:
+        api_key = ""
 
-    if not api_key or api_key == "YOUR_GEMINI_API_KEY_HERE":
+    if not api_key:
         raise HTTPException(
             status_code=401, 
             detail="Gemini API Key is missing. Please configure your API key in Settings or set GEMINI_API_KEY in environment."

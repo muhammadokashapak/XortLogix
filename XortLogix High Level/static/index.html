@@ -384,6 +384,9 @@
                 <button class="modal-tab-btn" data-tab="tab-security">
                     <span>🔒</span> Password & Security
                 </button>
+                <button class="modal-tab-btn" data-tab="tab-api">
+                    <span>🔑</span> API Settings
+                </button>
             </div>
 
             <div class="modal-body profile-modal-body">
@@ -411,7 +414,7 @@
                     </div>
                 </div>
 
-                <!-- Tab 3: Password & Security -->
+                <!-- Tab 2: Password & Security -->
                 <div class="tab-pane hidden" id="tab-security">
                     <div class="form-group">
                         <label for="old-pwd-input">Current Password</label>
@@ -428,6 +431,25 @@
                     <div class="tab-actions-right">
                         <button class="primary-btn" id="save-pwd-btn">
                             <span class="btn-text">Update Password</span>
+                            <div class="btn-spinner hidden"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab 3: API Settings -->
+                <div class="tab-pane hidden" id="tab-api">
+                    <div class="form-group">
+                        <label for="gemini-api-key-input">Gemini API Key</label>
+                        <input type="password" id="gemini-api-key-input" placeholder="AIzaSy..." autocomplete="off">
+                        <small class="help-text">Your API key is saved locally in your browser and used for AI query synthesis.</small>
+                    </div>
+                    <div class="tab-actions-right">
+                        <button class="secondary-btn" id="validate-api-key-btn" type="button" style="margin-right: 8px;">
+                            <span class="btn-text">Validate Key</span>
+                            <div class="btn-spinner hidden"></div>
+                        </button>
+                        <button class="primary-btn" id="save-api-key-btn" type="button">
+                            <span class="btn-text">Save API Key</span>
                             <div class="btn-spinner hidden"></div>
                         </button>
                     </div>
