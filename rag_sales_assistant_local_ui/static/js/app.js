@@ -116,16 +116,9 @@ const el = {
   toastBox: document.getElementById('toastBox')
 };
 
-// Toast notification
+// Toast notification (Disabled as requested - AI Sales Strategy Popups preserved)
 function showToast(text) {
-  const toast = document.createElement('div');
-  toast.className = 'simple-toast';
-  toast.innerHTML = `<i class="fa-solid fa-circle-check text-cyan"></i> ${text}`;
-  el.toastBox.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 250);
-  }, 2200);
+  // Silent no-op to prevent info toast clutter
 }
 
 // Text-to-Speech (Speaks in Rep's earphone)
@@ -225,6 +218,8 @@ function initWebSocket() {
         handleBattlecardResponse(msg.data);
       } else if (msg.type === 'intent_strategy_response') {
         handleIntentStrategyResponse(msg.data);
+      } else if (msg.type === 'knowledge_base_updated') {
+        refreshPlaybookStatus();
       }
     } catch (e) {
       console.error(e);
@@ -1441,12 +1436,13 @@ function setupPlaybookUpload() {
 
         const data = await res.json();
         if (res.ok && data.success) {
-          showToast(`✅ ${data.total_chunks} Custom Strategy Chunks Activated!`);
+          const count = data.total_chunks || data.chunks_count || data.extracted_cards || 0;
+          showToast(`✅ Aapka document ${count} strategy chunks mein convert ho gaya!`);
           if (resultBox && resultMsg) {
             resultBox.style.display = 'block';
             resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
             resultBox.style.color = '#10b981';
-            resultMsg.innerHTML = `🎉 Successfully loaded <strong>${data.filename}</strong> with <strong>${data.total_chunks} strategy chunks</strong>! All custom embeddings are now live across Chrome Extension and Web UI.`;
+            resultMsg.innerHTML = `🎉 <strong>${data.filename}</strong> successfully <strong>${count} strategy chunks</strong> mein convert ho gaya hai! Sabhi embeddings live hain.`;
           }
           refreshPlaybookStatus();
           loadKnowledgeBase();
@@ -1495,6 +1491,75 @@ function setupPlaybookUpload() {
   }
 }
 
+// Dynamic Quick Scenarios Presets Manager
+const DEFAULT_QUICK_PRESETS = [
+  { icon: '💰', title: 'Price Resistance', intent: 'Your price is too high, freelancers are offering $500' },
+  { icon: '🏷️', title: 'Discount Negotiation', intent: 'Can we get a 20% discount if we sign this week?' },
+  { icon: '⏱️', title: 'Timeline Urgency', intent: 'We need this completed and launched within 10 days ASAP' },
+  { icon: '🏆', title: 'Competitor Threat', intent: 'Another agency has promised 50% cheaper rates and same features' },
+  { icon: '🔒', title: 'NDA & IP Security', intent: 'How do we ensure our proprietary source code is safe and NDA signed?' },
+  { icon: '⚙️', title: 'Tech Scalability', intent: 'Can your team handle heavy traffic and scalable Python/React architecture?' }
+];
+
+async function updateDynamicQuickScenarios(isCustom = false) {
+  const container = document.getElementById('intentPresetsContainer') || document.querySelector('.intent-presets');
+  if (!container) return;
+
+  const presetIcons = ['⚡', '🎯', '💡', '🧠', '🚀', '📌', '⚙️', '🔍'];
+
+  try {
+    let presets = DEFAULT_QUICK_PRESETS;
+
+    if (isCustom) {
+      const res = await fetch('/api/battlecards');
+      if (res.ok) {
+        const data = await res.json();
+        const cards = data.battlecards || [];
+        if (cards.length > 0) {
+          // Take top 6 topics from uploaded document
+          presets = cards.slice(0, 6).map((c, idx) => {
+            const rawQ = c.question || c.title || `Topic #${idx + 1}`;
+            let shortTitle = rawQ.replace(/^(Q\d+[\.:]?\s*|Client says\s*|Client asks\s*)/i, '').trim();
+            if (shortTitle.length > 28) {
+              shortTitle = shortTitle.slice(0, 26) + '...';
+            }
+            return {
+              icon: presetIcons[idx % presetIcons.length],
+              title: shortTitle,
+              intent: rawQ
+            };
+          });
+        }
+      }
+    }
+
+    // Render chips HTML
+    container.innerHTML = `
+      <span class="preset-label"><i class="fa-solid fa-bolt"></i> Quick Scenarios:</span>
+      ${presets.map(p => `
+        <button class="preset-chip" data-intent="${escapeHtml(p.intent)}">
+          ${p.icon} ${escapeHtml(p.title)}
+        </button>
+      `).join('')}
+    `;
+
+    // Attach click listeners to newly rendered chips
+    const newChips = container.querySelectorAll('.preset-chip');
+    newChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const intentText = chip.getAttribute('data-intent');
+        if (el.txtClientIntentInput) {
+          el.txtClientIntentInput.value = intentText;
+        }
+        analyzeClientIntent(intentText);
+      });
+    });
+
+  } catch (e) {
+    console.error('Error updating dynamic quick scenarios:', e);
+  }
+}
+
 async function refreshPlaybookStatus() {
   try {
     const res = await fetch('/api/knowledge-status');
@@ -1521,6 +1586,9 @@ async function refreshPlaybookStatus() {
         badge.style.color = '#10b981';
       }
     }
+
+    // Update Quick Scenarios chips dynamically based on active document!
+    updateDynamicQuickScenarios(data.is_custom);
   } catch (e) {}
 }
 
@@ -1543,11 +1611,12 @@ async function authFetch(url, options = {}) {
 
 // 1. Initialize Authentication & Session
 async function initAuth() {
+  const savedToken = localStorage.getItem('sales_copilot_token');
   const savedUser = localStorage.getItem('sales_copilot_user');
-  if (savedUser && authToken) {
+  if (savedToken && savedUser) {
     try {
+      authToken = savedToken;
       currentUser = JSON.parse(savedUser);
-      syncAuthUI();
       // Verify token with backend
       const res = await authFetch('/api/auth/me');
       if (res.ok) {
@@ -1561,15 +1630,12 @@ async function initAuth() {
     }
   }
 
-  // Default clean state: Standard Sales Rep (Prompt Login/Register on open)
+  // Default clean state: Standard Sales Rep (No auto-popup modal)
   currentUser = null;
   authToken = '';
+  localStorage.removeItem('sales_copilot_token');
+  localStorage.removeItem('sales_copilot_user');
   syncAuthUI();
-
-  // Auto-prompt Account Login & Registration on page open
-  setTimeout(() => {
-    openAuthModal();
-  }, 400);
 }
 
 function syncAuthUI() {
@@ -1580,32 +1646,38 @@ function syncAuthUI() {
   const adminTab = document.getElementById('tabAdminDashboard');
   const logoutBtn = document.getElementById('btnLogout');
 
-  if (!currentUser) {
-    if (nameLabel) nameLabel.textContent = 'Sales Rep Mode';
+  if (!currentUser || currentUser.role !== 'admin') {
+    if (nameLabel) nameLabel.textContent = currentUser ? (currentUser.full_name || currentUser.email) : 'Sales Rep Mode';
     if (roleTag) {
       roleTag.textContent = 'Sales Rep';
       roleTag.className = 'user-role-tag user';
-      roleTag.style.display = 'none';
+      roleTag.style.display = currentUser ? 'inline-block' : 'none';
     }
     if (roleIcon) {
       roleIcon.className = 'fa-solid fa-user-tie text-cyan';
     }
-    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = currentUser ? 'inline-block' : 'none';
     if (adminTab) adminTab.style.display = 'none';
+    
+    // Redirect away from admin view if currently active
+    const viewAdmin = document.getElementById('viewAdminDashboard');
+    if (viewAdmin && viewAdmin.style.display !== 'none') {
+      switchMainView('live');
+    }
     loadUserChunks();
     return;
   }
 
   const isAdmin = currentUser.role === 'admin';
 
-  if (nameLabel) nameLabel.textContent = isAdmin ? currentUser.email : (currentUser.full_name || currentUser.email);
+  if (nameLabel) nameLabel.textContent = currentUser.full_name ? `${currentUser.full_name}` : currentUser.email;
   if (roleTag) {
-    roleTag.textContent = isAdmin ? 'Admin' : 'Sales Rep';
-    roleTag.className = `user-role-tag ${isAdmin ? 'admin' : 'user'}`;
+    roleTag.textContent = 'Admin';
+    roleTag.className = 'user-role-tag admin';
     roleTag.style.display = 'inline-block';
   }
   if (roleIcon) {
-    roleIcon.className = isAdmin ? 'fa-solid fa-crown text-amber' : 'fa-solid fa-user text-cyan';
+    roleIcon.className = 'fa-solid fa-crown text-amber';
   }
   if (logoutBtn) {
     logoutBtn.style.display = 'inline-block';
@@ -1613,13 +1685,7 @@ function syncAuthUI() {
 
   // Strictly enforce Admin Tab visibility: ONLY visible if authenticated role === 'admin'
   if (adminTab) {
-    adminTab.style.display = isAdmin ? 'inline-flex' : 'none';
-  }
-
-  // If currently on admin view but user is not admin, redirect to live view
-  const viewAdmin = document.getElementById('viewAdminDashboard');
-  if (viewAdmin && viewAdmin.style.display !== 'none' && !isAdmin) {
-    switchMainView('live');
+    adminTab.style.display = 'inline-flex';
   }
 
   // Load user chunks count badge
@@ -1792,7 +1858,7 @@ async function handleUserFileUpload(e) {
   const statusText = document.getElementById('userUploadStatusText');
 
   if (progressBox) progressBox.style.display = 'block';
-  if (statusText) statusText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading & parsing strategy chunks into Vector DB...';
+  if (statusText) statusText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aapka document strategy chunks mein convert ho raha hai...';
 
   try {
     const formData = new FormData();
@@ -1806,7 +1872,8 @@ async function handleUserFileUpload(e) {
       });
       data = await res.json();
       if (res.ok && data.success) {
-        showToast(`☁️ Backed up to Google Drive & generated ${data.chunks_count} strategy chunks!`);
+        const count = data.chunks_count || data.total_chunks || data.extracted_cards || 0;
+        showToast(`✅ Aapka document ${count} strategy chunks mein convert ho gaya hai!`);
       }
     } else {
       res = await fetch('/api/upload-document', {
@@ -1815,7 +1882,8 @@ async function handleUserFileUpload(e) {
       });
       data = await res.json();
       if (res.ok && data.success) {
-        showToast(`✅ Generated & indexed ${data.total_chunks} custom strategy chunks!`);
+        const count = data.total_chunks || data.chunks_count || data.extracted_cards || 0;
+        showToast(`✅ Aapka document ${count} strategy chunks mein convert ho gaya hai!`);
       }
     }
 

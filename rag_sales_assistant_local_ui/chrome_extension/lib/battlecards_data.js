@@ -1,9 +1,772 @@
 window.SALES_BATTLECARDS = [
   {
     "q_number": 1,
-    "question": "Playbook Summary: test_sample.txt",
-    "context": "Uploaded document test_sample.txt",
-    "pitch": "Q: How much does it cost?\nA: It costs /mo.",
-    "source": "test_sample.txt"
+    "question": "What is the Bias-Variance Tradeoff in Machine Learning?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Bias refers to the error from erroneous assumptions in the learning algorithm (underfitting). Variance\nrefers to sensitivity to small fluctuations in training data (overfitting). The tradeoff represents the balance where total\ngeneralization error (Bias^2 + Variance + Irreducible Error) is minimized.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 2,
+    "question": "How does L1 (Lasso) differ from L2 (Ridge) Regularization?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: L1 adds the sum of absolute coefficients (|w|) to the loss, driving non-essential feature weights strictly\nto zero (producing sparse models and automatic feature selection). L2 adds the sum of squared coefficients (w^2),\nshrinking weights smoothly toward zero without forcing exact sparsity, stabilizing collinear features.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 3,
+    "question": "When should you use ROC-AUC vs Precision-Recall (PR) AUC?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Use ROC-AUC for balanced datasets where true negatives are important. Use PR-AUC for highly\nimbalanced datasets (e.g. fraud detection, medical anomaly detection) because ROC-AUC gives an overly optimistic score\nwhen the negative class dominates.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 4,
+    "question": "What is Data Leakage and how do you prevent it in ML pipelines?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Data leakage occurs when information from outside the training dataset (like test set distribution or\nfuture timestamps) is used to create the model. Prevent it by strict temporal splitting, fitting scalers/imputers ONLY on\ntraining folds inside cross-validation, and isolating target encoding.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 5,
+    "question": "Explain the difference between Bagging and Boosting.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Bagging (e.g., Random Forest) trains multiple models independently in parallel on bootstrap samples\nand aggregates their predictions to reduce variance. Boosting (e.g., XGBoost, LightGBM) trains models sequentially where\neach new model corrects the residual errors of prior models to reduce bias.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 6,
+    "question": "How does Gradient Boosting work under the hood?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Gradient Boosting builds additive trees iteratively. At each step, a new weak learner (decision tree) is\nfit to the negative gradient (pseudo-residuals) of the loss function with respect to current predictions, performing gradient\ndescent in function space.\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 1 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 7,
+    "question": "What is Cross-Validation and why is K-Fold preferred over a single train/test split?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: K-Fold splits data into K subsets, training on K-1 and testing on the remaining fold K times. It provides\nan unbiased estimate of model generalization across diverse data slices, reducing variance associated with a single\narbitrary train/test split.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 8,
+    "question": "What is the Curse of Dimensionality and how is it mitigated?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: As feature dimensions grow, the volume of space increases exponentially, making data points sparse\nand distance metrics (Euclidean) meaningless. Mitigate via dimensionality reduction (PCA, t-SNE, UMAP), feature\nselection, and manifold learning.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 9,
+    "question": "Explain Principal Component Analysis (PCA).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: PCA is an unsupervised linear transformation technique that identifies orthogonal axes (principal\ncomponents) of maximum variance in feature space by calculating the eigenvectors and eigenvalues of the data\ncovariance matrix.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 10,
+    "question": "How do Support Vector Machines (SVM) handle non-linear data?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: SVM applies the 'Kernel Trick' (e.g., RBF, Polynomial kernels) to implicitly project data into a\nhigher-dimensional space where a linear separating hyperplane with maximal margin can be constructed without\ncomputing explicit high-dimensional coordinates.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 11,
+    "question": "What is the difference between Generative and Discriminative models in ML?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Discriminative models learn the boundary between classes P(Y|X) (e.g., Logistic Regression, SVM,\nBERT). Generative models learn the joint probability distribution P(X,Y) or P(X) to model how data was generated (e.g.,\nNaive Bayes, GMM, GANs, GPT).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 12,
+    "question": "What is Target Encoding and how do you prevent target leakage?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Target encoding replaces categorical categories with the mean target value for that category. Prevent\nleakage by using Out-of-Fold (OOF) target calculation, adding Gaussian smoothing noise, and empirical Bayes prior\nshrinkage (m-estimate).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 13,
+    "question": "What is Logistic Regression and why is it called regression when it classifies?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Logistic Regression models the log-odds (logit) of a binary outcome as a linear combination of\nindependent features: ln(p / (1-p)) = w^T x + b. It is a generalized linear regression model transformed into probabilities\nusing the sigmoid function.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 14,
+    "question": "What is the difference between Parametric and Non-Parametric algorithms?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Parametric models summarize data with a fixed set of parameters independent of training sample size\n(e.g., Linear/Logistic Regression, Neural Networks). Non-parametric models grow parameters with data complexity (e.g.,\nKNN, Decision Trees, SVM with RBF).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 15,
+    "question": "How do you handle severe Class Imbalance in classification?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 2 of 14\nContext / Answer: Techniques include: (1) Cost-sensitive loss weighting (Focal Loss, Class Weights), (2) Resampling\n(SMOTE oversampling minority, Tomek Links undersampling majority), (3) Threshold calibration / moving, and (4)\nAnomaly detection formulation (Isolation Forests).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 16,
+    "question": "Explain the difference between Type I and Type II errors.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Type I error is a False Positive (rejecting a true null hypothesis, e.g., innocent person convicted). Type\nII error is a False Negative (failing to reject a false null hypothesis, e.g., failing to detect a critical disease).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 17,
+    "question": "How does K-Means Clustering work and what is its main limitation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: K-Means iteratively assigns points to the nearest cluster centroid (Voronoi partition) and recalculates\ncentroids as the mean of assigned points. Limitations: Assumes spherical clusters of equal size, sensitive to initialization\n(mitigated by K-Means++), and requires pre-specifying K.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 18,
+    "question": "What is the Elbow Method and Silhouette Score in Clustering?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Elbow method plots Within-Cluster Sum of Squares (WCSS) vs K to locate diminishing returns.\nSilhouette Score measures how similar an object is to its own cluster compared to neighboring clusters (-1 to +1, higher is\nbetter).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 19,
+    "question": "What is Early Stopping and why is it a form of regularization?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Early stopping monitors validation loss during training and halts optimization when validation loss\nstops decreasing for N epochs (patience). It restricts parameter magnitude growth, effectively constraining model capacity\nsimilar to L2 weight decay.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 20,
+    "question": "What is Confusion Matrix and its four core derived metrics?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: The confusion matrix tallies TP, FP, TN, FN. Core metrics: Accuracy = (TP+TN)/Total, Precision =\nTP/(TP+FP), Recall/Sensitivity = TP/(TP+FN), and F1-Score = 2 * (Precision * Recall) / (Precision + Recall).\nSECTION 2: Deep Learning & Neural Network Architecture",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 21,
+    "question": "Explain Backpropagation and the Chain Rule in Neural Networks.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Backpropagation computes the gradient of the loss function with respect to all network weights by\nrepeatedly applying the multivariable calculus chain rule backward from the output layer to the input layer, enabling\ngradient descent weight updates.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 22,
+    "question": "What causes Vanishing and Exploding Gradients and how are they resolved?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Repeated matrix multiplications of gradients < 1 (vanishing) or > 1 (exploding) across deep layers.\nSolved via: (1) Residual Connections (ResNet), (2) ReLU/GELU activations instead of Sigmoid/Tanh, (3) Batch/Layer\nNormalization, (4) He/Xavier weight initialization, and (5) Gradient Clipping.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 23,
+    "question": "How does the Adam optimizer improve over Stochastic Gradient Descent (SGD)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 3 of 14\nContext / Answer: Adam computes adaptive learning rates for each parameter by combining Momentum (first moment:\nmoving average of gradients) and RMSProp (second moment: moving average of squared gradients) with bias correction.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 24,
+    "question": "What is the difference between Batch Normalization and Layer Normalization?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Batch Normalization normalizes activations across the batch dimension for each feature channel\n(effective in CNNs). Layer Normalization normalizes across all features/hidden dimensions for each individual sequence\nelement independently of batch size (essential in Transformers and RNNs).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 25,
+    "question": "Why is GELU preferred over ReLU in modern Transformer LLMs?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: GELU (Gaussian Error Linear Unit) scales inputs by their cumulative probability distribution under\nstandard normal distribution, providing a smooth non-monotonic curvature around zero that avoids the 'dying ReLU'\nzero-derivative dead state.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 26,
+    "question": "What is Dropout and how does it behave during training vs inference?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Dropout randomly sets a fraction p of neuron activations to zero during training to prevent\nco-adaptation of features (acting as an implicit ensemble). During inference, dropout is disabled and activations are scaled\nby (1-p) or left as-is if inverted dropout was used.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 27,
+    "question": "Explain Convolutional Neural Networks (CNNs) and Translation Invariance.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: CNNs apply learnable spatial filters (kernels) that slide across inputs via parameter sharing and local\nreceptive fields. Pooling and shared weights provide translation invariance, enabling detection of patterns regardless of\ntheir coordinate position.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 28,
+    "question": "What is the key advantage of ResNet's Skip/Residual Connections?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Skip connections reformulate layers to learn residual mappings F(x) = H(x) - x, where output is F(x) +\nx. This allows gradients to flow directly through the identity shortcut during backpropagation, enabling stable training of\n100+ layer networks.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 29,
+    "question": "How do LSTMs solve the short-term memory problem of standard RNNs?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: LSTMs introduce a continuous Cell State regulated by three gates: Forget Gate (discards irrelevant\npast info), Input Gate (writes new candidate info), and Output Gate (filters cell state into the hidden state output).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 30,
+    "question": "What is the Self-Attention mechanism in Transformers?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Self-attention maps input tokens into Query (Q), Key (K), and Value (V) matrices. It computes\nAttention(Q,K,V) = softmax(Q * K^T / sqrt(d_k)) * V, enabling every token in a sequence to dynamically attend to every\nother token with O(1) path length.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 31,
+    "question": "Why is the scaling factor 1/sqrt(d_k) used in Scaled Dot-Product Attention?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: For large projection dimensions d_k, dot products grow large in magnitude, pushing softmax into\nregions with extremely small gradients. Dividing by sqrt(d_k) normalizes the variance to 1, maintaining healthy gradient\npropagation.\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 4 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 32,
+    "question": "What is Multi-Head Attention and why is it better than Single-Head Attention?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Multi-Head Attention projects Q, K, V into h distinct lower-dimensional subspaces in parallel. This\nallows the model to jointly attend to information from different representation subspaces (e.g., grammatical syntax,\nsemantic coreference, factual relations).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 33,
+    "question": "Explain Positional Embeddings and RoPE (Rotary Position Embeddings).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Because self-attention is permutation-invariant, positional encodings inject sequence order. RoPE\napplies a rotation matrix to Query and Key vectors in complex coordinate space, naturally incorporating relative token\ndistances while generalizing to long contexts.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 34,
+    "question": "What is the difference between Encoder-Only, Decoder-Only, and Encoder-Decoder",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "architectures?\nContext / Answer: Encoder-Only (BERT) uses bidirectional attention for representation and classification. Decoder-Only\n(GPT, Llama) uses causal/masked self-attention for autoregressive token generation. Encoder-Decoder (T5) maps input\nsequences to target sequences (translation, summarization).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 35,
+    "question": "What is Cross-Entropy Loss and why is it standard for classification?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Cross-Entropy Loss H(p,q) = -sum(p(x) * log(q(x))) measures the divergence between true label\ndistribution p and predicted softmax probability q. Minimizing cross-entropy is equivalent to maximizing the log-likelihood of\nthe correct class.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 36,
+    "question": "What is Learning Rate Warmup and Cosine Annealing?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Warmup gradually increases learning rate from zero during initial steps to stabilize variance\ncalculations (Adam). Cosine annealing then smoothly decays the learning rate following a cosine curve to zero, allowing\nthe optimizer to settle into flatter minima.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 37,
+    "question": "What is Weight Initialization (He vs Xavier) and why is it critical?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Xavier/Glorot initializes weights with variance 2/(n_in + n_out) for Tanh/Sigmoid. He/Kaiming initializes\nwith variance 2/n_in for ReLU/GELU to keep signal variance constant across layers and prevent activation collapse.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 38,
+    "question": "Explain Teacher Forcing in Sequence-to-Sequence models.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Teacher forcing passes the ground-truth target token from the training dataset as the next input step\ninstead of feeding the model's own prior predicted token, accelerating convergence during training.\nSECTION 3: Large Language Models (LLMs) & Generative AI",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 39,
+    "question": "What is LoRA (Low-Rank Adaptation) and how does it work?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: LoRA freezes pre-trained weight matrices W_0 (d x k) and injects trainable rank decomposition\nmatrices A (d x r) and B (r x k) where r << min(d,k). The updated forward pass is W = W_0 + (alpha/r) * (B * A), reducing\ntrainable parameters by 99%.\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 5 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 40,
+    "question": "What is QLoRA and how does it achieve 4-bit fine-tuning without quality degradation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: QLoRA combines: (1) NF4 (NormalFloat4) information-theoretically optimal 4-bit quantization, (2)\nDouble Quantization to compress quantization constants, and (3) Paged Optimizers to manage memory spikes during\ngradient checkpoints.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 41,
+    "question": "Explain the difference between RLHF and DPO (Direct Preference Optimization).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: RLHF trains a separate Reward Model on human preferences and optimizes policy via PPO (complex\nand unstable). DPO mathematically re-parameterizes the reward in terms of policy probabilities, optimizing preference\ndirectly via cross-entropy loss without a separate reward model or RL loop.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 42,
+    "question": "What are Temperature, Top-P (Nucleus Sampling), and Top-K in LLM generation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Temperature divides logits (lower = deterministic/focused, higher = creative/diverse). Top-K restricts\nsampling to the K highest probability tokens. Top-P restricts sampling to the smallest set of tokens whose cumulative\nprobability exceeds threshold P.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 43,
+    "question": "How does KV Caching optimize Transformer autoregressive inference?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: During token generation, past Keys and Values do not change. KV Cache stores previous Keys and\nValues in GPU VRAM, converting token generation complexity from O(N^2) to O(N) per step by computing attention only\nfor the newest token against cached states.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 44,
+    "question": "What is FlashAttention and why is it faster?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: FlashAttention tiles the Query, Key, Value matrices to fit entirely into fast GPU SRAM and computes\nsoftmax on-chip using online softmax normalization, avoiding high-latency reads/writes to slower GPU HBM memory.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 45,
+    "question": "What causes LLM Hallucinations and how are they engineered out?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Hallucinations stem from statistical pattern completion over knowledge cutoff, lossy pre-training\ncompression, and misalignment. Solved via: (1) Grounded RAG retrieval, (2) System Guardrails (NeMo, Llama Guard), (3)\nStructured JSON schema enforcement, and (4) Chain-of-Thought citation verification.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 46,
+    "question": "What is Instruction Tuning vs Pre-training vs Alignment?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Pre-training learns language syntax and world knowledge via next-token prediction on trillions of\ntokens. Instruction Tuning (SFT) teaches the model to respond to conversational commands. Alignment (RLHF/DPO)\nensures outputs are helpful, honest, and harmless.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 47,
+    "question": "Explain Tokenization (Byte-Pair Encoding - BPE).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: BPE starts with character-level vocabulary and iteratively merges the most frequently co-occurring pair\nof symbols into new tokens until target vocabulary size is reached, balancing vocabulary size with sequence compression.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 48,
+    "question": "What is Mixture of Experts (MoE) architecture (e.g. Mixtral)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 6 of 14\nContext / Answer: MoE replaces standard dense feedforward layers with multiple sparse 'expert' networks. A learnable\nrouting/gating mechanism dynamically activates only top-K (e.g., 2 of 8) experts per token, delivering large-model\nparameter capacity at fraction of compute cost.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 49,
+    "question": "How does Speculative Decoding accelerate LLM generation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: A smaller, fast draft model generates K candidate tokens in parallel, which are then verified in a single\nforward pass by the large target model. Correct tokens are accepted while the first incorrect token is resampled, achieving\n2-3x speedup with identical output distribution.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 50,
+    "question": "What is Chain-of-Thought (CoT) prompting and why does it improve reasoning?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: CoT prompts the model to generate intermediate reasoning steps ('Think step-by-step') before giving\nthe final answer. This allocates extra computation tokens to complex multi-step logical deductions.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 51,
+    "question": "Explain Model Quantization (GPTQ, AWQ, GGUF).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Quantization converts 16-bit FP weights to 8-bit or 4-bit INT. GPTQ uses second-order Taylor\nexpansion for post-training quantization. AWQ protects salient 1% outlier weights. GGUF provides unified CPU/GPU\nquantized tensor formatting.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 52,
+    "question": "What are LLM Context Extension techniques (YARN, LongLoRA, Sliding Window)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Sliding window attention limits attention to local neighbors. LongLoRA uses shifted short-attention for\nfine-tuning. YaRN (Yet another RoPE extensioN) interpolates position frequencies across hidden dimensions to scale\ncontext up to 128k+ tokens.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 53,
+    "question": "What is the difference between Function Calling and Tool Use in LLMs?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Function calling outputs structured JSON parameters matching a predefined schema. Tool use\nexecutes that function against external APIs/databases and returns execution results back into LLM context to complete\nthe task.\nSECTION 4: RAG (Retrieval-Augmented Generation) & Vector Search",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 54,
+    "question": "Explain the core RAG (Retrieval-Augmented Generation) pipeline architecture.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Pipeline: (1) Ingestion: Documents are parsed, chunked, and embedded into a Vector DB. (2)\nRetrieval: User query is converted to embedding and cosine similarity matches top-K chunks. (3) Augmentation: Retrieved\nchunks are injected into LLM prompt context. (4) Generation: LLM synthesizes grounded answer with citations.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 55,
+    "question": "What is the difference between Dense Retrieval and Sparse Retrieval (BM25)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Dense retrieval (embeddings) captures semantic context and synonyms but can miss exact product\ncodes or names. Sparse retrieval (BM25 / TF-IDF) matches exact keywords and lexical frequency. Hybrid search\ncombines both via Reciprocal Rank Fusion (RRF).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 56,
+    "question": "What is HNSW (Hierarchical Navigable Small World) indexing in Vector DBs?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 7 of 14\nContext / Answer: HNSW is an Approximate Nearest Neighbor (ANN) search graph with multi-layer hierarchies. Top\nlayers have long-range links for fast greedy routing, while bottom layers contain dense local connections for accurate\nnearest-neighbor discovery with O(log N) search latency.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 57,
+    "question": "Explain Reciprocal Rank Fusion (RRF) in Hybrid Search.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: RRF combines rankings from multiple retrieval algorithms (dense vector + sparse BM25) using score\nformula: RRF_Score(d) = sum(1 / (k + rank_i(d))), where k is a smoothing constant (typically 60), ensuring balanced\nreranking without score normalization artifacts.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 58,
+    "question": "What is Re-ranking (Cross-Encoder) and why is it applied after Bi-Encoder retrieval?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Bi-encoders independently embed query and document (fast, scalable for million-item search).\nCross-encoders process query and candidate chunk jointly through full cross-attention layers, computing precise\nrelevance scores on the top-50 candidates to boost precision.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 59,
+    "question": "What chunking strategies are used in production RAG systems?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Strategies: (1) Fixed-size sliding window with overlap (e.g. 512 tokens, 50 overlap), (2)\nMarkdown/HTML semantic structure chunking, (3) Document-specific Q&A; card splitting, (4) Parent-Document retrieval\n(embed small sentences, return full parent paragraph).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 60,
+    "question": "What is the 'Lost in the Middle' problem in LLM context and how is it mitigated?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: LLMs attend heavily to information at the very beginning and end of long context windows, ignoring\ndetails placed in the middle. Solved via re-ranking most critical chunks to the extreme prompt start/end, and chunk filtering.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 61,
+    "question": "Explain Multi-Hop RAG and Agentic Query Decomposition.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: When a query requires synthesizing multiple disjoint facts ('Compare revenue of X in 2024 with Y in\n2023'), the agent decomposes the query into sub-queries, executes sequential retrievals, and aggregates results\niteratively.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 62,
+    "question": "What metrics evaluate RAG performance (Ragas framework)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Core RAG metrics: (1) Faithfulness (grounded in context, no hallucination), (2) Answer Relevance\n(answers the user's prompt), (3) Context Precision (retrieved chunks signal-to-noise ratio), and (4) Context Recall\n(retrieved all necessary facts).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 63,
+    "question": "How does Hypothetical Document Embeddings (HyDE) improve retrieval?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: HyDE prompts an LLM to generate a hypothetical answer to the user query. The hypothetical answer\nis embedded and used to search the vector database, matching real document embeddings closer in embedding space\nthan raw short questions.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 64,
+    "question": "What is Vector Embedding Dimensionality and Cosine vs Dot Product vs L2 Distance?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 8 of 14\nContext / Answer: Dimensionality is the vector size (e.g., 384, 768, 1536). If embeddings are L2-normalized (length=1),\nCosine Similarity, Dot Product, and Euclidean (L2) Distance are monotonically equivalent, but Dot Product is\ncomputationally fastest.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 65,
+    "question": "How do you handle Multi-Tenancy and Data Isolation in Vector Databases?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Approaches: (1) Metadata filtering (querying with `where user_id = X` filter), (2) Dedicated isolated\ncollections/indexes per tenant, and (3) Cryptographic encryption per user namespace in partitioned storage.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 66,
+    "question": "What is Contextual Compression in RAG?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Contextual compression extracts only the relevant sentences or entities from retrieved candidate\ndocuments relative to the query before sending them to the LLM, reducing latency, token cost, and distraction.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 67,
+    "question": "Explain Self-RAG and Adaptive Retrieval.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Self-RAG trains the model to generate reflection tokens that decide whether retrieval is necessary\non-demand, evaluate whether retrieved passages are relevant, and self-critique generation quality before streaming\noutput.\nSECTION 5: MLOps, System Design & Inference Serving",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 68,
+    "question": "How does vLLM and PagedAttention achieve 10x higher LLM serving throughput?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: PagedAttention manages KV Cache memory fragmentation by allocating KV blocks non-contiguously\nin virtual memory pages (like OS virtual paging), virtually eliminating VRAM waste and enabling continuous dynamic\nbatching of concurrent user requests.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 69,
+    "question": "What is Continuous Batching (Iteration-level batching) in LLM serving?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Traditional batching waits for all sequences in a batch to finish generation. Continuous batching evicts\ncompleted requests immediately at each iteration token step and injects incoming requests into the active batch without\nwaiting.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 70,
+    "question": "What is Model Drift (Concept Drift vs Data Drift) and how is it detected?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Data Drift: Distribution of input features P(X) changes over time (detected via Kolmogorov-Smirnov\ntest, PSI - Population Stability Index). Concept Drift: Relationship between features and target P(Y|X) changes (detected\nvia ground-truth performance degradation monitoring).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 71,
+    "question": "Explain Latency vs Throughput tradeoffs in Machine Learning systems.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Latency (TTFT - Time to First Token, P99 response time) is critical for real-time user-facing\napplications (requires smaller batch sizes and model parallelism). Throughput (tokens/sec) maximizes hardware efficiency\nfor batch offline processing (requires continuous large batching).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 72,
+    "question": "What is Tensor Parallelism vs Pipeline Parallelism in distributed training/inference?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 9 of 14\nContext / Answer: Tensor Parallelism splits individual weight matrices across GPUs within the same server\n(Megatron-LM, intra-node high-bandwidth NVLink). Pipeline Parallelism splits layers across different GPUs sequentially\n(inter-node).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 73,
+    "question": "How do you secure LLM applications against Prompt Injection attacks?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Techniques: (1) Strict prompt/system role separation, (2) Input sanitization and dual-LLM guardrail\nverification, (3) Parameterized structured tools (function calling) instead of raw text shell execution, and (4) Principle of\nleast privilege for database integrations.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 74,
+    "question": "What is Feature Store (e.g. Feast, Hopsworks) and why is it used?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: A Feature Store provides a centralized repository for standardized feature definitions, serving\nlow-latency online features for real-time inference (Redis) and point-in-time correct offline features for model training,\npreventing training-serving skew.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 75,
+    "question": "Explain ONNX (Open Neural Network Exchange) and TensorRT runtime optimization.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: ONNX provides an open graph format interoperable across frameworks (PyTorch, TensorFlow).\nTensorRT optimizes ONNX graphs for NVIDIA GPUs through layer fusion, kernel auto-tuning, and precision quantization\n(FP16/INT8).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 76,
+    "question": "What is Canary Deployment vs Shadow Deployment in ML model rollout?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Canary routes a small percentage of live user traffic (e.g., 5%) to the new model while monitoring error\nrates. Shadow deployment mirrors 100% of live traffic to the new model without serving its outputs to users, validating\nperformance safely against live load.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 77,
+    "question": "What is Data Lineage and Model Reproducibility in MLOps?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Data Lineage tracks the complete provenance, transformations, and dependencies of training data\n(DVC). Model Reproducibility guarantees identical model artifact regeneration using tracked git commits, pinned seed\nparameters, and containerized Docker environments.\nSECTION 6: AI Sales Engineering, Strategy & Client Pitching",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 78,
+    "question": "How do you address client concerns about Data Privacy when using AI solutions?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Explain that: (1) Architecture runs completely local or within dedicated private VPCs (zero external\ndata sharing), (2) Enterprise Zero-Data-Retention (ZDR) agreements apply, (3) Client data is never used for foundation\nmodel training, and (4) Role-Based Access Control (RBAC) ensures cryptographic isolation.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 79,
+    "question": "Open-Source Local Models (Llama 3, Mistral) vs Proprietary APIs (OpenAI, Anthropic) - What is",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "the sales pitch?\nContext / Answer: Proprietary APIs offer fast prototyping but incur continuous per-token operational expenses and\nprivacy risks. Open-source local deployments give 100% data sovereignty, zero recurring API usage bills, predictable fixed\ninfrastructure costs, and customized fine-tuning ownership.\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 10 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 80,
+    "question": "How do you handle client objection: 'Why shouldn't we just build this in-house?'",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: In-house builds require 6-9 months of senior AI engineering salaries ($300k+), expensive GPU\ntrial-and-error, and continuous infrastructure maintenance. We provide a battle-tested, production-grade co-pilot platform\ndeployed in 7 days at a fraction of the cost with guaranteed SLA.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 81,
+    "question": "How do you guarantee Low Latency for real-time sales / voice co-pilot apps?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: We utilize localized WASAPI audio loopback streaming, quantized fast embedding models\n(all-MiniLM-L6-v2), in-memory ChromaDB vector indexing with <15ms retrieval, and instant WebSocket push to achieve\nsub-second real-time battlecard matching.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 82,
+    "question": "What is Total Cost of Ownership (TCO) calculation for an Enterprise AI Agent?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: TCO includes: (1) Compute / GPU hosting (cloud vs on-prem), (2) Vector storage and maintenance,\n(3) Data ingestion pipelines, and (4) Engineering support. We optimize TCO through local 4-bit quantization, dynamic\nscaling, and reusable RAG indexing.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 83,
+    "question": "How do you pitch AI ROI to a non-technical C-level Executive?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Focus strictly on business impact metrics: (1) 40% reduction in sales onboarding ramp time, (2) 3x\nfaster objection handling during live customer pitches, (3) 25% higher deal conversion rates, and (4) Automated\ncompliance audit trails.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 84,
+    "question": "How do you assure clients about AI Accuracy and Hallucination Prevention?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Our system implements Strict Grounded RAG with exact similarity threshold gating. If similarity falls\nbelow 75%, the system suppresses generic AI outputs and cites only verified company sales playbooks, ensuring 100%\nfactual fidelity.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 85,
+    "question": "What is our Disaster Recovery & Backup Strategy for Enterprise AI Data?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: All custom strategy playbooks, user embeddings, and chat logs are backed up in parallel to Google\nDrive API v3 and SQLite persistent volumes with automated daily snapshots and 1-click restore capabilities.\nSECTION 7: AI Agents, Workflows & Tool Execution",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 86,
+    "question": "Explain the ReAct (Reasoning + Acting) Agent framework.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: ReAct interleaves reasoning traces ('Thought') and task-specific actions ('Action': tool call) in an\niterative loop. The agent observes tool execution results ('Observation') and reasons about the next step until the final\nanswer is achieved.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 87,
+    "question": "What is the difference between Graph-based (LangGraph) vs Linear Agent workflows?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Linear chains execute step-by-step without cycles. Graph-based workflows represent agent states as\nnodes and conditional transitions as edges, enabling cyclical loops, human-in-the-loop approvals, branching decisions,\nand persistent memory.\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 11 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 88,
+    "question": "How do AI Agents maintain Long-Term Memory (Episodic vs Semantic)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Semantic memory stores facts and world knowledge in vector databases. Episodic memory stores\nspecific past conversation trajectories and execution outcomes, retrieved via recency, relevance, and importance scoring.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 89,
+    "question": "What is Plan-and-Solve Prompting vs Tree-of-Thoughts (ToT)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Plan-and-Solve decomposes complex tasks into an explicit checklist of subtasks before execution.\nTree-of-Thoughts explores multiple reasoning paths simultaneously as a tree, using search algorithms (BFS/DFS) with\nself-evaluation heuristics.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 90,
+    "question": "What is Reflection and Self-Correction in Multi-Agent systems?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: A secondary critic/evaluator agent inspects the output of the generator agent against requirements,\nunit tests, or lint checks, providing structured feedback that the generator agent uses to iteratively refine its output.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 91,
+    "question": "How do you prevent infinite loops in Autonomous Agent execution?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Enforce: (1) Hard maximum iteration caps (e.g., max 10 steps), (2) Token budget ceiling, (3) Duplicate\naction detection, (4) Timeout watchdogs, and (5) Graceful fallback escalation to human operators.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 92,
+    "question": "What is MCP (Model Context Protocol) by Anthropic?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: MCP is an open standard protocol that connects AI models to external data sources, enterprise tools,\nand local development environments through a standardized client-server architecture, replacing bespoke one-off API\nintegrations.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 93,
+    "question": "Explain Multi-Agent Collaboration architectures (Supervisor vs Swarm vs Hierarchical).",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Supervisor routes tasks to specialist sub-agents. Swarm allows decentralized peer-to-peer handoffs.\nHierarchical organizes agents into multi-level managers that delegate sub-goals and synthesize reports.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 94,
+    "question": "How do you test and benchmark AI Agents in production?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Using deterministic evaluation harnesses (e.g. SWE-bench, GAIA) with mocked sandbox\nenvironments, trajectory verification, tool call schema validation, and end-state goal achievement assertions.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 95,
+    "question": "What are Guardrails in AI Agent execution?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Input/output filters that enforce strict safety boundaries: (1) PII redacting, (2) Hallucination verification\nagainst source docs, (3) SQL injection / toxic code blocking, and (4) Structured JSON schema validation.\nSECTION 8: Computer Vision & Multimodal AI",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 96,
+    "question": "Explain CLIP (Contrastive Language-Image Pretraining) and Contrastive Loss.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "XORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 12 of 14\nContext / Answer: CLIP trains an image encoder and text encoder jointly on 400M (image, text) pairs. It maximizes the\ncosine similarity of true pairs (diagonal) while minimizing similarity of incorrect pairs (off-diagonal) using symmetric\ncross-entropy infoNCE loss.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 97,
+    "question": "How does Vision Transformer (ViT) process images without convolutions?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: ViT flattens an image into non-overlapping 16x16 pixel patches, linearly projects each patch into 1D\ntoken embeddings, adds 1D learnable position embeddings, prepends a [CLS] token, and feeds them through standard\nTransformer encoder blocks.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 98,
+    "question": "What is Diffusion Model (DDPM) and how does it generate images?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Forward process gradually adds Gaussian noise to an image over T steps until it becomes pure noise.\nReverse process trains a U-Net to predict and subtract the added noise step-by-step, transforming pure Gaussian noise\ninto realistic images.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 99,
+    "question": "What is Latent Diffusion (Stable Diffusion) and why is it faster than pixel diffusion?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Latent Diffusion uses a pre-trained VQ-VAE / Autoencoder to compress high-resolution images into a\nlower-dimensional latent space (e.g., 8x spatial reduction). Diffusion denoising is performed entirely in latent space,\nslashing compute requirements.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 100,
+    "question": "What is Object Detection: Two-Stage (Faster R-CNN) vs One-Stage (YOLO)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Two-stage models (Faster R-CNN) first generate candidate regions (RPN) and then classify/refine\nbounding boxes (higher accuracy, slower). One-stage models (YOLO) treat detection as a single regression problem\nacross spatial grid cells (faster, real-time).",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 101,
+    "question": "What is Intersection over Union (IoU) and Non-Maximum Suppression (NMS)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: IoU = Area of Overlap / Area of Union between predicted and ground-truth boxes. NMS eliminates\nredundant overlapping bounding boxes for the same object by sorting by confidence and discarding boxes with IoU >\nthreshold with the top box.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 102,
+    "question": "How do Multimodal LLMs (GPT-4V, LLaVA) process images alongside text?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: A vision encoder (CLIP ViT) extracts image feature tokens. A linear projection layer or Q-Former aligns\nvisual feature dimensions with the LLM's text token embedding space, allowing visual tokens to be prepended directly into\nthe LLM context.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 103,
+    "question": "What is Semantic Segmentation vs Instance Segmentation vs Panoptic Segmentation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Semantic: Labels every pixel by class without distinguishing instances (all cars are one color).\nInstance: Identifies and segments individual objects of distinct instances. Panoptic: Combines semantic and instance\nsegmentation (stuff + things).\nSECTION 9: Reinforcement Learning, Benchmarks & AI Hardware\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 13 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 104,
+    "question": "What is Markov Decision Process (MDP) and the Bellman Equation?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: An MDP is defined by (States S, Actions A, Transition Probabilities P, Rewards R, Discount Factor\ngamma). The Bellman Equation expresses value V(s) recursively as the immediate reward plus discounted expected value\nof successor states: V(s) = max_a [ R(s,a) + gamma * sum( P(s'|s,a) * V(s') ) ].",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 105,
+    "question": "What is the difference between Q-Learning and Policy Gradient methods?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Q-Learning is value-based (learns optimal action-value Q(s,a) and derives policy via argmax Q). Policy\nGradients (REINFORCE, PPO) parameterize policy pi(a|s) directly and optimize expected reward via gradient ascent,\nhandling continuous action spaces.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 106,
+    "question": "Explain PPO (Proximal Policy Optimization) and Clipped Surrogate Objective.",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: PPO stabilizes policy gradient training by clipping the probability ratio r_t(theta) = pi_theta(a|s) /\npi_old(a|s) within [1-epsilon, 1+epsilon], preventing destructively large policy updates in a single training step.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 107,
+    "question": "What are the standard LLM Evaluation Benchmarks (MMLU, GSM8K, HumanEval)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: MMLU: 57-subject multidisciplinary factual knowledge. GSM8K: Grade-school multi-step mathematical\nreasoning. HumanEval: Python programming problem solving. MT-Bench / LMSYS Chatbot Arena: Conversational quality\nand human preference Elo.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 108,
+    "question": "What is Memory Bandwidth Bottleneck (Memory-bound vs Compute-bound) in LLM Inference?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Autoregressive token generation loads gigabytes of weights from GPU HBM memory for every single\ntoken forward pass, making inference memory-bandwidth bound rather than compute (TFLOPS) bound. Techniques like\nquantization and continuous batching alleviate this.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 109,
+    "question": "What is the difference between NVIDIA Tensor Cores, FP8 precision, and Groq LPU?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: Tensor Cores perform mixed-precision matrix multiply-accumulate (MMA) in hardware. FP8 halves\nmemory footprint and doubles compute throughput over FP16. Groq LPU (Language Processing Unit) uses deterministic\nSRAM architecture without external DRAM latency.",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
+  },
+  {
+    "q_number": 110,
+    "question": "What is Data Parallelism (DDP) vs ZeRO (Zero Redundancy Optimizer)?",
+    "context": "Sales playbook strategy from AI_ML_Interview_Master_100_Questions.pdf",
+    "pitch": "Context / Answer: DDP replicates model weights, gradients, and optimizer states across all GPUs. ZeRO partitions\noptimizer states (ZeRO-1), gradients (ZeRO-2), and model parameters (ZeRO-3) across GPUs, eliminating memory\nredundancy and enabling training of trillion-parameter models.\nXORTLOGIX AI / ML MASTER INTERVIEW BIBLE — 105+ Q&A\nCONFIDENTIAL & PROPRIETARY\nGenerated for Sales Co-Pilot & AI Engineering Interviews | XortLogix Technologies\nPage 14 of 14",
+    "source": "AI_ML_Interview_Master_100_Questions.pdf"
   }
 ];

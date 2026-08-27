@@ -243,9 +243,9 @@ def save_document_chunks(
     count = 0
     try:
         for idx, ch in enumerate(chunks):
-            title = ch.get("title") or f"Strategy Chunk #{idx+1}"
-            text_content = ch.get("text") or ch.get("full_text") or ""
-            strategy_pitch = ch.get("pitch") or ch.get("strategy_pitch") or text_content
+            title = ch.get("title") or ch.get("question") or f"Strategy Chunk #{idx+1}"
+            text_content = ch.get("text") or ch.get("full_text") or ch.get("pitch") or ch.get("strategy_pitch") or ""
+            strategy_pitch = ch.get("pitch") or ch.get("strategy_pitch") or ch.get("response") or text_content
             context = ch.get("context") or "Custom sales closing strategy."
 
             cursor.execute("""

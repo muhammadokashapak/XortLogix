@@ -885,6 +885,8 @@ class RAGEngine:
             "success": True,
             "filename": filename,
             "total_chunks": len(self.documents),
+            "chunks_count": len(self.documents),
+            "extracted_cards": len(self.documents),
             "uploaded_at": self.active_document_uploaded_at,
             "preview": self.get_all_battlecards()[:5]
         }
@@ -907,10 +909,14 @@ class RAGEngine:
 
     def get_knowledge_metadata(self) -> Dict[str, Any]:
         """Returns metadata about the active playbook."""
+        is_custom = (
+            "zoom.pdf" not in self.active_document_name.lower() or 
+            self.active_document_uploaded_at is not None
+        )
         return {
             "active_document": self.active_document_name,
             "total_chunks": len(self.documents),
-            "is_custom": self.active_document_uploaded_at is not None,
+            "is_custom": is_custom,
             "uploaded_at": self.active_document_uploaded_at
         }
 

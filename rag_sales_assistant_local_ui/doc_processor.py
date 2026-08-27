@@ -115,22 +115,22 @@ class DocumentProcessor:
         cards = []
 
         # 1. Check for Structured Q&A / Objection Blocks
-        split_pattern = r'(?=(?:^|\n)\s*(?:Q\d+\.?|Q\s*:|Question\b|Objection\b|Scenario\b|Client\s+(?:says|asks|demands|requires)\b))'
+        split_pattern = r'(?=(?:^|\n)\s*(?:Q\d+[\.:]?|Q\s*:|Question(?:\s*\d+)?[\.:]?|Objection(?:\s*\d+)?[\.:]?|Scenario(?:\s*\d+)?[\.:]?|Client\s+(?:says|asks|demands|requires)[\.:]?))'
         raw_blocks = [b.strip() for b in re.split(split_pattern, clean_text, flags=re.IGNORECASE) if b.strip()]
 
-        if len(raw_blocks) >= 2:
+        if len(raw_blocks) >= 1:
             card_id = 1
             for block in raw_blocks:
-                if not re.match(r'^(?:Q\d+\.?|Q\s*:|Question\b|Objection\b|Scenario\b|Client\s+(?:says|asks|demands|requires)\b)', block, re.IGNORECASE):
+                if not re.match(r'^(?:Q\d+[\.:]?|Q\s*:|Question(?:\s*\d+)?[\.:]?|Objection(?:\s*\d+)?[\.:]?|Scenario(?:\s*\d+)?[\.:]?|Client\s+(?:says|asks|demands|requires)[\.:]?)', block, re.IGNORECASE):
                     continue
 
-                sub_m = re.search(r'^(?:Q\d+\.?|Q\s*:|Question(?:\s*\d+)?:?|Objection(?:\s*\d+)?:?|Scenario(?:\s*\d+)?:?|Client\s+(?:says|asks|demands|requires):?)\s*(.+?)\n+(?:Context\s*/\s*Rationale|Context|Background|Why)\s*\n+(.+?)\n+(?:Exact\s*Strategy\s*/\s*Pitch|Pitch|Strategy|Response|Answer|Solution)\s*\n+(.+)', block, re.DOTALL | re.IGNORECASE)
+                sub_m = re.search(r'^(?:Q\d+[\.:]?|Q\s*:|Question(?:\s*\d+)?[\.:]?|Objection(?:\s*\d+)?[\.:]?|Scenario(?:\s*\d+)?[\.:]?|Client\s+(?:says|asks|demands|requires)[\.:]?)\s*(.+?)\n+(?:Context\s*/\s*Rationale|Context|Background|Why)[\.:]?\s*\n+(.+?)\n+(?:Exact\s*Strategy\s*/\s*Pitch|Pitch|Strategy|Response|Answer|Solution)[\.:]?\s*\n+(.+)', block, re.DOTALL | re.IGNORECASE)
                 if sub_m:
                     q_text = sub_m.group(1).strip()
                     context_text = sub_m.group(2).strip()
                     pitch_text = sub_m.group(3).strip()
                 else:
-                    sub_m2 = re.search(r'^(?:Q\d+\.?|Question(?:\s*\d+)?:?|Objection(?:\s*\d+)?:?|Scenario(?:\s*\d+)?:?|Client(?:\s*says)?:?)\s*(.+?)\n+(?:Answer:?|Pitch:?|Response:?|Strategy:?|Solution:?)\s*\n+(.+)', block, re.DOTALL | re.IGNORECASE)
+                    sub_m2 = re.search(r'^(?:Q\d+[\.:]?|Q\s*:|Question(?:\s*\d+)?[\.:]?|Objection(?:\s*\d+)?[\.:]?|Scenario(?:\s*\d+)?[\.:]?|Client(?:\s*says)?[\.:]?)\s*(.+?)\n+(?:Answer|A\s*:|Pitch|Response|Strategy|Solution)[\.:]?\s*\n+(.+)', block, re.DOTALL | re.IGNORECASE)
                     if sub_m2:
                         q_text = sub_m2.group(1).strip()
                         pitch_text = sub_m2.group(2).strip()
@@ -138,8 +138,10 @@ class DocumentProcessor:
                     else:
                         lines = [line.strip() for line in block.split("\n") if line.strip()]
                         if len(lines) >= 2:
-                            q_text = re.sub(r'^(?:Q\d+\.?|Question(?:\s*\d+)?:?|Objection(?:\s*\d+)?:?|Scenario(?:\s*\d+)?:?|Client(?:\s*says)?:?)\s*', '', lines[0], flags=re.IGNORECASE).strip()
+                            q_text = re.sub(r'^(?:Q\d+[\.:]?|Q\s*:|Question(?:\s*\d+)?[\.:]?|Objection(?:\s*\d+)?[\.:]?|Scenario(?:\s*\d+)?[\.:]?|Client(?:\s*says)?[\.:]?)\s*', '', lines[0], flags=re.IGNORECASE).strip()
                             pitch_text = "\n".join(lines[1:]).strip()
+                            # Clean leading Answer: or A: if present in pitch
+                            pitch_text = re.sub(r'^(?:Answer|A\s*:|Pitch|Response|Strategy|Solution)[\.:]?\s*', '', pitch_text, flags=re.IGNORECASE).strip()
                             context_text = f"Sales playbook strategy from {source_filename}"
                         else:
                             continue
@@ -155,10 +157,10 @@ class DocumentProcessor:
                     card_id += 1
 
         # 2. Numbered Items / Rules / Chapters / Strategies (e.g. 1. , 2. , 1) , Rule 1: , Chapter 1:)
-        if len(cards) < 2:
+        if len(cards) == 0:
             num_pattern = r'(?=(?:^|\n)\s*(?:\d+[\.\)]\s+|Rule\s*\d+:?|Strategy\s*\d+:?|Tip\s*\d+:?|Step\s*\d+:?|Section\s*\d+:?|Chapter\s*\d+:?|Module\s*\d+:?|Topic\s*\d+:?))'
             num_blocks = [b.strip() for b in re.split(num_pattern, clean_text, flags=re.IGNORECASE) if b.strip() and len(b.strip()) >= 10]
-            if len(num_blocks) >= 2:
+            if len(num_blocks) >= 1:
                 card_id = 1
                 for nb in num_blocks:
                     lines = [l.strip() for l in nb.split("\n") if l.strip()]
@@ -177,10 +179,10 @@ class DocumentProcessor:
                         card_id += 1
 
         # 3. Markdown Headers (# Header, ## Section)
-        if len(cards) < 2:
+        if len(cards) == 0:
             header_blocks = re.split(r'(?:^|\n)(?=#{1,4}\s+)', clean_text)
             header_blocks = [hb.strip() for hb in header_blocks if hb.strip() and len(hb.strip()) >= 10]
-            if len(header_blocks) >= 2:
+            if len(header_blocks) >= 1:
                 card_id = 1
                 for hb in header_blocks:
                     lines = [l.strip() for l in hb.split("\n") if l.strip()]
@@ -197,14 +199,14 @@ class DocumentProcessor:
                         card_id += 1
 
         # 4. Bullet Points & List Items (• , - , * , ▪ , ►)
-        if len(cards) < 2:
+        if len(cards) == 0:
             bullet_pattern = r'(?:^|\n)\s*[•\-\*▪►–]\s+(.+)'
             bullet_matches = re.findall(bullet_pattern, clean_text)
-            if len(bullet_matches) >= 3:
+            if len(bullet_matches) >= 1:
                 card_id = 1
                 for bm in bullet_matches:
                     bm_clean = bm.strip()
-                    if len(bm_clean) > 25:
+                    if len(bm_clean) > 20:
                         parts = bm_clean.split(":", 1)
                         if len(parts) == 2 and len(parts[0]) < 60:
                             q_text = parts[0].strip()
@@ -223,9 +225,9 @@ class DocumentProcessor:
                         card_id += 1
 
         # 5. Universal High-Resolution Sliding Semantic Window Chunker (80-140 words per chunk)
-        if len(cards) < 2:
+        if len(cards) == 0:
             words = clean_text.split()
-            if len(words) > 40:
+            if len(words) >= 15:
                 target_chunk_size = 90
                 overlap = 20
                 i = 0
@@ -251,12 +253,12 @@ class DocumentProcessor:
                         break
                     i += (target_chunk_size - overlap)
 
-        # Fallback if text is very short (<40 words)
+        # Fallback if text is very short (<15 words)
         if not cards:
             cards.append({
                 "q_number": 1,
-                "question": sanitize_unicode(f"Playbook Summary: {source_filename}"),
-                "context": f"Uploaded document {source_filename}",
+                "question": sanitize_unicode(f"Playbook Strategy: {source_filename}"),
+                "context": f"Uploaded strategy document {source_filename}",
                 "pitch": sanitize_unicode(clean_text[:1200]),
                 "source": sanitize_unicode(source_filename)
             })

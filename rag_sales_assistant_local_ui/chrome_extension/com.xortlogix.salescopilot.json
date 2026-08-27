@@ -1,0 +1,9 @@
+{
+  "name": "com.xortlogix.salescopilot",
+  "description": "Sales Co-Pilot AI Native Messaging Host",
+  "path": "native_host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://*"
+  ]
+}

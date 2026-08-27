@@ -378,7 +378,7 @@ function createOverlay() {
     <div class="widget-header" id="dragHeader">
       <div class="header-left">
         <div class="pulse-dot"></div>
-        <span class="header-title">Sales Co-Pilot</span>
+        <span class="header-title">XOrtLogix Co-Pilot</span>
         <span class="badge-groq">Groq Turbo</span>
       </div>
       <div class="header-controls">

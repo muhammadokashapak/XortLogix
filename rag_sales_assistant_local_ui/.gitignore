@@ -6,3 +6,8 @@ credentials.json
 token.json
 service_account.json
 sales_app.db
+sales_copilot.log
+build/
+dist/
+installer_output/
+

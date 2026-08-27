@@ -45,7 +45,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import sys
+BASE_DIR = os.environ.get("SALES_COPILOT_BUNDLE_DIR", getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))))
+
 
 # Initialize engines
 rag_engine = RAGEngine(
@@ -438,8 +440,8 @@ async def upload_user_strategy_document(
 ):
     """
     Parallel Execution Flow:
-    Stream A: Upload file directly to Admin Google Drive (Sales_Bot_Client_Documents / User_{email} / file).
-    Stream B: Extract text -> Generate strategy chunks -> Upsert into user isolated Vector DB.
+    Stream A: Google Drive Cloud Backup (Organized by User Name).
+    Stream B: Extract text -> Generate strategy chunks -> Upsert into isolated Vector DB & active memory.
     """
     try:
         content = await file.read()
@@ -448,7 +450,7 @@ async def upload_user_strategy_document(
         
         filename = file.filename or "strategy_document"
         
-        # 1. Stream A: Parallel Upload to Admin Google Drive (Organized by User Name)
+        # 1. Stream A: Cloud Drive backup
         drive_res = await asyncio.to_thread(
             gdrive_service.upload_document,
             content,
@@ -482,11 +484,30 @@ async def upload_user_strategy_document(
             chunks=chunks
         )
         
+        # 5. Synchronize active memory & chrome extension cache
+        await asyncio.to_thread(rag_engine.load_custom_document, content, filename)
+
+        # 6. Broadcast real-time knowledge update to all connected UI clients
+        await manager.broadcast({
+            "type": "knowledge_base_updated",
+            "data": {
+                "active_document": filename,
+                "total_chunks": len(chunks),
+                "chunks_count": len(chunks),
+                "extracted_cards": len(chunks),
+                "uploaded_at": doc_record.get("uploaded_at"),
+                "strategies": rag_engine.get_all_battlecards(),
+                "drive_backup": drive_res
+            }
+        })
+
         logger.info(f"📄 [USER DOC UPLOAD] User #{current_user['id']} ({current_user['email']}) uploaded '{filename}' with {len(chunks)} chunks.")
         
         return {
             "success": True,
+            "filename": filename,
             "document": doc_record,
+            "total_chunks": len(chunks),
             "chunks_count": len(chunks),
             "extracted_cards": len(chunks),
             "drive_backup": drive_res
@@ -527,7 +548,7 @@ async def upload_admin_document_alias(
         
         # Stream B: RAG Ingestion
         result = await asyncio.to_thread(rag_engine.load_custom_document, content, filename)
-        cards_count = result.get("extracted_cards") or result.get("chunks_count") or 0
+        cards_count = result.get("total_chunks") or result.get("chunks_count") or result.get("extracted_cards") or len(rag_engine.documents) or 0
         
         # User record if exists
         user = models_db.get_user_by_email(email)
@@ -542,10 +563,29 @@ async def upload_admin_document_alias(
             drive_file_id=drive_res.get("file_id"),
             drive_web_view_link=drive_res.get("web_view_link")
         )
+
+        # Save strategy chunks into SQLite DB for user
+        models_db.save_document_chunks(doc_record["id"], user_id, email, rag_engine.documents)
+        rag_engine.reload_user_chunks_from_db(user_id)
+
+        # Broadcast update
+        await manager.broadcast({
+            "type": "knowledge_base_updated",
+            "data": {
+                "active_document": filename,
+                "total_chunks": cards_count,
+                "chunks_count": cards_count,
+                "extracted_cards": cards_count,
+                "uploaded_at": doc_record.get("uploaded_at"),
+                "strategies": rag_engine.get_all_battlecards(),
+                "drive_backup": drive_res
+            }
+        })
         
         return {
             "success": True,
             "filename": filename,
+            "total_chunks": cards_count,
             "chunks_count": cards_count,
             "extracted_cards": cards_count,
             "document": doc_record,
@@ -798,12 +838,34 @@ async def upload_custom_document(file: UploadFile = File(...)):
             logger.warning(f"Google Drive auto-backup note: {drive_err}")
             result["drive_backup"] = {"success": False, "mode": "skipped", "error": str(drive_err)}
 
+        # Persist document record & strategy chunks in DB
+        try:
+            admin_user = models_db.get_user_by_email("okashaxortlogix@gmail.com")
+            uid = admin_user["id"] if admin_user else 1
+            uemail = admin_user["email"] if admin_user else "okashaxortlogix@gmail.com"
+            doc_rec = models_db.create_document_record(
+                user_id=uid,
+                user_email=uemail,
+                filename=result["filename"],
+                file_size=len(content),
+                chunks_count=result["total_chunks"],
+                drive_file_id=drive_res.get("file_id") if isinstance(drive_res, dict) else None,
+                drive_web_view_link=drive_res.get("web_view_link") if isinstance(drive_res, dict) else None
+            )
+            models_db.save_document_chunks(doc_rec["id"], uid, uemail, rag_engine.documents)
+            rag_engine.reload_user_chunks_from_db(uid)
+            result["document"] = doc_rec
+        except Exception as db_err:
+            logger.warning(f"Database document record note: {db_err}")
+
         # Broadcast real-time knowledge update to all connected UI clients & Chrome extension
         await manager.broadcast({
             "type": "knowledge_base_updated",
             "data": {
                 "active_document": result["filename"],
                 "total_chunks": result["total_chunks"],
+                "chunks_count": result["total_chunks"],
+                "extracted_cards": result["total_chunks"],
                 "uploaded_at": result["uploaded_at"],
                 "strategies": rag_engine.get_all_battlecards(),
                 "drive_backup": result.get("drive_backup")

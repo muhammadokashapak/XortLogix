@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sales Voice Co-Pilot | Simple Live Assistant</title>
+  <title>XOrtLogix Sales Co-Pilot AI</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+  <link rel="icon" type="image/png" href="/static/logo.png" />
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -26,8 +28,8 @@
       <!-- Row 1: Brand on Left, User Profile on Upper Right Corner -->
       <div class="header-top-row">
         <div class="brand">
-          <div class="brand-dot"></div>
-          <span class="brand-title">SALES CO-PILOT AI</span>
+          <img src="/static/logo.png" alt="XOrtLogix Logo" style="height: 28px; width: 28px; object-fit: contain; margin-right: 8px; vertical-align: middle;" />
+          <span class="brand-title">XOrtLogix Sales Co-Pilot</span>
           <span class="badge-status" id="statusPill">🟢 Online</span>
         </div>
 
@@ -92,7 +94,7 @@
       <button class="nav-tab" id="tabChunkManager" onclick="switchMainView('chunks')">
         <i class="fa-solid fa-layer-group"></i> <span>Custom Chunks (<span id="userChunksCount">0</span>)</span>
       </button>
-      <button class="nav-tab admin-only" id="tabAdminDashboard" onclick="switchMainView('admin')" style="display: none;">
+      <button class="nav-tab admin-only" id="tabAdminDashboard" onclick="switchMainView('admin')" style="display: none !important;">
         <i class="fa-solid fa-crown text-amber"></i> <span>Admin Dashboard</span>
       </button>
     </div>
@@ -147,7 +149,7 @@
         </div>
 
         <!-- Quick Intent Presets -->
-        <div class="intent-presets">
+        <div class="intent-presets" id="intentPresetsContainer">
           <span class="preset-label"><i class="fa-solid fa-bolt"></i> Quick Scenarios:</span>
           <button class="preset-chip" data-intent="Your price is too high, freelancers are offering $500">💰 Price Resistance</button>
           <button class="preset-chip" data-intent="Can we get a 20% discount if we sign this week?">🏷️ Discount Negotiation</button>
@@ -189,13 +191,13 @@
           <input type="file" id="userFileInput" accept=".pdf,.docx,.doc,.txt,.md,.csv" style="display:none;" onchange="handleUserFileUpload(event)" />
           <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
           <div class="dropzone-title">Upload Strategy Document (.PDF, .DOCX, .TXT, .CSV)</div>
-          <div class="dropzone-sub">Files are automatically backed up to <strong>Admin Google Drive</strong> & indexed into your isolated Vector DB</div>
+          <div class="dropzone-sub">Aapka document automatically high-precision strategy chunks mein convert ho kar Vector DB mein active ho jata hai</div>
           <button class="btn-clean primary-glow" style="margin-top: 10px;">Select Document</button>
         </div>
 
         <div class="upload-progress-box" id="userUploadProgressBox" style="display: none;">
           <div class="progress-info">
-            <span id="userUploadStatusText"><i class="fa-solid fa-spinner fa-spin"></i> Uploading & parsing chunks...</span>
+            <span id="userUploadStatusText"><i class="fa-solid fa-spinner fa-spin"></i> Aapka document chunks mein convert ho raha hai...</span>
             <span id="userUploadPercent">100%</span>
           </div>
           <div class="progress-bar-track">
@@ -667,23 +669,6 @@
           <div id="playbookUploadMsg"></div>
         </div>
 
-        <!-- Chunks Explorer -->
-        <div id="playbookChunksSection" style="margin-top:18px; border-top:1px solid rgba(56,189,248,0.2); padding-top:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <span style="font-size:12px; font-weight:700; color:#f8fafc; text-transform:uppercase; letter-spacing:0.5px;">
-              <i class="fa-solid fa-layer-group" style="color:#38bdf8;"></i> Active Strategy Chunks
-            </span>
-            <span id="chunksVectorStatusBadge" style="font-size:11px; background:rgba(16,185,129,0.2); color:#10b981; padding:2px 8px; border-radius:9999px; font-weight:700;">ChromaDB Indexed</span>
-          </div>
-          <div style="display:flex; gap:8px; margin-bottom:12px;">
-            <input type="text" id="txtTestChunkQuery" placeholder="Type test objection (e.g. discount, timeline, NDA)..." onkeydown="if(event.key==='Enter') testChunkRetrieval()" style="flex:1; background:rgba(15,23,42,0.6); border:1px solid rgba(56,189,248,0.3); border-radius:8px; padding:8px 12px; font-size:12px; color:#f8fafc;" />
-            <button onclick="testChunkRetrieval()" style="background:rgba(56,189,248,0.2); border:1px solid rgba(56,189,248,0.4); color:#38bdf8; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer;">
-              <i class="fa-solid fa-magnifying-glass"></i> Test
-            </button>
-          </div>
-          <div id="testChunkResultBox" style="display:none; padding:10px 14px; border-radius:8px; margin-bottom:10px; font-size:12px;"></div>
-          <div id="playbookChunksList" style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:4px;"></div>
-        </div>
 
       </div>
     </div>
@@ -761,14 +746,14 @@
 
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Parsing & Generating Embeddings...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Converting into Chunks & Embeddings...';
       }
       if (resultBox && resultMsg) {
         resultBox.style.display = 'block';
         resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
         resultBox.style.border = '1px solid rgba(56, 189, 248, 0.4)';
         resultBox.style.color = '#38bdf8';
-        resultMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading & chunking <strong>' + escapeHtml(file.name) + '</strong>...';
+        resultMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Aapka document chunks mein convert ho raha hai (<strong>' + escapeHtml(file.name) + '</strong>)...';
       }
 
       try {
@@ -791,12 +776,13 @@
         }
 
         if (res.ok && data.success) {
+          var totalChunksCount = data.total_chunks || data.chunks_count || data.extracted_cards || 0;
           if (resultBox && resultMsg) {
             resultBox.style.display = 'block';
             resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
             resultBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
             resultBox.style.color = '#10b981';
-            resultMsg.innerHTML = '🎉 <strong>Success!</strong> Activated <strong>' + escapeHtml(data.filename) + '</strong> with <strong>' + data.total_chunks + ' strategy chunks</strong>. Embeddings are live!';
+            resultMsg.innerHTML = '🎉 <strong>Success!</strong> Aapka document <strong>' + escapeHtml(data.filename) + '</strong> successfully <strong>' + totalChunksCount + ' strategy chunks</strong> mein convert ho gaya hai!';
           }
           fetchPlaybookStatus();
           if (typeof loadUserChunks === 'function') loadUserChunks();
@@ -1166,7 +1152,7 @@
       </div>
 
       <div class="auth-footer-note">
-        <i class="fa-solid fa-shield-halved text-cyan"></i> Isolated Multi-Tenant Vector DB + Automated Admin Google Drive Backup
+        <i class="fa-solid fa-shield-halved text-cyan"></i> Isolated Multi-Tenant Vector DB + Intelligent Real-Time Strategy Chunker
       </div>
     </div>
   </div>

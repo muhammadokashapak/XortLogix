@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Sales Co-Pilot",
+  "name": "XOrtLogix Sales Co-Pilot",
   "version": "1.0.0",
-  "description": "Real-time sales strategy assistant for live meetings",
+  "description": "XOrtLogix Real-Time AI Sales Assistant & Objection Battlecard HUD",
   "permissions": [
     "tabCapture",
     "offscreen",
