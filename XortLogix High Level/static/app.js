@@ -22,6 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements - App & Sidebar
     const appView = document.getElementById('app-view');
     const sidebar = document.getElementById('sidebar');
+    const modelSelector = document.getElementById('model-selector');
+    if (modelSelector) {
+        const savedModel = localStorage.getItem('selected_model');
+        if (savedModel) {
+            modelSelector.value = savedModel;
+        }
+        modelSelector.addEventListener('change', () => {
+            localStorage.setItem('selected_model', modelSelector.value);
+        });
+    }
     const sidebarOverlay = document.getElementById('sidebar-overlay');
     const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
     const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
@@ -1552,7 +1562,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     conversation_id: currentConversationId,
                     top_k: appSettings.topK,
                     api_key: localStorage.getItem('gemini_api_key') || appSettings.apiKey || '',
-                    attachments: attachmentsToSend
+                    attachments: attachmentsToSend,
+                    selected_model: modelSelector ? modelSelector.value : (localStorage.getItem('selected_model') || 'gemini-2.0-flash')
                 })
             });
 

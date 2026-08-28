@@ -235,6 +235,17 @@
                     </div>
                 </div>
                 <div class="header-right">
+                    <!-- Model Selector Dropdown (ChatGPT & Antigravity Style) -->
+                    <div class="model-selector-container">
+                        <select id="model-selector" class="model-selector-dropdown" title="Select AI Model">
+                            <option value="gemini-2.0-flash">⚡ Gemini 2.0 Flash</option>
+                            <option value="gemini-1.5-flash">🚀 Gemini 1.5 Flash</option>
+                            <option value="gemini-1.5-pro">🧠 Gemini 1.5 Pro</option>
+                            <option value="gemini-2.0-flash-exp">🧪 Gemini 2.0 Flash Exp</option>
+                            <option value="auto">🔄 Auto (Smart Fallback)</option>
+                        </select>
+                    </div>
+
                     <button class="header-action-btn danger-btn-subtle hidden" id="header-delete-btn" title="Delete current conversation" aria-label="Delete chat">
                         <span class="btn-icon">🗑️</span>
                         <span class="btn-label">Delete Chat</span>

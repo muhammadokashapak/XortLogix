@@ -267,6 +267,7 @@ class ChatRequest(BaseModel):
     top_k: Optional[int] = 1
     api_key: Optional[str] = None
     attachments: Optional[List[AttachmentItem]] = []
+    selected_model: Optional[str] = "gemini-2.0-flash"
 
 class ChatResponse(BaseModel):
     answer: str
@@ -651,6 +652,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
             contents_payload = [types.Part.from_text(text=final_prompt_text)] + gemini_parts
 
             client_gemini = genai.Client(api_key=api_key)
+            pref_model = (getattr(request, 'selected_model', 'gemini-2.0-flash') or 'gemini-2.0-flash').strip()
             
             # Dynamic Model Discovery from Google API
             discovered_models = []
@@ -672,6 +674,13 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                 "gemini-1.5-pro",
                 "gemini-1.5-pro-latest"
             ]
+            
+            # Prioritize user selected model if not set to auto
+            if pref_model and pref_model != "auto":
+                if pref_model in fallback_models:
+                    fallback_models.remove(pref_model)
+                fallback_models.insert(0, pref_model)
+
             # Deduplicate preserving order
             fallback_models = list(dict.fromkeys(fallback_models))
 
