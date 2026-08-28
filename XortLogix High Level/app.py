@@ -651,14 +651,32 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
             contents_payload = [types.Part.from_text(text=final_prompt_text)] + gemini_parts
 
             client_gemini = genai.Client(api_key=api_key)
-            fallback_models = [
+            
+            # Dynamic Model Discovery from Google API
+            discovered_models = []
+            try:
+                models_pager = client_gemini.models.list()
+                for m in models_pager:
+                    m_name = getattr(m, 'name', '') or str(m)
+                    clean_m = m_name.replace('models/', '').strip()
+                    if clean_m and 'gemini' in clean_m.lower() and clean_m not in discovered_models:
+                        discovered_models.append(clean_m)
+            except Exception as e_list:
+                print(f"ℹ️ Model discovery list note: {e_list}")
+
+            fallback_models = discovered_models + [
                 "gemini-2.0-flash",
                 "gemini-1.5-flash",
-                "gemini-1.5-pro"
+                "gemini-1.5-flash-latest",
+                "gemini-2.0-flash-exp",
+                "gemini-1.5-pro",
+                "gemini-1.5-pro-latest"
             ]
+            # Deduplicate preserving order
+            fallback_models = list(dict.fromkeys(fallback_models))
 
             full_text = ""
-            used_model = "gemini-2.0-flash"
+            used_model = fallback_models[0] if fallback_models else "gemini-2.0-flash"
             stream_success = False
             last_error = ""
 
@@ -708,7 +726,14 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
 
             if not stream_success or not full_text:
                 err_detail = f" Details: `{last_error}`" if last_error else ""
-                error_msg = f"⚠️ I was unable to reach the AI model service.{err_detail}\n\nPlease check your Gemini API key in Settings or environment variables."
+                
+                # Check for 404 NOT_FOUND model error pattern
+                if "404" in last_error or "NOT_FOUND" in last_error:
+                    help_text = "\n\n💡 **Diagnosis**: Google returned 404 NOT_FOUND. This usually means the **Generative Language API** is disabled for this API key in Google Cloud Console, or the API key lacks model access permissions. Please ensure your key is created in [Google AI Studio](https://aistudio.google.com/) with Gemini API access enabled."
+                else:
+                    help_text = "\n\nPlease check your Gemini API key in Settings or environment variables."
+
+                error_msg = f"⚠️ I was unable to reach the AI model service.{err_detail}{help_text}"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': error_msg})}\n\n"
                 db.add_message(conv_id, user['id'], 'assistant', error_msg, sources=[])
                 yield f"data: {json.dumps({'type': 'done', 'model': 'error-fallback', 'elapsed_ms': 0, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
