@@ -71,7 +71,7 @@ class RAGSearchResponse(BaseModel):
     sources: List[str]
     query_time_ms: float
     top_k: int
-    model: str = "gemini-2.5-flash"
+    model: str = "gemini-2.0-flash"
 
 @app.get("/health")
 async def health_check():
@@ -80,7 +80,7 @@ async def health_check():
         "service": "python-rag-microservice",
         "chunks": 5379,
         "embedding_model": "nomic-embed-text-v1.5",
-        "llm_model": "gemini-2.5-flash"
+        "llm_model": "gemini-2.0-flash"
     }
 
 @app.post("/api/rag-search", response_model=RAGSearchResponse)
@@ -168,11 +168,11 @@ User Query: {user_query}
 
 Answer:"""
 
-        # 3. Gemini Generation with primary model gemini-flash-latest
+        # 3. Gemini Generation with primary model gemini-2.0-flash
         client_gemini = genai.Client(api_key=api_key)
         try:
             response = client_gemini.models.generate_content(
-                model='gemini-flash-latest',
+                model='gemini-2.0-flash',
                 contents=prompt,
             )
             answer_text = response.text
@@ -186,7 +186,7 @@ Answer:"""
             sources=[],
             query_time_ms=elapsed_ms,
             top_k=top_k,
-            model="gemini-flash-latest"
+            model="gemini-2.0-flash"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

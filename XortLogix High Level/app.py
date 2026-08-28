@@ -312,7 +312,7 @@ async def get_system_status():
         "total_chunks": count,
         "collection": "ghl_knowledge_base",
         "embedding_model": "nomic-embed-text-v1.5",
-        "gemini_model": "gemini-2.5-flash",
+        "gemini_model": "gemini-2.0-flash",
         "has_default_key": bool(get_default_api_key() and get_default_api_key() != "YOUR_GEMINI_API_KEY_HERE")
     }
 
@@ -652,15 +652,15 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
 
             client_gemini = genai.Client(api_key=api_key)
             fallback_models = [
-                "gemini-2.5-flash",
                 "gemini-2.0-flash",
                 "gemini-1.5-flash",
-                "gemini-flash-latest"
+                "gemini-1.5-pro"
             ]
 
             full_text = ""
-            used_model = "gemini-2.5-flash"
+            used_model = "gemini-2.0-flash"
             stream_success = False
+            last_error = ""
 
             gen_config = types.GenerateContentConfig(
                 temperature=0.2,
@@ -684,6 +684,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                         stream_success = True
                         break
                 except Exception as e_stream:
+                    last_error = str(e_stream)
                     print(f"ℹ️ Stream model {mod_name} error: {e_stream}, trying next fallback...")
                     full_text = ""
 
@@ -702,10 +703,12 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
                             stream_success = True
                             break
                     except Exception as e_gen:
+                        last_error = str(e_gen)
                         print(f"ℹ️ Generate content error on {mod_name}: {e_gen}")
 
             if not stream_success or not full_text:
-                error_msg = "⚠️ I was unable to reach the AI model service. Please check your Gemini API key in Settings or try again in a few moments."
+                err_detail = f" Details: `{last_error}`" if last_error else ""
+                error_msg = f"⚠️ I was unable to reach the AI model service.{err_detail}\n\nPlease check your Gemini API key in Settings or environment variables (Google Gemini API keys must start with `AIzaSy`)."
                 yield f"data: {json.dumps({'type': 'chunk', 'text': error_msg})}\n\n"
                 db.add_message(conv_id, user['id'], 'assistant', error_msg, sources=[])
                 yield f"data: {json.dumps({'type': 'done', 'model': 'error-fallback', 'elapsed_ms': 0, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
@@ -734,7 +737,7 @@ async def validate_api_key(req: KeyValidateRequest):
         from google import genai
         client = genai.Client(api_key=key)
         client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents='Ping'
         )
         return {"valid": True, "message": "API key validated successfully."}
