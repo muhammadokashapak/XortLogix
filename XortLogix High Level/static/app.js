@@ -106,10 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmPwdInput = document.getElementById('confirm-pwd-input');
     const savePwdBtn = document.getElementById('save-pwd-btn');
 
-    // API Settings Elements
-    const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
-    const saveApiKeyBtn = document.getElementById('save-api-key-btn');
-    const validateApiKeyBtn = document.getElementById('validate-api-key-btn');
 
     // Rename Modal
     const renameModal = document.getElementById('rename-modal');
@@ -931,51 +927,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Save Gemini API Key Handler
-    if (saveApiKeyBtn) {
-        saveApiKeyBtn.addEventListener('click', () => {
-            const keyVal = geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '';
-            if (!keyVal) {
-                localStorage.removeItem('gemini_api_key');
-                appSettings.apiKey = '';
-                showProfileSuccess('Gemini API key cleared. Server environment key will be used if set.');
-            } else {
-                localStorage.setItem('gemini_api_key', keyVal);
-                appSettings.apiKey = keyVal;
-                showProfileSuccess('Gemini API key saved successfully!');
-            }
-        });
-    }
-
-    // Validate Gemini API Key Handler
-    if (validateApiKeyBtn) {
-        validateApiKeyBtn.addEventListener('click', async () => {
-            const keyVal = geminiApiKeyInput ? geminiApiKeyInput.value.trim() : '';
-            if (!keyVal) {
-                showProfileError('Please enter a Gemini API key to validate.');
-                return;
-            }
-            setBtnLoading(validateApiKeyBtn, true);
-            clearProfileAlerts();
-            try {
-                const res = await authFetch('/api/validate-key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_key: keyVal })
-                });
-                const data = await res.json();
-                setBtnLoading(validateApiKeyBtn, false);
-                if (data.valid) {
-                    showProfileSuccess('✅ API key is valid!');
-                } else {
-                    showProfileError('❌ API key validation failed: ' + (data.message || 'Invalid key'));
-                }
-            } catch (err) {
-                setBtnLoading(validateApiKeyBtn, false);
-                showProfileError('Failed to validate key: ' + err.message);
-            }
-        });
-    }
 
     function setBtnLoading(btn, isLoading) {
         if (!btn) return;
@@ -1570,10 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) {
                 if (animationTimer) clearInterval(animationTimer);
                 const errData = await response.json().catch(() => ({ detail: response.statusText }));
-                contentEl.innerHTML = renderMarkdown(`⚠️ **Error (${response.status}):** ${errData.detail || 'Failed to generate answer. Please check your Gemini API key or login session.'}`);
-                if (response.status === 401 && errData.detail && errData.detail.includes("Gemini API Key")) {
-                    openProfileModal('tab-api');
-                }
+                contentEl.innerHTML = renderMarkdown(`⚠️ **Error (${response.status}):** ${errData.detail || 'Failed to generate answer.'}`);
                 return;
             }
 

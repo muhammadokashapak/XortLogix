@@ -505,7 +505,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
     if not api_key:
         raise HTTPException(
             status_code=401, 
-            detail="Gemini API Key is missing. Please configure your API key in Settings or set GEMINI_API_KEY in environment."
+            detail="Gemini API Key is not configured on server. Please set GEMINI_API_KEY in the server .env file."
         )
     
     start_time = time.time()
