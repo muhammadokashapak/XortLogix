@@ -708,7 +708,7 @@ async def chat_rag_endpoint(request: ChatRequest, user: dict = Depends(get_curre
 
             if not stream_success or not full_text:
                 err_detail = f" Details: `{last_error}`" if last_error else ""
-                error_msg = f"⚠️ I was unable to reach the AI model service.{err_detail}\n\nPlease check your Gemini API key in Settings or environment variables (Google Gemini API keys must start with `AIzaSy`)."
+                error_msg = f"⚠️ I was unable to reach the AI model service.{err_detail}\n\nPlease check your Gemini API key in Settings or environment variables."
                 yield f"data: {json.dumps({'type': 'chunk', 'text': error_msg})}\n\n"
                 db.add_message(conv_id, user['id'], 'assistant', error_msg, sources=[])
                 yield f"data: {json.dumps({'type': 'done', 'model': 'error-fallback', 'elapsed_ms': 0, 'conversation_id': conv_id, 'conversation_title': current_conv_title})}\n\n"
