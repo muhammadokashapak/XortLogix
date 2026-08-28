@@ -1,12 +1,12 @@
 <div align="center">
 
 # ⚡ GoHighLevel (GHL) Enterprise RAG Assistant & Multimodal AI Platform
-### 🚀 Enterprise ChatGPT-Grade AI • Vector Store (5,717 Chunks) • REST API v2 & OAuth 2.0 • Custom Front-End Deliverables • Gemini 3.6/3.7 Flash
+### 🚀 Enterprise ChatGPT-Grade AI • Vector Store (5,717 Chunks) • REST API v2 & OAuth 2.0 • Custom Front-End Deliverables • Gemini 2.5/2.0 Flash
 
 <p align="center">
   <a href="#-key-features"><img src="https://img.shields.io/badge/Status-Production%20Ready-00E676?style=for-the-badge&logo=statuspage&logoColor=black" alt="Status"/></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Gemini_AI-3.7_Flash-8E44AD?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Gemini_AI-2.5_Flash-8E44AD?style=for-the-badge&logo=google&logoColor=white" alt="Gemini"/></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/ChromaDB-5%2C717_Chunks-FF6F00?style=for-the-badge&logo=database&logoColor=white" alt="ChromaDB"/></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastEmbed-Nomic_v1.5-3B82F6?style=for-the-badge&logo=onnx&logoColor=white" alt="FastEmbed"/></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Database-SQLite_WAL_%2B_Turso-0052CC?style=for-the-badge&logo=sqlite&logoColor=white" alt="Database"/></a>
@@ -43,6 +43,11 @@
 * **FastEmbed ONNX Embeddings**: Sub-second query vectorization powered by `nomic-ai/nomic-embed-text-v1.5`.
 * **Hybrid Search + Intent Reranking**: Reciprocal Rank Fusion (RRF) combining dense vector search and exact token entity matching.
 * **Truthful Solutions Architecture**: Provides deep architectural breakdowns (Triggers, Actions, Custom Values, Webhooks, APIs) without generic refusal errors.
+
+### 🛡️ Strict Factual Accuracy & Proposal Generation Engine
+* **Zero-Hallucination Guardrails**: System-level prompt enforcement that strictly prevents fabricated candidate metrics, fake portal counts, or unverified past client claims.
+* **Source Separation Protocol**: Enforces distinct categorization between Verified Candidate Experience, Client Requirements, and Proposed Architecture.
+* **Explicit Placeholder Flagging**: Automatically flags missing candidate parameters as `[CANDIDATE INPUT REQUIRED]`.
 
 ---
 
